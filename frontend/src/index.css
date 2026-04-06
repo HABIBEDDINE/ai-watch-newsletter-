@@ -1,0 +1,107 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+* { box-sizing: border-box; }
+
+/* Smooth momentum scroll on iOS */
+.scroll-touch { -webkit-overflow-scrolling: touch; }
+
+/* ── Grid helpers ── */
+.grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-4col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+/* ── Table horizontal scroll ── */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Stack on mobile ── */
+.stack-mobile { display: flex; }
+
+/* ── Filter chips — wraps on mobile ── */
+.filter-chips { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Pagination bar ── */
+.pagination-bar { display: flex; justify-content: space-between; align-items: center; }
+
+/* ── Article card title + badge row ── */
+.article-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+
+/* ── Stats grid — 3 cols desktop, 1 col mobile ── */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+/* ── Sidebar transition ── */
+.aw-sidebar { transition: transform 0.25s ease; }
+
+/* ── Tablet (≤ 900px) ── */
+@media (max-width: 900px) {
+  .grid-4col { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ── Mobile (≤ 768px) ── */
+@media (max-width: 768px) {
+  .grid-2col   { grid-template-columns: 1fr !important; }
+  .grid-4col   { grid-template-columns: 1fr 1fr !important; }
+  .stack-mobile { flex-direction: column !important; }
+  .hide-mobile  { display: none !important; }
+  .full-mobile  { width: 100% !important; min-width: unset !important; max-width: 100% !important; }
+  .pad-mobile   { padding: 16px !important; }
+
+  /* CTA section */
+  .cta-section  { flex-direction: column !important; align-items: flex-start !important; padding: 20px !important; }
+  .cta-buttons  { width: 100% !important; flex-shrink: unset !important; flex-direction: column !important; }
+  .cta-buttons button { width: 100% !important; flex: unset !important; }
+
+  /* Solutions card grid */
+  .solutions-grid { grid-template-columns: 1fr !important; }
+
+  /* Toast notifications */
+  .aw-toast-wrap { left: 16px !important; right: 16px !important; top: 66px !important; }
+  .aw-toast-item { min-width: unset !important; max-width: 100% !important; width: 100% !important; }
+
+  /* Modals */
+  .modal-inner { width: 96vw !important; max-height: 92vh !important; }
+
+  /* Chart containers */
+  .chart-container { min-height: 200px !important; }
+
+  /* DataPreview page */
+  .data-preview-page { padding: 16px !important; }
+
+  /* Newsletter article pool */
+  .article-pool { max-height: 300px !important; }
+
+  /* Filter chips — wrap instead of scroll on mobile */
+  .filter-chips { flex-wrap: wrap !important; overflow-x: visible !important; }
+
+  /* Stats grid — single column on mobile */
+  .stats-grid { grid-template-columns: 1fr !important; }
+
+  /* Sidebar drawer */
+  .aw-sidebar { position: fixed !important; top: 56px !important; left: 0 !important; width: 210px !important; max-width: 210px !important; height: calc(100vh - 56px) !important; z-index: 200 !important; box-shadow: 4px 0 20px rgba(0,0,0,0.15) !important; padding: 0 !important; }
+  .aw-sidebar-hidden { transform: translateX(-100%) !important; }
+
+  img, video, iframe, embed, object { max-width: 100%; }
+}
+
+/* ── Small mobile (≤ 480px) ── */
+@media (max-width: 480px) {
+  .grid-4col { grid-template-columns: 1fr !important; }
+  .grid-2col { grid-template-columns: 1fr !important; }
+
+  /* Pagination bar stacks vertically */
+  .pagination-bar { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+
+  /* Article card: badge drops below title */
+  .article-card-header { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+}
