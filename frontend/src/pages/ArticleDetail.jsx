@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { getArticle, generateSummary, matchSolutions } from "../services/api";
 import { cleanText } from "../utils/cleanText";
+import { useSaved } from "../hooks/useSaved";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 
 const ACCENT = "#1A4A9E";
 const B = {
@@ -64,6 +66,7 @@ export default function ArticleDetail() {
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchError, setMatchError]   = useState(null);
   const [isMobile, setIsMobile]       = useState(window.innerWidth < 768);
+  const { saved, toggleSave }         = useSaved();
 
   useEffect(() => {
     const fn = () => setIsMobile(window.innerWidth < 768);
@@ -260,10 +263,34 @@ export default function ArticleDetail() {
           )}
         </div>
 
-        {/* Title */}
-        <h1 style={{ fontSize: isMobile ? 20 : 26, fontWeight: 800, color: B.gray900, lineHeight: 1.35, marginBottom: 16, letterSpacing: -0.4 }}>
-          {title}
-        </h1>
+        {/* Title + bookmark */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
+          <h1 style={{ fontSize: isMobile ? 20 : 26, fontWeight: 800, color: B.gray900, lineHeight: 1.35, margin: 0, letterSpacing: -0.4, flex: 1 }}>
+            {title}
+          </h1>
+          <button
+            onClick={() => toggleSave("article", article.id, {
+              title: article.title,
+              category: industry,
+              signal: article.signal_strength,
+              source: article.source,
+              url,
+            })}
+            title={saved.has(String(article.id)) ? "Remove from saved" : "Save article"}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "7px 14px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+              cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
+              ...(saved.has(String(article.id))
+                ? { background: "#E6F1FB", color: "#0C447C", border: "1px solid #85B7EB" }
+                : { background: B.white, color: B.gray500, border: `1px solid ${B.gray200}` }),
+            }}
+          >
+            {saved.has(String(article.id))
+              ? <><BookmarkCheck size={14} strokeWidth={2} /> Saved</>
+              : <><Bookmark size={14} strokeWidth={2} /> Save</>}
+          </button>
+        </div>
 
         {/* Meta */}
         <div style={{ fontSize: 12, color: B.gray400, marginBottom: 28 }}>

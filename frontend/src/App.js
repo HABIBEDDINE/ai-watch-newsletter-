@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Routes, Route, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
-import { getFeed, getRadar, getHealth, setApiToken, clearApiToken } from "./services/api";
+import { getFeed, getRadar, getHealth } from "./services/api";
 import { ArticleProvider } from "./context/ArticleContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { Compass, Lightbulb, BarChart2, FileText, Mail, TrendingUp, PanelLeftClose, PanelLeftOpen, LogOut } from "lucide-react";
+import { Compass, Lightbulb, BarChart2, FileText, Mail, TrendingUp, PanelLeftClose, PanelLeftOpen, LogOut, User, Bookmark } from "lucide-react";
 import Explore from "./pages/Explore";
 import Solutions from "./pages/Solutions";
 import DataPreview from "./pages/DataPreview";
@@ -16,6 +16,9 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+import ProfilePage from "./pages/ProfilePage";
+import SavedPage from "./pages/SavedPage";
 
 const B = {
   purple:      "#1A4A9E",
@@ -337,6 +340,7 @@ export default function AIWatchDXC() {
       <Route path="/register"         element={<RegisterPage />} />
       <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route path="/verify-email"     element={<VerifyEmailPage />} />
       {/* ── Protected app shell ── */}
       <Route path="/*" element={
         <ProtectedRoute>
@@ -358,10 +362,6 @@ function AppShell() {
     navigate('/login');
   };
 
-  // Keep api.js module-level token in sync with AuthContext token
-  useEffect(() => {
-    if (token) setApiToken(token); else clearApiToken();
-  }, [token]);
   const [industryFilter, setIndustryFilter] = useState("all");
   const [expanded, setExpanded] = useState(null);
   const [tick,     setTick]     = useState(0);
@@ -515,9 +515,11 @@ function AppShell() {
     { id:"feed",       label:"News Feed",       path:"/",             Icon: Compass,     desc:"Browse and filter live articles"    },
     { id:"trends",     label:"AI Trends",       path:"/trends",       Icon: TrendingUp,  desc:"Live AI tools & model intelligence"  },
     { id:"radar",      label:"Solutions",       path:"/solutions",    Icon: Lightbulb,   desc:"DXC product recommendations"        },
-    { id:"data",       label:"Data Table",      path:"/data-preview", Icon: BarChart2, desc:"Sort and export article data"       },
-    { id:"reports",    label:"My Reports",      path:"/reports",      Icon: FileText,  desc:"Save and download PDF reports"      },
-    { id:"newsletter", label:"Newsletter",      path:"/newsletter",   Icon: Mail,      desc:"Compose and send intelligence briefs"},
+    { id:"data",       label:"Data Table",      path:"/data-preview", Icon: BarChart2,   desc:"Sort and export article data"       },
+    { id:"reports",    label:"My Reports",      path:"/reports",      Icon: FileText,    desc:"Save and download PDF reports"      },
+    { id:"saved",      label:"Saved Items",     path:"/saved",        Icon: Bookmark,    desc:"Your saved articles and trends"     },
+    { id:"newsletter", label:"Newsletter",      path:"/newsletter",   Icon: Mail,        desc:"Compose and send intelligence briefs"},
+    { id:"profile",    label:"My Profile",      path:"/profile",      Icon: User,        desc:"Edit your name, company and role"   },
   ];
 
   const location = useLocation();
@@ -718,15 +720,26 @@ function AppShell() {
             gap: 10,
             flexShrink: 0,
           }}>
-            {/* Avatar */}
-            <div style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: B.purple, display: "flex", alignItems: "center",
-              justifyContent: "center", fontSize: 13, fontWeight: 700,
-              color: B.white, flexShrink: 0,
-            }}>
+            {/* Avatar — click to profile */}
+            <Link to="/profile" onClick={() => isMobile && setSidebarOpen(false)}
+              title="My Profile"
+              style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: B.purple, display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 13, fontWeight: 700,
+                color: B.white, flexShrink: 0, textDecoration: "none",
+                position: "relative",
+              }}>
               {user?.full_name?.charAt(0)?.toUpperCase() || "U"}
-            </div>
+              {/* unverified dot */}
+              {user && !user.is_verified && (
+                <span style={{
+                  position:"absolute", top:0, right:0,
+                  width:9, height:9, borderRadius:"50%",
+                  background:"#f59e0b", border:`2px solid ${B.white}`,
+                }} />
+              )}
+            </Link>
 
             {/* Name + role */}
             <div className={`aw-sidebar-label${sidebarCollapsed && !isMobile ? " hidden" : ""}`}
@@ -762,6 +775,25 @@ function AppShell() {
         {/* ── MAIN CONTENT ── */}
         <div style={{ flex:1, overflowY:"auto", background:B.white, minWidth:0 }}>
 
+          {/* Email verification banner */}
+          {user && !user.is_verified && (
+            <div style={{
+              background:"#fffbeb", borderBottom:"1px solid #fcd34d",
+              padding:"9px 20px", display:"flex", alignItems:"center",
+              justifyContent:"space-between", gap:12, flexWrap:"wrap",
+              fontSize:13,
+            }}>
+              <span style={{ color:"#92400e" }}>
+                <strong>Verify your email</strong> — check your inbox for a verification link to unlock all features.
+              </span>
+              <Link to="/profile" style={{
+                color:"#92400e", fontWeight:700, fontSize:12,
+                textDecoration:"none", border:"1px solid #f59e0b",
+                padding:"3px 10px", borderRadius:5, whiteSpace:"nowrap",
+              }}>Manage →</Link>
+            </div>
+          )}
+
           <Routes>
             <Route path="/" element={<Explore />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
@@ -769,7 +801,9 @@ function AppShell() {
             <Route path="/solutions" element={<Solutions />} />
             <Route path="/data-preview" element={<DataPreview />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/saved" element={<SavedPage />} />
             <Route path="/newsletter" element={<Newsletter />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Routes>
         </div>
 

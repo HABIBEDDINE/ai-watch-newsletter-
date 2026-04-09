@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { getTrends, refreshTrends, getDeepDive, saveTrend, unsaveTrend, matchSolutions } from "../services/api";
+import { getTrends, refreshTrends, getDeepDive, matchSolutions } from "../services/api";
+import { useSaved } from "../hooks/useSaved";
+import { Bookmark } from "lucide-react";
 
 const ACCENT = "#1A4A9E";
 const ACCENT_BG = "#e8eef8";
@@ -100,7 +102,7 @@ function MomentumBadge({ score }) {
   );
 }
 
-function TopCard({ trend, rank, onDeepDive, onSave, loadingDive }) {
+function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved }) {
   const medals = ["🥇", "🥈", "🥉"];
   const [matchResult,  setMatchResult]  = useState(null);
   const [matchLoading, setMatchLoading] = useState(false);
@@ -193,14 +195,14 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive }) {
           onClick={() => onSave(trend)}
           style={{
             width: 36, height: 36, borderRadius: 8,
-            border: `1.5px solid ${trend.saved ? B.red : B.gray300}`,
-            background: trend.saved ? "#fff0f0" : B.white,
-            color: trend.saved ? B.red : B.gray400,
-            fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            border: `1.5px solid ${isSaved ? ACCENT : B.gray300}`,
+            background: isSaved ? ACCENT_BG : B.white,
+            color: isSaved ? ACCENT : B.gray400,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           }}
-          title={trend.saved ? "Remove from watchlist" : "Save to watchlist"}
+          title={isSaved ? "Remove from saved" : "Save trend"}
         >
-          {trend.saved ? "♥" : "♡"}
+          <Bookmark size={16} strokeWidth={2} fill={isSaved ? ACCENT : "none"} />
         </button>
       </div>
 
@@ -269,7 +271,7 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive }) {
   );
 }
 
-function RankedRow({ trend, rank, onDeepDive, onSave, loadingDive }) {
+function RankedRow({ trend, rank, onDeepDive, onSave, loadingDive, isSaved }) {
   return (
     <div
       onClick={() => onDeepDive(trend)}
@@ -301,18 +303,19 @@ function RankedRow({ trend, rank, onDeepDive, onSave, loadingDive }) {
         onClick={e => { e.stopPropagation(); onSave(trend); }}
         style={{
           width: 28, height: 28, borderRadius: 6, border: "none",
-          background: "transparent", color: trend.saved ? B.red : B.gray300,
-          fontSize: 14, cursor: "pointer", flexShrink: 0,
+          background: "transparent", color: isSaved ? ACCENT : B.gray300,
+          cursor: "pointer", flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
         }}
-        title={trend.saved ? "Remove" : "Save"}
+        title={isSaved ? "Remove" : "Save"}
       >
-        {trend.saved ? "♥" : "♡"}
+        <Bookmark size={14} strokeWidth={2} fill={isSaved ? ACCENT : "none"} />
       </button>
     </div>
   );
 }
 
-function DeepDiveModal({ trend, onClose, onSave, loading }) {
+function DeepDiveModal({ trend, onClose, onSave, loading, isSaved }) {
   if (!trend) return null;
 
   const paragraphs = trend.deep_dive
@@ -393,13 +396,15 @@ function DeepDiveModal({ trend, onClose, onSave, loading }) {
             onClick={() => onSave(trend)}
             style={{
               padding: "9px 20px", borderRadius: 8,
-              border: `1.5px solid ${trend.saved ? B.red : ACCENT}`,
-              background: trend.saved ? "#fff0f0" : ACCENT_BG,
-              color: trend.saved ? B.red : ACCENT,
+              border: `1.5px solid ${isSaved ? ACCENT : ACCENT}`,
+              background: isSaved ? ACCENT_BG : ACCENT_BG,
+              color: ACCENT,
               fontSize: 13, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6,
             }}
           >
-            {trend.saved ? "♥ Saved" : "♡ Save to Watchlist"}
+            <Bookmark size={14} strokeWidth={2} fill={isSaved ? ACCENT : "none"} />
+            {isSaved ? "Saved" : "Save"}
           </button>
           {trend.url && (
             <a
@@ -442,14 +447,15 @@ const ALL_CATEGORIES = [
 ];
 
 export default function Trends() {
+  const { saved, toggleSave } = useSaved();
   const [allTrends,    setAllTrends]    = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [refreshing,   setRefreshing]   = useState(false);
   const [error,        setError]        = useState(null);
   const [lastUpdated,  setLastUpdated]  = useState(null);
   const [category,     setCategory]     = useState("all");
-  const [diveModal,    setDiveModal]    = useState(null);   // trend object
-  const [loadingDive,  setLoadingDive]  = useState(null);   // trend id
+  const [diveModal,    setDiveModal]    = useState(null);
+  const [loadingDive,  setLoadingDive]  = useState(null);
 
   // Derive displayed trends client-side — no API call per tab click
   const trends = category === "all"
@@ -505,25 +511,15 @@ export default function Trends() {
     }
   };
 
-  const handleSave = async (trend) => {
-    try {
-      if (trend.saved) {
-        await unsaveTrend(trend.id);
-        setAllTrends(prev => prev.map(t => t.id === trend.id ? { ...t, saved: false } : t));
-        if (diveModal?.id === trend.id) setDiveModal(prev => prev ? { ...prev, saved: false } : null);
-      } else {
-        await saveTrend(trend.id);
-        setAllTrends(prev => prev.map(t => t.id === trend.id ? { ...t, saved: true } : t));
-        if (diveModal?.id === trend.id) setDiveModal(prev => prev ? { ...prev, saved: true } : null);
-      }
-    } catch (err) {
-      console.error("Save failed:", err);
-    }
+  const handleSave = (trend) => {
+    toggleSave("trend", trend.id, {
+      topic: trend.topic, category: trend.category,
+      trend_score: trend.score, summary: trend.summary,
+    });
   };
 
-  const top3      = trends.slice(0, 3);
-  const ranked    = trends.slice(3);
-  const watchlist = allTrends.filter(t => t.saved);
+  const top3   = trends.slice(0, 3);
+  const ranked = trends.slice(3);
 
   const relativeTime = (iso) => {
     if (!iso) return null;
@@ -652,6 +648,7 @@ export default function Trends() {
                 onDeepDive={handleDeepDive}
                 onSave={handleSave}
                 loadingDive={loadingDive}
+                isSaved={saved.has(String(t.id))}
               />
             ))}
           </div>
@@ -673,51 +670,8 @@ export default function Trends() {
                 onDeepDive={handleDeepDive}
                 onSave={handleSave}
                 loadingDive={loadingDive}
+                isSaved={saved.has(String(t.id))}
               />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Watchlist */}
-      {watchlist.length > 0 && (
-        <>
-          <div style={{ fontSize: 11, fontWeight: 700, color: B.gray400, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>
-            Your Watchlist ({watchlist.length})
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[...watchlist].sort((a, b) => b.score - a.score).map(t => (
-              <div key={t.id} style={{
-                background: B.white, border: `1.5px solid ${B.gray200}`, borderRadius: 10,
-                padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
-              }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: B.gray700, marginBottom: 4 }}>{t.topic}</div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <CategoryPill category={t.category} />
-                    <span style={{ fontSize: 11, color: B.gray400 }}>{t.score}/10</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDeepDive(t)}
-                  style={{
-                    padding: "6px 14px", borderRadius: 6, border: `1px solid ${ACCENT}`,
-                    background: ACCENT_BG, color: ACCENT, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                  }}
-                >
-                  Deep Dive
-                </button>
-                <button
-                  onClick={() => handleSave(t)}
-                  style={{
-                    width: 28, height: 28, borderRadius: 6, border: `1px solid #fca5a5`,
-                    background: "#fff0f0", color: B.red, fontSize: 13, cursor: "pointer",
-                  }}
-                  title="Remove from watchlist"
-                >
-                  ✕
-                </button>
-              </div>
             ))}
           </div>
         </>
@@ -730,6 +684,7 @@ export default function Trends() {
           loading={loadingDive === diveModal?.id}
           onClose={() => setDiveModal(null)}
           onSave={handleSave}
+          isSaved={saved.has(String(diveModal?.id))}
         />
       )}
     </div>

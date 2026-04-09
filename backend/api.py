@@ -316,20 +316,73 @@ def map_article_to_frontend(article_id: int, a: dict) -> dict:
         "dxc": dxc
     }
 
+# ── Role → persona mapping for feed personalisation ──────────────────────────
+ROLE_PERSONA_MAP = {
+    "cto":                "cto",
+    "innovation_manager": "innovation",
+    "strategy_director":  "strategy",
+    "other":              "cto",
+}
+
+ROLE_LABELS = {
+    "cto":                "CTO / Technical Lead",
+    "innovation_manager": "Innovation Manager",
+    "strategy_director":  "Strategy Director",
+    "other":              None,
+}
+
 @app.get("/api/feed")
-def get_feed(persona: str = Query("cto"), max_articles: int = 5):
+def get_feed(persona: str = Query("cto"), role: Optional[str] = Query(None), max_articles: int = 5):
     """
     Get the intelligence feed for a specific persona or topic.
-    Maps to the python backend's existing summarization pipeline.
+    Accepts ?role= to automatically select the right persona preset.
     """
-    
-    summarized = get_summarized_articles(persona=persona, max_articles=max_articles, days_back=3)
+    effective_persona = ROLE_PERSONA_MAP.get(role, persona) if role else persona
+    summarized = get_summarized_articles(persona=effective_persona, max_articles=max_articles, days_back=3)
+    mapped_feed = [map_article_to_frontend(i, a) for i, a in enumerate(summarized, 1)]
+    return {
+        "feed": mapped_feed,
+        "persona": effective_persona,
+        "role": role,
+        "personalised": role is not None and role != "other",
+    }
 
-    mapped_feed = []
-    for i, a in enumerate(summarized, 1):
-        mapped_feed.append(map_article_to_frontend(i, a))
-            
-    return {"feed": mapped_feed}
+
+# ── Saved Items ───────────────────────────────────────────────────────────────
+@app.get("/api/saved")
+def get_saved(request: Request, type: Optional[str] = Query(None)):
+    user_id = require_user(request)
+    query = supabase.table("saved_items").select("*").eq("user_id", user_id).order("saved_at", desc=True)
+    if type in ("article", "trend"):
+        query = query.eq("item_type", type)
+    result = query.execute()
+    return result.data or []
+
+@app.post("/api/saved", status_code=201)
+def save_item(body: Dict = Body(...), request: Request = None):
+    user_id = require_user(request)
+    item_type = body.get("item_type")
+    item_id   = str(body.get("item_id", "")).strip()
+    item_data = body.get("item_data", {})
+    if item_type not in ("article", "trend"):
+        raise HTTPException(422, "item_type must be 'article' or 'trend'")
+    if not item_id:
+        raise HTTPException(422, "item_id is required")
+    try:
+        result = supabase.table("saved_items").insert({
+            "user_id": user_id, "item_type": item_type,
+            "item_id": item_id, "item_data": item_data,
+        }).execute()
+        return result.data[0]
+    except Exception:
+        # unique constraint — already saved, ignore silently
+        return {"ok": True}
+
+@app.delete("/api/saved/{item_id}")
+def unsave_item(item_id: str, request: Request):
+    user_id = require_user(request)
+    supabase.table("saved_items").delete().eq("user_id", user_id).eq("item_id", item_id).execute()
+    return {"ok": True}
 
 
 @app.get("/api/radar")

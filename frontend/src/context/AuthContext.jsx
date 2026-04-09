@@ -1,5 +1,6 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { setApiToken, clearApiToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -22,16 +23,21 @@ export function AuthProvider({ children }) {
   const didInit               = useRef(false);
 
   const applyToken = useCallback((accessToken) => {
+    // Set module-level token immediately (synchronous) so api.js requests
+    // always have the correct Authorization header regardless of React's
+    // effect scheduling order.
+    setApiToken(accessToken);
     setToken(accessToken);
     try {
       const payload = decodePayload(accessToken);
-      setUser({ user_id: payload.sub, role: payload.role, full_name: payload.full_name });
+      setUser({ user_id: payload.sub, role: payload.role, full_name: payload.full_name, email: payload.email ?? "", is_verified: payload.is_verified ?? false });
       // Persist so Ctrl+R / page reload can restore the session immediately
       localStorage.setItem(LS_KEY, accessToken);
       const msUntilExpiry = (payload.exp * 1000) - Date.now() - 60_000;
       clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(silentRefresh, Math.max(msUntilExpiry, 0));
     } catch {
+      clearApiToken();
       setUser(null);
       localStorage.removeItem(LS_KEY);
     }
@@ -48,6 +54,7 @@ export function AuthProvider({ children }) {
       applyToken(data.access_token);
     } catch {
       // Cookie-based refresh failed — clear stored state
+      clearApiToken();
       localStorage.removeItem(LS_KEY);
       setToken(null);
       setUser(null);
@@ -120,6 +127,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     clearTimeout(refreshTimer.current);
+    clearApiToken();
     localStorage.removeItem(LS_KEY);
     try {
       await fetch(`${API}/api/auth/logout`, {
@@ -133,7 +141,7 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, silentRefresh }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, silentRefresh, applyToken }}>
       {children}
     </AuthContext.Provider>
   );

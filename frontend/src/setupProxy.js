@@ -8,17 +8,14 @@
  */
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
+const proxyOptions = {
+  target: 'http://localhost:8000',
+  changeOrigin: true,
+  followRedirects: false,
+  cookieDomainRewrite: "",
+};
+
 module.exports = function (app) {
-  app.use(
-    '/api',
-    createProxyMiddleware({
-      target: 'http://localhost:8000',
-      changeOrigin: true,
-      followRedirects: false,
-      // Rewrite the cookie domain so the browser stores the refresh token
-      // cookie for localhost:3000 (the proxy origin) instead of localhost:8000.
-      // This ensures Ctrl+R sends the cookie back through the proxy correctly.
-      cookieDomainRewrite: "",
-    })
-  );
+  app.use('/api',    createProxyMiddleware(proxyOptions));
+  app.use('/health', createProxyMiddleware(proxyOptions));
 };

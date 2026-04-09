@@ -2,10 +2,28 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getArticles, triggerIngest, saveReport } from "../services/api";
 import { useArticles } from "../context/ArticleContext";
+import { useAuth } from "../context/AuthContext";
+import { useSaved } from "../hooks/useSaved";
 import { generatePDF } from "../utils/generatePDF";
-import { Search, LayoutGrid, List } from "lucide-react";
+import { Search, LayoutGrid, List, Bookmark } from "lucide-react";
 import { cleanText } from "../utils/cleanText";
 import CategoryCombobox from "../components/CategoryCombobox";
+
+// Role → default category preset
+const ROLE_PRESETS = {
+  cto:                "AI",
+  innovation_manager: "HealthTech",
+  strategy_director:  "Cybersecurity",
+  other:              "All Industries",
+};
+
+const ROLE_LABELS = {
+  cto:                "CTO / Technical Lead",
+  innovation_manager: "Innovation Manager",
+  strategy_director:  "Strategy Director",
+};
+
+const LS_TOPIC_KEY = "aiwatch_explore_topic";
 
 const ACCENT   = "#1A4A9E";
 const ACCENT_BG = "#e8eef8";
@@ -46,13 +64,9 @@ function StatCard({ label, value }) {
   );
 }
 
-function ArticleCard({ article, onOpen }) {
+function ArticleCard({ article, onOpen, isSaved, onToggleSave }) {
   const isStrong = article.signal_strength === "Strong";
   const title    = cleanText(article.title);
-  // Debug: log once per card render to confirm field values
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[ArticleCard] id=${article.id} | summary="${String(article.summary).slice(0,60)}" | description="${String(article.description).slice(0,60)}"`);
-  }
   const rawSum   = cleanText(article.summary || article.description || "")
     .replace(/^[-•]\s*/gm, "").replace(/\n+/g, " ").trim();
   const summary  = rawSum && rawSum !== title && rawSum.length > 20 ? rawSum : null;
@@ -63,7 +77,6 @@ function ArticleCard({ article, onOpen }) {
 
   return (
     <div
-      onClick={() => onOpen(article)}
       onMouseEnter={e => {
         e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
         e.currentTarget.style.borderColor = B.gray300;
@@ -79,47 +92,67 @@ function ArticleCard({ article, onOpen }) {
         padding: "20px",
         cursor: "pointer",
         transition: "box-shadow 0.2s, border-color 0.2s",
+        position: "relative",
       }}
     >
-      {/* Title + Signal badge */}
-      <div className="article-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 10 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: B.gray900, lineHeight: 1.4, flex: 1 }}>
-          {title}
+      {/* Bookmark button */}
+      {onToggleSave && (
+        <button
+          onClick={e => { e.stopPropagation(); onToggleSave("article", article.id, { title: article.title, category: industry, signal: article.signal_strength, source: article.source, url: article.url }); }}
+          title={isSaved ? "Remove from saved" : "Save article"}
+          style={{
+            position: "absolute", top: 14, right: 14,
+            background: "none", border: "none", cursor: "pointer", padding: 4,
+            color: isSaved ? ACCENT : B.gray300,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Bookmark size={16} strokeWidth={2} fill={isSaved ? ACCENT : "none"} />
+        </button>
+      )}
+
+      {/* Clickable area */}
+      <div onClick={() => onOpen(article)}>
+        {/* Title + Signal badge */}
+        <div className="article-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 10, paddingRight: onToggleSave ? 28 : 0 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: B.gray900, lineHeight: 1.4, flex: 1 }}>
+            {title}
+          </div>
+          <span className="signal-badge" style={{
+            flexShrink: 0,
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "4px 10px",
+            borderRadius: 999,
+            letterSpacing: 0.5,
+            marginTop: 2,
+            ...(isStrong
+              ? { background: B.green, color: "#fff" }
+              : { background: "transparent", color: B.gray400, border: `1px solid ${B.gray300}` }),
+          }}>
+            {isStrong ? "STRONG" : "WEAK"}
+          </span>
         </div>
-        <span className="signal-badge" style={{
-          flexShrink: 0,
-          fontSize: 10,
-          fontWeight: 700,
-          padding: "4px 10px",
-          borderRadius: 999,
-          letterSpacing: 0.5,
-          marginTop: 2,
-          ...(isStrong
-            ? { background: B.green, color: "#fff" }
-            : { background: "transparent", color: B.gray400, border: `1px solid ${B.gray300}` }),
+
+        {/* Summary */}
+        <div style={{
+          fontSize: 15,
+          color: summary ? B.gray500 : B.gray300,
+          lineHeight: 1.65,
+          marginBottom: 14,
+          display: "-webkit-box",
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          fontStyle: summary ? "normal" : "italic",
         }}>
-          {isStrong ? "STRONG" : "WEAK"}
-        </span>
-      </div>
+          {summary || "No summary — click to read full article."}
+        </div>
 
-      {/* Summary */}
-      <div style={{
-        fontSize: 15,
-        color: summary ? B.gray500 : B.gray300,
-        lineHeight: 1.65,
-        marginBottom: 14,
-        display: "-webkit-box",
-        WebkitLineClamp: 3,
-        WebkitBoxOrient: "vertical",
-        overflow: "hidden",
-        fontStyle: summary ? "normal" : "italic",
-      }}>
-        {summary || "No summary — click to read full article."}
-      </div>
-
-      {/* Metadata footer */}
-      <div style={{ fontSize: 13, color: B.gray400 }}>
-        {industry} · {article.source} · {date}
+        {/* Metadata footer */}
+        <div style={{ fontSize: 13, color: B.gray400 }}>
+          {industry} · {article.source} · {date}
+        </div>
       </div>
     </div>
   );
@@ -127,6 +160,7 @@ function ArticleCard({ article, onOpen }) {
 
 export default function Explore() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
     const fn = () => setIsMobile(window.innerWidth < 768);
@@ -136,20 +170,27 @@ export default function Explore() {
 
   // Context is used by DataPreview — Explore manages its own local paginated state only
   useArticles(); // keep provider mounted
+
+  // Role-based default topic: use localStorage override if set, otherwise role preset
+  const rolePreset = user?.role ? (ROLE_PRESETS[user.role] || "All Industries") : "All Industries";
+  const initialTopic = localStorage.getItem(LS_TOPIC_KEY) || rolePreset;
+
   const [articles, setArticles]             = useState([]);
-  const [loading,  setLoading]              = useState(true);  // true = show spinner immediately, no empty-state flash
+  const [loading,  setLoading]              = useState(true);
   const [error,    setError]                = useState(null);
-  const [selectedTopic, setSelectedTopic]   = useState("All Industries");
+  const [selectedTopic, setSelectedTopic]   = useState(initialTopic);
   const [selectedSignal]                    = useState("All");
   const [searchQuery, setSearchQuery]       = useState("");
   const [currentPage, setCurrentPage]       = useState(1);
   const [itemsPerPage, setItemsPerPage]     = useState(10);
   const [totalCount, setTotalCount]         = useState(0);
-  const [viewMode, setViewMode]               = useState("list"); // "list" | "grid"
+  const [viewMode, setViewMode]               = useState("list");
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [reportFormat, setReportFormat]     = useState("md");
   const [searchTimeout, setSearchTimeout]   = useState(null);
+
+  const { saved, toggleSave } = useSaved();
 
   const fetchArticles = useCallback(async (page = 1, pageSize = itemsPerPage, isRetry = false) => {
     setLoading(true);
@@ -200,10 +241,17 @@ export default function Explore() {
     setSearchTimeout(timeout);
   };
 
+  const handleTopicChange = (cat) => {
+    setSelectedTopic(cat);
+    localStorage.setItem(LS_TOPIC_KEY, cat);
+    setCurrentPage(1);
+  };
+
   const handlePageChange = (page) => {
     setCurrentPage(page);
     fetchArticles(page, itemsPerPage);
   };
+
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
@@ -342,9 +390,25 @@ export default function Explore() {
 
       {/* ── PAGE HEADER ── */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: B.gray900, letterSpacing: -0.3, margin: 0 }}>
+        <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: B.gray900, letterSpacing: -0.3, margin: "0 0 4px" }}>
           Explore Intelligence
         </h1>
+        {user?.role && ROLE_LABELS[user.role] && (
+          <a
+            href="/profile"
+            onClick={e => { e.preventDefault(); navigate("/profile"); }}
+            style={{ textDecoration: "none" }}
+          >
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              fontSize: 11, fontWeight: 700, color: ACCENT,
+              background: ACCENT_BG, padding: "3px 10px", borderRadius: 999,
+              letterSpacing: 0.3,
+            }}>
+              Personalised for {ROLE_LABELS[user.role]}
+            </span>
+          </a>
+        )}
       </div>
 
       {/* ── KPI STRIP (3 cards) ── */}
@@ -383,8 +447,9 @@ export default function Explore() {
         </div>
         <CategoryCombobox
           selected={selectedTopic}
-          onSelect={(cat) => { setSelectedTopic(cat); setCurrentPage(1); }}
+          onSelect={handleTopicChange}
         />
+
         {/* Grid / List toggle */}
         <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
           {[
@@ -508,6 +573,8 @@ export default function Explore() {
                 key={article.id}
                 article={article}
                 onOpen={(a) => navigate(`/article/${a.id}`, { state: { article: a } })}
+                isSaved={saved.has(String(article.id))}
+                onToggleSave={toggleSave}
               />
             ))}
           </div>

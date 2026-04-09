@@ -282,6 +282,20 @@ export async function saveMatchingResult(data) {
   return request("/api/matching/save", { method: "POST", body: data, retries: 0, timeoutMs: 10000 });
 }
 
+// ── Saved Items ───────────────────────────────────────────────────────────────
+export async function getSaved(type) {
+  const params = type ? `?type=${type}` : "";
+  return request(`/api/saved${params}`, { retries: 0 });
+}
+
+export async function saveItem(itemType, itemId, itemData) {
+  return request("/api/saved", { method: "POST", body: { item_type: itemType, item_id: String(itemId), item_data: itemData }, retries: 0 });
+}
+
+export async function unsaveItem(itemId) {
+  return request(`/api/saved/${itemId}`, { method: "DELETE", retries: 0 });
+}
+
 export { API_BASE_URL };
 
 // ── Auth API calls ────────────────────────────────────────────────────────────
