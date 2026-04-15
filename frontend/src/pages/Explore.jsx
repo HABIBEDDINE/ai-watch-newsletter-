@@ -394,20 +394,37 @@ export default function Explore() {
           Explore Intelligence
         </h1>
         {user?.role && ROLE_LABELS[user.role] && (
-          <a
-            href="/profile"
-            onClick={e => { e.preventDefault(); navigate("/profile"); }}
-            style={{ textDecoration: "none" }}
-          >
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              fontSize: 11, fontWeight: 700, color: ACCENT,
-              background: ACCENT_BG, padding: "3px 10px", borderRadius: 999,
-              letterSpacing: 0.3,
-            }}>
-              Personalised for {ROLE_LABELS[user.role]}
-            </span>
-          </a>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <a
+              href="/profile"
+              onClick={e => { e.preventDefault(); navigate("/profile"); }}
+              style={{ textDecoration: "none" }}
+            >
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 11, fontWeight: 700, color: ACCENT,
+                background: ACCENT_BG, padding: "3px 10px", borderRadius: 999,
+                letterSpacing: 0.3,
+              }}>
+                Personalised for {ROLE_LABELS[user.role]}
+              </span>
+            </a>
+            {/* Show reset button only when user has manually diverged from their role preset */}
+            {rolePreset !== "All Industries" && selectedTopic !== rolePreset && (
+              <button
+                onClick={() => handleTopicChange(rolePreset)}
+                title={`Reset feed to ${rolePreset} (your role default)`}
+                style={{
+                  fontSize: 11, fontWeight: 600, color: ACCENT,
+                  background: "none", border: `1px solid ${ACCENT}50`,
+                  borderRadius: 999, padding: "3px 10px", cursor: "pointer",
+                  letterSpacing: 0.2,
+                }}
+              >
+                Reset to {rolePreset} ↩
+              </button>
+            )}
+          </div>
         )}
       </div>
 

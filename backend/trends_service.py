@@ -2,7 +2,9 @@ import os, httpx, json, logging
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from pathlib import Path
-load_dotenv(Path(__file__).resolve().parent.parent / "config" / ".env")
+
+_ENV_PATH = Path(__file__).resolve().parent.parent / "config" / ".env"
+load_dotenv(_ENV_PATH, override=True)
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,16 @@ def _normalize_category(raw: str) -> str:
     return _LABEL_TO_ID.get(raw.lower().strip(), "llm_models")
 
 
+PERPLEXITY_ENABLED = False  # Disabled — set to True to re-enable
+
+
 async def fetch_perplexity_trend(query: str, category: str) -> dict:
+    if not PERPLEXITY_ENABLED:
+        print(f"[Perplexity][{category}] ⏸ Perplexity API is disabled (PERPLEXITY_ENABLED=False)")
+        return None
+
+    # Re-read .env so a key change takes effect without restarting the server
+    load_dotenv(_ENV_PATH, override=True)
     api_key = os.getenv("PERPLEXITY_API_KEY")
 
     # --- Step 1: key check ---

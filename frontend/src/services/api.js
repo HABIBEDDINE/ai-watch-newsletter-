@@ -269,6 +269,10 @@ export async function sendNewsletterNow(persona = "cto") {
   return request(`/api/newsletter/send?${params.toString()}`, { method: "POST", timeoutMs: 10000, retries: 0 });
 }
 
+export async function sendNewsletterCompose(payload) {
+  return request("/api/newsletter/send", { method: "POST", body: payload, timeoutMs: 15000, retries: 0 });
+}
+
 export async function subscribeEmail(email) {
   return request("/api/newsletter/subscribe", { method: "POST", body: { email } });
 }
@@ -276,6 +280,30 @@ export async function subscribeEmail(email) {
 export async function unsubscribeEmail(email) {
   const params = new URLSearchParams({ email });
   return request(`/api/newsletter/unsubscribe?${params.toString()}`, { method: "DELETE" });
+}
+
+export async function getRecipients() {
+  return request("/api/newsletter/recipients", { retries: 0, timeoutMs: 5000 });
+}
+
+export async function addRecipient(email) {
+  return request("/api/newsletter/recipients", { method: "POST", body: { email } });
+}
+
+export async function removeRecipient(email) {
+  return request(`/api/newsletter/recipients/${encodeURIComponent(email)}`, { method: "DELETE" });
+}
+
+export async function getSchedule() {
+  return request("/api/newsletter/schedule", { retries: 0, timeoutMs: 5000 });
+}
+
+export async function saveSchedule(data) {
+  return request("/api/newsletter/schedule", { method: "POST", body: data });
+}
+
+export async function getSentHistory() {
+  return request("/api/newsletter/sent", { retries: 0, timeoutMs: 5000 });
 }
 
 export async function saveMatchingResult(data) {
@@ -297,6 +325,109 @@ export async function unsaveItem(itemId) {
 }
 
 export { API_BASE_URL };
+
+// ── V4: Client-side request cache ────────────────────────────────────────────
+// Caches GET responses for 5 minutes to reduce redundant API calls.
+// POST/PUT/DELETE always bypass the cache.
+
+const REQUEST_CACHE = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in ms
+
+/**
+ * Like request(), but caches GET responses for CACHE_TTL ms.
+ * POST/PUT/DELETE are passed straight through to request() with no caching.
+ *
+ * @param {string} method  - HTTP method ("GET", "POST", etc.)
+ * @param {string} path    - API path e.g. "/api/feed"
+ * @param {object} params  - Query params object (appended to path for cache key)
+ * @param {*}      body    - Request body (POST/PUT)
+ */
+export async function cachedRequest(method, path, params = null, body = null) {
+  const upperMethod = (method || "GET").toUpperCase();
+
+  // Only cache GET requests
+  if (upperMethod !== "GET") {
+    return request(path, { method: upperMethod, body });
+  }
+
+  // Build full path with query params for cache key
+  let fullPath = path;
+  if (params && Object.keys(params).length > 0) {
+    const qs = new URLSearchParams(params).toString();
+    fullPath = `${path}?${qs}`;
+  }
+
+  const cacheKey = `${upperMethod}:${fullPath}`;
+  const now = Date.now();
+
+  // ── Cache hit ───────────────────────────────────────────────────────────────
+  if (REQUEST_CACHE.has(cacheKey)) {
+    const entry = REQUEST_CACHE.get(cacheKey);
+    if (now - entry.cachedAt < CACHE_TTL) {
+      console.log(`[Cache HIT] ${cacheKey}`);
+      return entry.data;
+    }
+    // Expired — remove and fall through to fetch
+    REQUEST_CACHE.delete(cacheKey);
+  }
+
+  // ── Cache miss — fetch from API ─────────────────────────────────────────────
+  console.log(`[Cache MISS] ${cacheKey}`);
+  const data = await request(fullPath, { method: upperMethod });
+
+  REQUEST_CACHE.set(cacheKey, { data, cachedAt: now });
+  return data;
+}
+
+/**
+ * Invalidate cache entries.
+ * - invalidateCache()        → clears the entire cache
+ * - invalidateCache("/api/feed") → clears all entries whose key contains that path
+ *
+ * @param {string} [path] - Optional path prefix to target
+ */
+export function invalidateCache(path) {
+  if (!path) {
+    REQUEST_CACHE.clear();
+    console.log("[Cache INVALIDATED] entire cache cleared");
+    return;
+  }
+  let cleared = 0;
+  for (const key of REQUEST_CACHE.keys()) {
+    if (key.includes(path)) {
+      REQUEST_CACHE.delete(key);
+      cleared++;
+    }
+  }
+  console.log(`[Cache INVALIDATED] ${cleared} entr${cleared === 1 ? "y" : "ies"} matching "${path}"`);
+}
+
+/**
+ * Returns current cache stats for monitoring / debugging.
+ * @returns {{ entriesCount: number, totalSizeKB: string, ttlMinutes: number }}
+ */
+export function getCacheStats() {
+  const now = Date.now();
+  let validCount = 0;
+  let totalBytes = 0;
+
+  for (const entry of REQUEST_CACHE.values()) {
+    if (now - entry.cachedAt < CACHE_TTL) {
+      validCount++;
+    }
+    try {
+      totalBytes += JSON.stringify(entry.data).length * 2; // UTF-16 approximation
+    } catch {
+      // non-serialisable entry — skip size count
+    }
+  }
+
+  return {
+    entriesCount: validCount,
+    totalSizeKB: (totalBytes / 1024).toFixed(1),
+    ttlMinutes: CACHE_TTL / 60000,
+  };
+}
 
 // ── Auth API calls ────────────────────────────────────────────────────────────
 
@@ -327,4 +458,21 @@ export async function apiResetPassword(body) {
 
 export async function apiGetMe() {
   return request("/api/users/me", { retries: 0, timeoutMs: 5000 });
+}
+
+// ── V4 Sprint 3: Alert preference helpers ─────────────────────────────────────
+
+export async function getAlertPreferences() {
+  return cachedRequest("GET", "/api/alerts/preferences");
+}
+
+export async function updateAlertPreferences({ keywords, min_signal_score, enabled }) {
+  const result = await request("/api/alerts/preferences", {
+    method: "PUT",
+    body: { keywords, min_signal_score, enabled },
+    retries: 0,
+    timeoutMs: 10000,
+  });
+  invalidateCache("/api/alerts/preferences");
+  return result;
 }

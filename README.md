@@ -1,6 +1,17 @@
-# AI Watch — V3
+# AI Watch — V4
 
-Strategic AI technology intelligence platform. Monitor trends, track competitors, and surface actionable insights — powered by AI.
+Strategic AI technology intelligence platform for DXC Technology. Monitor trends, bookmark articles, compose and deliver intelligence briefs, and receive proactive email alerts — powered by AI and personalised to your role.
+
+---
+
+## What's New in V4
+
+| Sprint | Delivered | Impact |
+|---|---|---|
+| **Sprint 1** | Server-side summarizer cache (30-day TTL) + client-side API cache (5-min TTL) + `alert_preferences` DB table | ~67% reduction in OpenAI API spend |
+| **Sprint 2** | `saved_items` DB table + full bookmark system (articles & trends) + role-based feed personalisation | New retention features, instant content relevance |
+| **Sprint 3** | Hourly email alert scanner + `send_alert_digest()` + 3 alert API routes | Proactive re-engagement at $0 extra API cost |
+| **V4 UX** | Profile page redesign (hero banner, role card grid) · Newsletter 3-step composer wizard · Live email preview panel · PDF export · File-backed recipients · Synchronous SMTP with real error surfacing | End-to-end email delivery, polished UI |
 
 ---
 
@@ -8,59 +19,82 @@ Strategic AI technology intelligence platform. Monitor trends, track competitors
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 19, React Router 6, Recharts, jsPDF, Lucide Icons |
+| Frontend | React 19, React Router 6, Recharts, jsPDF 4, Lucide Icons |
 | Backend | FastAPI (Python), Uvicorn |
 | Database | Supabase (PostgreSQL) |
-| Auth | JWT (HS256) + HTTP-only refresh cookies + Google OAuth 2.0 |
-| AI | OpenAI GPT-4o (summaries, reports), Anthropic Claude |
+| Auth | JWT (HS256, 15 min) + HTTP-only rotating refresh cookies (7 days) + Google OAuth 2.0 |
+| AI | OpenAI GPT-4o-mini (summaries, solution matching, deep-dives) |
 | News | NewsAPI, NewsData.io |
-| Email | SMTP (Gmail) |
+| Email | SMTP (Gmail App Password) — verification, newsletter composer, alert digests |
+| Scheduling | APScheduler — daily ingest (00:00 UTC), daily newsletter (07:00 UTC), trends refresh (6 h), alerts (1 h) |
 
 ---
 
 ## Project Structure
 
 ```
-ai-watch-V3/
+ai-watch-V4/
 ├── backend/
-│   ├── api.py            # Core API routes (feed, articles, trends, saved items, …)
-│   ├── auth.py           # Auth router (register, login, Google OAuth, JWT, email verify)
-│   ├── db.py             # Supabase client
-│   ├── ingestion.py      # News ingestion from multiple sources
-│   ├── summarizer.py     # OpenAI-powered article summaries
-│   ├── newsletter.py     # Newsletter generation & SMTP delivery
-│   └── scheduler.py      # Background tasks
+│   ├── api.py            # All API routes (articles, trends, saved, alerts, newsletter, reports, …)
+│   ├── auth.py           # Auth router (register, login, OAuth, JWT, email verify, reset pw)
+│   ├── db.py             # Supabase REST client
+│   ├── ingestion.py      # News ingestion from NewsAPI + NewsData.io
+│   ├── summarizer.py     # OpenAI summaries + 30-day in-memory cache
+│   ├── newsletter.py     # Newsletter HTML generation + SMTP delivery + alert digest emails
+│   └── scheduler.py      # Background jobs (ingest, newsletter, trends, alerts)
 ├── frontend/
 │   └── src/
 │       ├── App.js
 │       ├── context/
-│       │   └── AuthContext.jsx     # JWT + localStorage session management
+│       │   └── AuthContext.jsx        # JWT + localStorage session + silent refresh
 │       ├── hooks/
-│       │   └── useSaved.js         # Shared bookmark state (articles + trends)
+│       │   └── useSaved.js            # Bookmark state — optimistic UI + rollback
 │       ├── pages/
 │       │   ├── LoginPage.jsx
 │       │   ├── RegisterPage.jsx
-│       │   ├── ProfilePage.jsx     # Edit profile, change role/company
-│       │   ├── Explore.jsx         # Article feed with role personalisation
-│       │   ├── ArticleDetail.jsx   # Full article view with AI summary
-│       │   ├── Trends.jsx          # AI trend tracking with deep-dive
-│       │   ├── SavedPage.jsx       # Saved articles & trends collection
-│       │   ├── Reports.jsx         # Per-user saved reports (max 30)
-│       │   └── Newsletter.jsx
-│       ├── services/api.js         # API client (token-aware, retry logic)
-│       └── setupProxy.js           # CRA dev proxy → localhost:8000
+│       │   ├── ForgotPasswordPage.jsx
+│       │   ├── ResetPasswordPage.jsx
+│       │   ├── VerifyEmailPage.jsx
+│       │   ├── ProfilePage.jsx        # Hero banner, role card grid, personal info
+│       │   ├── Explore.jsx            # Article browse — role preset + bookmark button
+│       │   ├── ArticleDetail.jsx      # Full article + AI summary + solution match
+│       │   ├── Trends.jsx             # Trend cards + deep-dive + bookmark
+│       │   ├── SavedPage.jsx          # Bookmarked articles & trends
+│       │   ├── Reports.jsx            # Saved intelligence reports + PDF export
+│       │   └── Newsletter.jsx         # 3-step composer wizard + live preview + PDF export
+│       ├── services/api.js            # API client — token-aware, retry, 5-min cache
+│       └── setupProxy.js             # CRA dev proxy → localhost:8000
+├── data/
+│   ├── recipients.json   # Newsletter recipient list (file-backed, persists across restarts)
+│   └── reports/          # Generated newsletter HTML files
 └── config/
-    └── .env              # All secrets (not committed)
+    ├── auth_migration.sql  # All DB table definitions (run in Supabase SQL editor)
+    └── .env                # All secrets (not committed)
 ```
 
 ---
 
 ## Features
 
+### Authentication & Identity
+- **Email/password registration** with bcrypt (rounds=12) password hashing
+- **Email verification** — 24h single-use token link, resend rate-limited (1/5 min)
+- **Google OAuth 2.0** — one-click sign-in, auto-verified
+- **JWT access tokens** (15 min) + **rotating refresh tokens** (7 days, HTTP-only cookie)
+- **Password reset** — 15-min single-use token via email
+- **Rate limiting** — 5 login attempts per email per 15 min (HTTP 429)
+- **Role system** — `cto`, `innovation_manager`, `strategy_director`, `other`
+- **Profile editing** — update name, company, role (re-issues JWT with new claims)
+
+### Profile Page
+- **Hero banner** — gradient header with floating identity card
+- **Role card grid** — 2×2 visual role selector with active state
+- **Verification badge** — inline status chip + resend button
+
 ### Content & Intelligence
-- **News Feed** — live AI news from NewsAPI + NewsData.io, filtered by topic and signal strength
-- **Role Personalisation** — feed auto-tuned to user role (CTO → AI, Innovation Manager → HealthTech, Strategy Director → Cybersecurity), overridable per-session
-- **AI Summaries** — GPT-4o summaries with urgency signals and DXC solution matching
+- **News Feed** — daily-ingested articles from NewsAPI + NewsData.io, 6 topics
+- **Role Personalisation** — feed auto-presets to role on first visit, overridable with 1-click reset
+- **AI Summaries** — GPT-4o-mini summaries with urgency signals and DXC solution matching, cached 30 days
 - **Article Detail** — full article view with summary, key info, source link, and bookmark
 
 ### Trends
@@ -69,24 +103,33 @@ ai-watch-V3/
 - **Bookmark Trends** — save trends alongside articles in one unified collection
 
 ### Saved Items
-- **Unified Bookmarks** — bookmark any article or trend with a single click
-- **Saved Page** — filterable collection (All / Articles / Trends), click any card to open full detail
-- **Optimistic UI** — instant visual feedback with server-sync and rollback on failure
+- **Unified Bookmarks** — bookmark any article or trend with one click
+- **Saved Page** — filterable collection (All / Articles / Trends)
+- **Optimistic UI** — instant visual feedback with server-sync and automatic rollback on failure
 
-### Reports & Newsletter
-- **Reports** — per-user saved reports (max 30), PDF export via jsPDF
-- **Newsletter** — personalised AI briefings sent to the logged-in user's email
+### Newsletter Composer (V4 UX)
+- **3-step wizard** — Select Articles → Configure Edition → Send & Schedule
+- **Step 1** — filterable article pool (topic / signal / date), checkbox select, Strong Signal pre-selected
+- **Step 2** — 3 collapsible config sections: Content (5 toggles), Style (4 selects), Layout (2 selects)
+- **Step 3** — Send Now tab (recipients, subject, send button) + Schedule tab (days/time/frequency) + History tab
+- **Live preview panel** — 300px right-side email preview that reacts to every Step 2 change
+- **PDF export** — A4 newsletter via jsPDF: cover page, articles grouped by sector, signals summary table
+- **File-backed recipients** — stored in `data/recipients.json`, persists across backend restarts
+- **Synchronous SMTP** — real errors returned to the UI (no silent failures), Gmail App Password auth
 
-### Auth
-- **Email/password** with email verification (token link sent via SMTP)
-- **Google OAuth 2.0** — one-click sign-in
-- **JWT access tokens** (15 min) + **rotating refresh tokens** (7 days, HTTP-only cookie)
-- **Password reset** via email link
-- **Profile editing** — update name, company, role
+### Email Alerts
+- **Keyword alerts** — configure keywords and a signal score threshold in your profile
+- **Hourly digest** — scanner runs every hour, sends email when new articles match your keywords
+- **Zero AI cost** — pure string matching, $0 per scan
+- **One-click unsubscribe** — 64-char hex token embedded in every alert email
 
-### UX
-- **Responsive** — mobile (xs/sm), tablet (md), desktop (lg)
-- **Persistent session** — localStorage fast-path restore on page reload
+### Reports
+- **Per-user saved reports** (max 30), PDF export via jsPDF
+- **AI-powered** — report content built from article summaries and solution matching
+
+### Caching
+- **Server cache** — article summaries cached in-memory for 30 days (`_SUMMARY_CACHE`)
+- **Client cache** — all GET API responses cached in browser for 5 minutes (`REQUEST_CACHE`)
 
 ---
 
@@ -97,7 +140,8 @@ ai-watch-V3/
 - Python 3.10+
 - Node.js 18+
 - A Supabase project
-- Google Cloud Console project (for OAuth)
+- Gmail account with **2-Step Verification** enabled + an **App Password** (for SMTP)
+- Google Cloud Console project (for OAuth — optional)
 
 ### 2. Environment variables
 
@@ -114,147 +158,47 @@ NEWSDATA_API_KEY=your-newsdata-key
 
 # AI
 OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
 
 # Auth
 JWT_SECRET=your-random-256-bit-hex-secret
 FRONTEND_URL=http://localhost:3000
 
-# Google OAuth
+# Google OAuth (optional)
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
 GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
 
-# Email (SMTP)
+# Email (SMTP) — required for verification, newsletter & alerts
+# Gmail: enable 2FA → myaccount.google.com → Security → App passwords
+# Enter the 16-char code WITHOUT spaces
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=you@gmail.com
-SMTP_PASSWORD=your-app-password
+SMTP_PASSWORD=abcdabcdabcdabcd
 SMTP_FROM_EMAIL=you@gmail.com
+NEWSLETTER_RECIPIENTS=you@gmail.com
 ```
 
-### 3. Supabase — required tables
+### 3. Database setup
 
-Run these in the Supabase SQL editor:
+Run `config/auth_migration.sql` in the Supabase SQL editor. This creates all required tables:
 
-```sql
--- Users
-create table if not exists users (
-  id uuid primary key default gen_random_uuid(),
-  email varchar unique not null,
-  full_name varchar not null,
-  company varchar,
-  role varchar not null default 'other',
-  password_hash varchar,
-  oauth_provider varchar,
-  oauth_id varchar,
-  is_verified boolean default false,
-  email_verified_at timestamptz,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
+| Table | Purpose |
+|---|---|
+| `users` | User accounts (email, role, is_verified, …) |
+| `refresh_tokens` | Active refresh sessions (rotated on use) |
+| `email_verification_tokens` | 24h single-use email verify tokens |
+| `password_reset_tokens` | 15-min single-use reset tokens |
+| `articles` | Ingested news articles |
+| `trends` | Aggregated trend data |
+| `saved_items` | User bookmarks — articles & trends |
+| `alert_preferences` | Per-user keyword alerts config |
+| `reports` | Saved intelligence reports |
+| `newsletter_subscribers` | Legacy email opt-in list (Supabase) |
 
--- Refresh tokens (rotating)
-create table if not exists refresh_tokens (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id) on delete cascade,
-  token_hash varchar unique not null,
-  expires_at timestamptz not null,
-  created_at timestamptz default now()
-);
+> Recipients managed via the Newsletter wizard are stored locally in `data/recipients.json`.
 
--- Email verification tokens
-create table if not exists email_verification_tokens (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id) on delete cascade,
-  token_hash varchar unique not null,
-  expires_at timestamptz not null,
-  used_at timestamptz,
-  created_at timestamptz default now()
-);
-
--- Password reset tokens
-create table if not exists password_reset_tokens (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id) on delete cascade,
-  token_hash varchar unique not null,
-  expires_at timestamptz not null,
-  used_at timestamptz,
-  created_at timestamptz default now()
-);
-
--- Articles
-create table if not exists articles (
-  id text primary key,
-  title text not null default '',
-  description text default '',
-  summary text default '',
-  url text unique,
-  source text default '',
-  published_at text default '',
-  topic text default '',
-  signal_strength text default 'Weak',
-  relevance integer default 5,
-  industry text default '',
-  market_segment text default '',
-  image_url text default '',
-  source_api text default '',
-  ingestion_date timestamptz default now(),
-  keywords jsonb default '[]'
-);
-
--- Trends
-create table if not exists trends (
-  id text primary key,
-  category text default '',
-  topic text default '',
-  deepdive text,
-  data jsonb default '{}',
-  created_at timestamptz default now()
-);
-
--- Saved items (articles + trends bookmarks)
-create table if not exists saved_items (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references users(id) on delete cascade,
-  item_type text not null check (item_type in ('article', 'trend')),
-  item_id text not null,
-  item_data jsonb not null default '{}',
-  saved_at timestamptz not null default now()
-);
-create index if not exists idx_saved_items_user_id on saved_items(user_id);
-
--- Reports (per-user, max 30)
-create table if not exists reports (
-  id text primary key,
-  user_id uuid references users(id) on delete set null,
-  title text not null default '',
-  generated_date text default '',
-  article_count integer default 0,
-  funding_count integer default 0,
-  summary text default '',
-  key_points jsonb default '[]',
-  articles jsonb default '[]'
-);
-create index if not exists idx_reports_user_id on reports(user_id);
-
--- Newsletter subscribers
-create table if not exists newsletter_subscribers (
-  id serial primary key,
-  email text unique not null,
-  subscribed_at timestamptz default now()
-);
-
--- DXC solutions library
-create table if not exists dxc_solutions (
-  id serial primary key,
-  number integer not null,
-  name text not null,
-  description text not null
-);
-```
-
-### 4. Google OAuth — required redirect URI
+### 4. Google OAuth — redirect URI
 
 In [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → your OAuth 2.0 Client:
 
@@ -265,7 +209,7 @@ Add `http://localhost:3000/api/auth/google/callback` as an **Authorised redirect
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m uvicorn api:app --port 8000 --reload
+python api.py
 ```
 
 ### 6. Start the frontend
@@ -292,19 +236,20 @@ POST /api/auth/login  ──►  Backend issues:
          │
          ▼
 AuthContext.applyToken()
-  • Calls setApiToken() immediately (sync) — all api.js requests get the header
+  • Calls setApiToken() — all api.js requests get Bearer header
   • Decodes JWT payload → sets user { user_id, role, full_name, email, is_verified }
   • Persists token to localStorage (key: aiwatch_at)
   • Schedules silent refresh 60s before expiry
 
-Page reload (Ctrl+R)
-  • Fast path: reads localStorage → token valid → session restored instantly
+Page reload
+  • Fast path: localStorage token valid → session restored instantly
   • Slow path: POST /api/auth/refresh (cookie) → rotates token
-  • OAuth path: ?token= in URL → applyToken() → cookie exchange (best-effort)
+  • OAuth path: ?token= in URL → applyToken() → cookie exchange
 
 Email verification
   • Register → SMTP link sent → GET /api/auth/verify-email?token=...
   • Resend available from the banner shown to unverified users
+  • is_verified gate: email alerts cannot be enabled until verified
 ```
 
 ---
@@ -315,46 +260,76 @@ Email verification
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `POST` | `/api/auth/register` | — | Create account, sends verification email |
-| `POST` | `/api/auth/login` | — | Email/password login |
+| `POST` | `/api/auth/login` | — | Email/password login, rate-limited 5/15 min |
 | `POST` | `/api/auth/logout` | — | Revoke refresh token |
 | `POST` | `/api/auth/refresh` | cookie | Rotate refresh token, issue new access token |
 | `GET` | `/api/auth/google` | — | Start Google OAuth flow |
-| `GET` | `/api/auth/google/callback` | — | OAuth callback |
-| `GET` | `/api/auth/verify-email` | — | Verify email via token link |
-| `POST` | `/api/auth/resend-verification` | — | Resend verification email |
-| `POST` | `/api/auth/forgot-password` | — | Send password reset link |
-| `POST` | `/api/auth/reset-password` | — | Confirm new password |
+| `GET` | `/api/auth/google/callback` | — | OAuth callback — creates user if new |
+| `GET` | `/api/auth/verify-email` | — | Verify email via 24h token link |
+| `POST` | `/api/auth/resend-verification` | — | Resend verification email (rate-limited) |
+| `POST` | `/api/auth/forgot-password` | — | Send 15-min password reset link |
+| `POST` | `/api/auth/reset-password` | — | Confirm new password via token |
 
 ### User
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/api/users/me` | Bearer | Current user profile |
-| `PUT` | `/api/users/me` | Bearer | Update name, company, role |
+| `PUT` | `/api/users/me` | Bearer | Update name, company, role — re-issues JWT |
 
 ### Content
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/feed` | — | Role-personalised AI news feed |
-| `GET` | `/api/articles` | — | Paginated article list with filters |
-| `GET` | `/api/articles/{id}` | — | Single article detail |
-| `POST` | `/api/summarize` | — | Generate AI summary for an article |
-| `GET` | `/api/trends` | — | AI trend data with category filter |
-| `POST` | `/api/trends/{id}/deepdive` | — | Generate deep-dive for a trend |
+| `GET` | `/api/feed` | — | Role-personalised article feed |
+| `GET` | `/api/articles` | — | Paginated articles with filters (topic, signal, industry, search, date) |
+| `GET` | `/api/articles/{id}` | — | Single article + AI summary (cached 30 days) |
+| `POST` | `/api/summarize` | — | Generate AI summary for an article dict |
+| `GET` | `/api/trends` | — | Trends with category filter |
+| `POST` | `/api/trends/{id}/deepdive` | — | AI deep-dive for a trend |
+| `GET` | `/api/signals/live` | — | Live signal indicators |
+| `GET` | `/api/sectors/top` | — | Top sectors by volume |
+| `GET` | `/api/funding` | — | Paginated funding round data |
+| `GET` | `/api/actors` | — | Paginated key actors / companies |
 
 ### Saved Items
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/saved` | Bearer | List saved articles & trends |
+| `GET` | `/api/saved` | Bearer | List bookmarked articles & trends |
 | `POST` | `/api/saved` | Bearer | Bookmark an article or trend |
 | `DELETE` | `/api/saved/{item_id}` | Bearer | Remove a bookmark |
 
-### Reports & Newsletter
+### Alerts
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/reports` | Bearer | User's saved reports |
-| `POST` | `/api/reports` | Bearer | Save a report (max 30) |
+| `GET` | `/api/alerts/preferences` | Bearer | Get alert config (auto-creates default row) |
+| `PUT` | `/api/alerts/preferences` | Bearer | Update keywords, threshold, enabled flag |
+| `GET` | `/api/alerts/unsubscribe/{token}` | — | One-click unsubscribe from alert emails |
+
+### Newsletter
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/newsletter/send` | Bearer | Send newsletter — uses wizard recipients, subject, article selection |
+| `GET` | `/api/newsletter/status` | — | SMTP config status + last send info |
+| `GET` | `/api/newsletter/recipients` | — | List recipients from `data/recipients.json` |
+| `POST` | `/api/newsletter/recipients` | — | Add recipient |
+| `DELETE` | `/api/newsletter/recipients/{email}` | — | Remove recipient |
+| `GET` | `/api/newsletter/schedule` | — | Get saved send schedule |
+| `POST` | `/api/newsletter/schedule` | — | Save send schedule |
+| `GET` | `/api/newsletter/sent` | — | List past sends (in-memory, resets on restart) |
+| `POST` | `/api/newsletter/subscribe` | — | Legacy subscribe endpoint |
+| `DELETE` | `/api/newsletter/unsubscribe` | — | Legacy unsubscribe endpoint |
+
+### Reports
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/reports` | Bearer | Paginated list of user's saved reports |
+| `POST` | `/api/reports` | Bearer | Save a report |
 | `DELETE` | `/api/reports/{id}` | Bearer | Delete own report |
-| `POST` | `/api/newsletter/send` | Bearer | Send personalised brief to own email |
+
+### System
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/health` | — | Backend liveness check |
+| `POST` | `/api/ingest` | Bearer | Manually trigger article ingestion for a topic |
 
 ---
 

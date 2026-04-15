@@ -1,11 +1,13 @@
 from dotenv import load_dotenv
 from pathlib import Path
-load_dotenv(Path(__file__).resolve().parent.parent / "config" / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent / "config" / ".env", override=True)
 
 from fastapi import FastAPI, Query, BackgroundTasks, Body, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import List, Optional, Dict, Tuple
+import json
+import os
 import time
 import random
 import csv
@@ -1342,6 +1344,104 @@ def initialize_mock_cache():
     pass
 
 
+# ── V4 Sprint 3: Alert preference routes ─────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+class AlertPreferencesRequest(_BaseModel):
+    keywords:         list  = []
+    min_signal_score: int   = 7
+    enabled:          bool  = False
+
+
+@app.get("/api/alerts/preferences")
+def get_alert_preferences(request: Request):
+    """Get the current user's alert preferences. Creates a default row if none exists."""
+    user_id = require_user(request)
+    try:
+        resp = supabase.table("alert_preferences").select("*").eq("user_id", user_id).execute()
+        if resp.data:
+            return resp.data[0]
+        # No row yet — insert defaults and return
+        created = supabase.table("alert_preferences").insert({
+            "user_id": user_id,
+            "keywords": [],
+            "min_signal_score": 7,
+            "enabled": False,
+        }).execute()
+        return created.data[0] if created.data else {
+            "user_id": user_id, "keywords": [], "min_signal_score": 7,
+            "enabled": False, "last_sent_at": None, "unsubscribe_token": None,
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Failed to fetch alert preferences: {e}")
+
+
+@app.put("/api/alerts/preferences")
+def update_alert_preferences(body: AlertPreferencesRequest, request: Request):
+    """Update the current user's alert preferences."""
+    user_id = require_user(request)
+
+    # Validate signal score range
+    if not (1 <= body.min_signal_score <= 10):
+        raise HTTPException(422, "min_signal_score must be between 1 and 10")
+
+    # Only allow enabling if email is verified
+    if body.enabled:
+        user_resp = supabase.table("users").select("is_verified").eq("id", user_id).execute()
+        if not user_resp.data or not user_resp.data[0].get("is_verified"):
+            raise HTTPException(403, "Email must be verified before enabling alerts")
+
+    # Clean keywords: strip whitespace, remove blanks, max 20
+    clean_keywords = [k.strip() for k in (body.keywords or []) if k.strip()][:20]
+
+    try:
+        # Upsert — create row if missing, update if present
+        existing = supabase.table("alert_preferences").select("id").eq("user_id", user_id).execute()
+        if existing.data:
+            result = supabase.table("alert_preferences").update({
+                "keywords":         clean_keywords,
+                "min_signal_score": body.min_signal_score,
+                "enabled":          body.enabled,
+                "updated_at":       datetime.utcnow().isoformat(),
+            }).eq("user_id", user_id).execute()
+        else:
+            result = supabase.table("alert_preferences").insert({
+                "user_id":          user_id,
+                "keywords":         clean_keywords,
+                "min_signal_score": body.min_signal_score,
+                "enabled":          body.enabled,
+            }).execute()
+        return result.data[0] if result.data else {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to update alert preferences: {e}")
+
+
+@app.get("/api/alerts/unsubscribe/{token}")
+def unsubscribe_alerts(token: str):
+    """
+    One-click unsubscribe — no auth required (linked from email footer).
+    Disables alerts for the user matching the token.
+    """
+    try:
+        resp = supabase.table("alert_preferences").select("user_id,enabled").eq(
+            "unsubscribe_token", token
+        ).execute()
+        if not resp.data:
+            raise HTTPException(404, "Invalid or expired unsubscribe link")
+        pref = resp.data[0]
+        if not pref.get("enabled"):
+            return {"ok": True, "message": "Alerts already disabled"}
+        supabase.table("alert_preferences").update({"enabled": False}).eq(
+            "unsubscribe_token", token
+        ).execute()
+        return {"ok": True, "message": "Unsubscribed — alerts have been disabled"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Unsubscribe failed: {e}")
+
+
 # Startup event to initialize scheduler
 @app.on_event("startup")
 async def startup():
@@ -1382,6 +1482,28 @@ async def startup():
     except Exception as e:
         print(f"⚠️  Subscriber load failed: {e}")
 
+    # ── Load cached trends from DB into in-memory cache ───────────────────
+    try:
+        from trends_service import _trends_cache as _tc, _trends_last_updated
+        rows = supabase.table("trends").select("*").order("created_at", desc=True).limit(50).execute()
+        if rows.data:
+            loaded = []
+            for row in rows.data:
+                t = dict(row.get("data") or {})
+                t["watchlisted"] = row.get("watchlisted", False)
+                if row.get("deepdive"):
+                    t["deep_dive"] = row["deepdive"]
+                loaded.append(t)
+            _tc.clear()
+            _tc.extend(loaded)
+            import trends_service as _ts
+            _ts._trends_last_updated = rows.data[0].get("created_at") if rows.data else None
+            print(f"✅ Loaded {len(loaded)} trend(s) from DB into memory cache")
+        else:
+            print("ℹ️  No trends in DB — cache empty (use /api/trends/refresh to fetch)")
+    except Exception as e:
+        print(f"⚠️  Trends DB load failed: {e}")
+
     scheduler.start()
 
 
@@ -1400,6 +1522,16 @@ _newsletter_state = {
     "sending": False,
     "recipients": None,  # None = loaded from env
 }
+
+_newsletter_schedule = {
+    "days": ["Mon", "Wed", "Fri"],
+    "hour": 7,
+    "minute": 0,
+    "frequency": "Weekly",
+    "enabled": False,
+}
+
+_newsletter_sent_history: list = []
 
 
 def _get_recipients() -> List[str]:
@@ -1437,43 +1569,50 @@ def _build_sector_data_for_newsletter(persona: str = "cto", max_articles: int = 
     return sector_map if sector_map else {}
 
 
-async def _perform_newsletter_send(persona: str = "cto", user_email: Optional[str] = None):
-    """Background task: generate and send newsletter.
-    If user_email is provided, send only to that address; otherwise send to all subscribers."""
-    _newsletter_state["sending"] = True
-    try:
-        sector_data = _build_sector_data_for_newsletter(persona=persona)
-        if not sector_data or all(len(v) == 0 for v in sector_data.values()):
-            sector_data = {"General": [{"title": "No articles available yet.",
-                                        "url": "#", "source": "AI Watch",
-                                        "summary": "Run 'Generate New Data' in the Explore page to ingest the latest intelligence.",
-                                        "signal_type": "Weak", "relevance_score": 5,
-                                        "industry": "General", "market_segment": "General",
-                                        "key_actors": "None", "startups": "None",
-                                        "funding": "None", "patents": "None",
-                                        "publications": "None"}]}
+def _do_send_newsletter(recipients: list, subject: str, sector_data: dict) -> dict:
+    """
+    Synchronous SMTP send — raises on failure so callers get real errors.
+    Uses the recipients list directly instead of env var.
+    """
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
 
-        import os
-        # Send to the requesting user's email, or fall back to all subscribers
-        if user_email:
-            os.environ["NEWSLETTER_RECIPIENTS"] = user_email
-        else:
-            recipients = _get_recipients()
-            if recipients:
-                os.environ["NEWSLETTER_RECIPIENTS"] = ",".join(recipients)
+    cfg = newsletter_module.get_smtp_config()
 
-        today = datetime.now().strftime("%B %d, %Y")
-        newsletter_module.send_newsletter(
-            sector_data,
-            subject=f"AI Watch Daily Intelligence — {today}"
-        )
-        _newsletter_state["last_sent"] = datetime.now().isoformat()
-        _newsletter_state["last_status"] = "sent"
-    except Exception as e:
-        print(f"[Newsletter] send error ({type(e).__name__}): {e}")
-        _newsletter_state["last_status"] = f"error: {type(e).__name__}: {e}"
-    finally:
-        _newsletter_state["sending"] = False
+    if not cfg.get("username") or not cfg.get("password"):
+        raise ValueError("SMTP not configured — set SMTP_USERNAME and SMTP_PASSWORD in config/.env")
+
+    if not recipients:
+        raise ValueError("No recipients — add at least one email in Step 3")
+
+    # Flatten sector_data → article list for HTML generation
+    articles_list = [a for arts in sector_data.values() for a in arts]
+    html = newsletter_module.generate_newsletter_html(articles_list)
+    newsletter_module.save_newsletter_html(html)
+
+    plain = f"AI Watch Intelligence Brief\n{datetime.now().strftime('%B %d, %Y')}\nView this email in HTML for the best experience."
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = cfg["username"]
+    msg["To"]      = ", ".join(recipients)
+    msg.attach(MIMEText(plain, "plain", "utf-8"))
+    msg.attach(MIMEText(html,  "html",  "utf-8"))
+
+    host = cfg.get("host", "smtp.gmail.com")
+    port = int(cfg.get("port", 587))
+    print(f"[Newsletter] Connecting to {host}:{port} as {cfg['username']} → {recipients}")
+
+    with smtplib.SMTP(host, port, timeout=30) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(cfg["username"], cfg["password"])
+        server.sendmail(cfg["username"], recipients, msg.as_string())
+
+    print(f"[Newsletter] ✅ Sent to {recipients}")
+    return {"sent_to": recipients, "article_count": len(articles_list)}
 
 
 @app.get("/api/newsletter/status")
@@ -1496,30 +1635,78 @@ def get_newsletter_status():
 
 
 @app.post("/api/newsletter/send")
-async def send_newsletter_now(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    persona: str = Query("cto"),
-):
-    """Manually trigger newsletter — sends to the requesting user's email."""
+async def send_newsletter_now(request: Request):
+    """
+    Send newsletter immediately.
+    Accepts optional JSON body: { recipients, subject, article_ids, config }
+    Falls back to file recipients + DB articles if body fields are absent.
+    Runs synchronously and returns the real success/error — no silent failures.
+    """
     if _newsletter_state["sending"]:
-        return {"status": "already_sending", "message": "Newsletter is already being sent."}
-    # Resolve the requesting user's email from JWT
-    user_email: Optional[str] = None
-    uid = _get_user_id(request)
-    if uid:
-        try:
-            row = supabase.table("users").select("email").eq("id", uid).limit(1).execute()
-            if row.data:
-                user_email = row.data[0]["email"]
-        except Exception:
-            pass
-    background_tasks.add_task(_perform_newsletter_send, persona, user_email)
-    return {
-        "status": "started",
-        "message": f"Newsletter will be sent to {user_email or 'all subscribers'}.",
-        "timestamp": datetime.now().isoformat(),
-    }
+        raise HTTPException(status_code=409, detail="A send is already in progress.")
+
+    # ── Parse optional request body ──────────────────────────────────────────
+    body: dict = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass  # body is optional — plain send with no customisation is fine
+
+    wizard_recipients = body.get("recipients") or []
+    wizard_subject    = body.get("subject")    or f"AI Watch Intelligence Brief · {datetime.now().strftime('%B %d, %Y')}"
+    article_ids       = body.get("article_ids") or []
+
+    # ── Resolve recipients ────────────────────────────────────────────────────
+    recipients = wizard_recipients or _load_recipients_file()
+    if not recipients:
+        raise HTTPException(status_code=400, detail="No recipients configured. Add recipients in Step 3.")
+
+    # ── Build article content ─────────────────────────────────────────────────
+    _newsletter_state["sending"] = True
+    try:
+        if article_ids:
+            # Use the specific articles selected in the wizard
+            all_arts = _fetch_all_articles()
+            id_set   = set(str(i) for i in article_ids)
+            selected = [a for a in all_arts if str(a.get("id", a.get("title", ""))) in id_set]
+            sector_data: dict = {}
+            for a in selected:
+                sector = a.get("topic") or a.get("industry") or "General"
+                sector_data.setdefault(sector, []).append(a)
+            if not sector_data:
+                sector_data = _build_sector_data_for_newsletter()
+        else:
+            sector_data = _build_sector_data_for_newsletter()
+
+        result = _do_send_newsletter(recipients, wizard_subject, sector_data)
+
+        # Record in history
+        _newsletter_state["last_sent"]   = datetime.now().isoformat()
+        _newsletter_state["last_status"] = "sent"
+        _newsletter_sent_history.append({
+            "id":              len(_newsletter_sent_history) + 1,
+            "sent_at":         _newsletter_state["last_sent"],
+            "subject":         wizard_subject,
+            "recipient_count": len(recipients),
+            "article_count":   result["article_count"],
+        })
+
+        return {
+            "status":          "sent",
+            "recipients":      recipients,
+            "recipient_count": len(recipients),
+            "article_count":   result["article_count"],
+            "subject":         wizard_subject,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        _newsletter_state["last_status"] = f"error: {type(e).__name__}: {e}"
+        print(f"[Newsletter] ❌ Send failed: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"SMTP error: {e}")
+    finally:
+        _newsletter_state["sending"] = False
 
 
 @app.post("/api/newsletter/subscribe")
@@ -1554,6 +1741,78 @@ def unsubscribe_email(email: str = Query(...)):
         _newsletter_state["recipients"] = recipients
     _newsletter_state["recipients"] = [r for r in _newsletter_state["recipients"] if r != email]
     return {"status": "unsubscribed", "recipients": _newsletter_state["recipients"]}
+
+
+# ── Recipients file helpers (persists across restarts) ─────────────────────
+_RECIPIENTS_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "recipients.json")
+
+def _load_recipients_file() -> list:
+    try:
+        if os.path.exists(_RECIPIENTS_FILE):
+            with open(_RECIPIENTS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+    except Exception as e:
+        print(f"[Recipients] load error: {e}")
+    return []
+
+def _save_recipients_file(recipients: list):
+    try:
+        os.makedirs(os.path.dirname(_RECIPIENTS_FILE), exist_ok=True)
+        with open(_RECIPIENTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(recipients, f, indent=2)
+    except Exception as e:
+        print(f"[Recipients] save error: {e}")
+
+
+@app.get("/api/newsletter/recipients")
+def get_newsletter_recipients():
+    """List all newsletter recipients from file."""
+    recs = _load_recipients_file()
+    return {"recipients": recs, "count": len(recs)}
+
+
+@app.post("/api/newsletter/recipients")
+def add_newsletter_recipient(body: dict = Body(...)):
+    """Add a recipient to the file-backed list."""
+    email = (body.get("email") or "").strip().lower()
+    print(f"[Recipients] POST body received: {body}, resolved email: '{email}'")
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    recipients = _load_recipients_file()
+    if email in recipients:
+        raise HTTPException(status_code=409, detail="Email already in list")
+    recipients.append(email)
+    _save_recipients_file(recipients)
+    return {"recipients": recipients}
+
+
+@app.delete("/api/newsletter/recipients/{email}")
+def remove_newsletter_recipient(email: str):
+    """Remove a recipient from the file-backed list."""
+    email = email.strip().lower()
+    recipients = _load_recipients_file()
+    if email not in recipients:
+        raise HTTPException(status_code=404, detail="Email not found")
+    recipients.remove(email)
+    _save_recipients_file(recipients)
+    return {"recipients": recipients}
+
+
+@app.get("/api/newsletter/schedule")
+def get_newsletter_schedule():
+    return _newsletter_schedule
+
+
+@app.post("/api/newsletter/schedule")
+def save_newsletter_schedule(data: dict = Body(...)):
+    _newsletter_schedule.update(data)
+    return {"status": "saved", "schedule": _newsletter_schedule}
+
+
+@app.get("/api/newsletter/sent")
+def get_sent_history():
+    return {"history": list(reversed(_newsletter_sent_history))}
 
 
 if __name__ == "__main__":
