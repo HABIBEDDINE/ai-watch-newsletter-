@@ -1,35 +1,35 @@
 import { useState, useEffect } from "react";
 import {
-  BarChart, Bar,
-  PieChart, Pie, Cell,
-  AreaChart, Area,
+  BarChart, Bar, Cell,
   XAxis, YAxis,
   CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer,
+  ResponsiveContainer,
 } from "recharts";
 import { getArticles } from "../services/api";
+import CategoryCombobox from "../components/CategoryCombobox";
 
+// Colors using CSS variables for dark mode support
 const B = {
-  purple: "#1A4A9E",
-  purpleDeep: "#102d6a",
-  purplePale: "#e8eef8",
-  white: "#ffffff",
-  gray50: "#fafafa",
-  gray100: "#f4f4f4",
-  gray200: "#e8e8e8",
-  gray300: "#d0d0d0",
-  gray400: "#999999",
-  gray500: "#666666",
-  gray600: "#444444",
-  gray700: "#222222",
-  gray900: "#111111",
-  green: "#1a8a4a",
-  greenLight: "#e8f5ee",
-  amber: "#b45309",
-  amberLight: "#fef3e2",
-  red: "#c0392b",
-  blue: "#1a5fa8",
-  darkBg: "#0a0a0a",
+  purple: "var(--blue)",
+  purpleDeep: "var(--blue)",
+  purplePale: "var(--blue-light)",
+  white: "var(--card-bg)",
+  gray50: "var(--surface)",
+  gray100: "var(--border)",
+  gray200: "var(--border-color)",
+  gray300: "var(--text-hint)",
+  gray400: "var(--text-muted)",
+  gray500: "var(--text-secondary)",
+  gray600: "var(--text-secondary)",
+  gray700: "var(--text-primary)",
+  gray900: "var(--text-primary)",
+  green: "var(--green)",
+  greenLight: "var(--green-light)",
+  amber: "var(--amber)",
+  amberLight: "var(--amber-light)",
+  red: "var(--red)",
+  blue: "var(--blue)",
+  darkBg: "var(--page-bg)",
 };
 
 
@@ -45,49 +45,7 @@ function groupByField(articles, field, limit = 8) {
     .slice(0, limit);
 }
 
-function getSignalDistribution(articles) {
-  let strong = 0, weak = 0, unknown = 0;
-  articles.forEach(a => {
-    const s = (a.signal_type || "").toUpperCase();
-    if (s.includes("STRONG")) strong++;
-    else if (s.includes("WEAK")) weak++;
-    else unknown++;
-  });
-  const result = [];
-  if (strong > 0)  result.push({ name: "Strong",  value: strong });
-  if (weak > 0)    result.push({ name: "Weak",    value: weak });
-  if (unknown > 0) result.push({ name: "Unknown", value: unknown });
-  return result;
-}
-
-function getLast7Days(articles) {
-  const today = new Date();
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    days.push({
-      dateObj: d,
-      date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      count: 0,
-    });
-  }
-  articles.forEach(a => {
-    if (!a.publishedAt) return;
-    const parsed = new Date(a.publishedAt);
-    if (isNaN(parsed)) return;
-    days.forEach(d => {
-      if (
-        parsed.getFullYear() === d.dateObj.getFullYear() &&
-        parsed.getMonth()    === d.dateObj.getMonth() &&
-        parsed.getDate()     === d.dateObj.getDate()
-      ) { d.count++; }
-    });
-  });
-  return days.map(({ date, count }) => ({ date, count }));
-}
-
-function DataTable({ articles, loading, error, searchQuery, setSearchQuery }) {
+function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMobile }) {
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
 
@@ -155,39 +113,46 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", marginBottom: 20, gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, background: B.purplePale, color: B.purple, padding: "4px 10px", borderRadius: 2 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, background: "var(--blue-light)", color: "var(--blue)", padding: "4px 10px", borderRadius: 2 }}>
             {articles.length} Articles
           </span>
         </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, flexDirection: isMobile ? "column" : "row" }}>
           <input
             type="text"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
-              padding: "6px 12px",
-              border: `1px solid ${B.gray100}`,
+              padding: isMobile ? "10px 12px" : "6px 12px",
+              minHeight: isMobile ? 40 : "auto",
+              border: "1px solid var(--border-color)",
               borderRadius: 4,
-              fontSize: 11,
-              width: "min(200px, 100%)",
+              fontSize: isMobile ? 16 : 11,
+              width: isMobile ? "100%" : "min(200px, 100%)",
+              background: "var(--input-bg)",
+              color: "var(--text-primary)",
+              boxSizing: "border-box",
             }}
           />
           <button
             onClick={downloadCSV}
             disabled={loading}
             style={{
-              padding: "6px 12px",
-              background: B.purple,
-              color: B.white,
+              padding: isMobile ? "10px 16px" : "6px 12px",
+              minHeight: isMobile ? 40 : "auto",
+              background: "var(--blue)",
+              color: "#fff",
               border: "none",
-              borderRadius: 2,
-              fontSize: 11,
+              borderRadius: 4,
+              fontSize: isMobile ? 13 : 11,
               fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.6 : 1,
+              boxSizing: "border-box",
+              whiteSpace: "nowrap",
             }}
           >
             Download CSV
@@ -197,9 +162,9 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery }) {
 
       {error && (
         <div style={{
-          background: "#fdf0ef",
-          border: `1px solid ${B.amber}`,
-          color: B.amber,
+          background: "var(--red-light)",
+          border: "1px solid var(--amber)",
+          color: "var(--amber)",
           padding: "12px 16px",
           marginBottom: 16,
           borderRadius: 4,
@@ -210,102 +175,102 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery }) {
       )}
 
       <div className="table-scroll" style={{
-        background: B.white,
-        border: `1px solid ${B.gray100}`,
+        background: "var(--card-bg)",
+        border: "1px solid var(--border-color)",
         borderRadius: 4,
         overflow: "auto",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        boxShadow: "var(--shadow-sm)",
       }}>
         <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", fontSize: 11 }}>
-          <thead style={{ background: B.gray50, borderBottom: `1px solid ${B.gray100}` }}>
+          <thead style={{ background: "var(--surface)", borderBottom: "1px solid var(--border-color)" }}>
             <tr>
-              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700 }}>#</th>
-              <th 
+              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: "var(--text-primary)" }}>#</th>
+              <th
                 onClick={() => handleSort("title")}
-                style={{ 
-                  padding: "12px 16px", 
-                  textAlign: "left", 
+                style={{
+                  padding: "12px 16px",
+                  textAlign: "left",
                   fontWeight: 700,
                   cursor: "pointer",
-                  background: sortBy === "title" ? B.purplePale : "transparent",
-                  color: sortBy === "title" ? B.purple : B.gray900,
+                  background: sortBy === "title" ? "var(--blue-light)" : "transparent",
+                  color: sortBy === "title" ? "var(--blue)" : "var(--text-primary)",
                   userSelect: "none"
                 }}
               >
                 Title {sortBy === "title" && (sortDir === "asc" ? "↑" : "↓")}
               </th>
-              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700 }}>Source</th>
-              <th 
+              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: "var(--text-primary)" }}>Source</th>
+              <th
                 onClick={() => handleSort("signal")}
-                style={{ 
-                  padding: "12px 16px", 
-                  textAlign: "center", 
+                style={{
+                  padding: "12px 16px",
+                  textAlign: "center",
                   fontWeight: 700,
                   cursor: "pointer",
-                  background: sortBy === "signal" ? B.purplePale : "transparent",
-                  color: sortBy === "signal" ? B.purple : B.gray900,
+                  background: sortBy === "signal" ? "var(--blue-light)" : "transparent",
+                  color: sortBy === "signal" ? "var(--blue)" : "var(--text-primary)",
                   userSelect: "none"
                 }}
               >
                 Signal {sortBy === "signal" && (sortDir === "asc" ? "↑" : "↓")}
               </th>
-              <th 
+              <th
                 onClick={() => handleSort("relevance")}
-                style={{ 
-                  padding: "12px 16px", 
-                  textAlign: "center", 
+                style={{
+                  padding: "12px 16px",
+                  textAlign: "center",
                   fontWeight: 700,
                   cursor: "pointer",
-                  background: sortBy === "relevance" ? B.purplePale : "transparent",
-                  color: sortBy === "relevance" ? B.purple : B.gray900,
+                  background: sortBy === "relevance" ? "var(--blue-light)" : "transparent",
+                  color: sortBy === "relevance" ? "var(--blue)" : "var(--text-primary)",
                   userSelect: "none"
                 }}
               >
                 Relevance {sortBy === "relevance" && (sortDir === "asc" ? "↑" : "↓")}
               </th>
-              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700 }}>Topic</th>
-              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700 }}>Published</th>
-              <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700 }}>Link</th>
+              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: "var(--text-primary)" }}>Topic</th>
+              <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: "var(--text-primary)" }}>Published</th>
+              <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700, color: "var(--text-primary)" }}>Link</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="8" style={{ padding: "20px", textAlign: "center", color: B.gray400 }}>Loading...</td></tr>
+              <tr><td colSpan="8" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>Loading...</td></tr>
             ) : sortedArticles.length === 0 ? (
-              <tr><td colSpan="8" style={{ padding: "20px", textAlign: "center", color: B.gray400 }}>No articles found</td></tr>
+              <tr><td colSpan="8" style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>No articles found</td></tr>
             ) : (
               sortedArticles.map((article, idx) => (
                 <tr key={article.id} style={{
-                  borderBottom: `1px solid ${B.gray100}`,
-                  background: idx % 2 === 0 ? B.white : B.gray50,
+                  borderBottom: "1px solid var(--border-color)",
+                  background: idx % 2 === 0 ? "var(--card-bg)" : "var(--surface)",
                 }}>
-                  <td style={{ padding: "12px 16px", color: B.gray500 }}>{idx + 1}</td>
-                  <td style={{ padding: "12px 16px", color: B.gray900, fontWeight: 600, maxWidth: "30vw", minWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "12px 16px", color: "var(--text-muted)" }}>{idx + 1}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--text-primary)", fontWeight: 600, maxWidth: "30vw", minWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {article.title}
                   </td>
-                  <td style={{ padding: "12px 16px", color: B.gray600, fontSize: 10 }}>{article.source}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--text-secondary)", fontSize: 10 }}>{article.source}</td>
                   <td style={{
                     padding: "12px 16px",
                     textAlign: "center",
-                    color: article.signal_strength === "Strong" ? B.green : B.amber,
+                    color: article.signal_strength === "Strong" ? "var(--green)" : "var(--amber)",
                     fontWeight: 700,
                     textTransform: "uppercase",
                     fontSize: 10,
                   }}>
                     {article.signal_strength}
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700, color: B.purple }}>
+                  <td style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700, color: "var(--blue)" }}>
                     {article.relevance || 5}/10
                   </td>
-                  <td style={{ padding: "12px 16px", color: B.gray600, fontSize: 10 }}>{article.topic}</td>
-                  <td style={{ padding: "12px 16px", color: B.gray600, fontSize: 10 }}>
+                  <td style={{ padding: "12px 16px", color: "var(--text-secondary)", fontSize: 10 }}>{article.topic}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--text-secondary)", fontSize: 10 }}>
                     {new Date(article.published_at).toLocaleDateString()}
                   </td>
                   <td style={{ padding: "12px 16px", textAlign: "center" }}>
                     {article.url ? (
-                      <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ color: B.purple, textDecoration: "none", fontWeight: 600, fontSize: 10 }}>🔗</a>
+                      <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--blue)", textDecoration: "none", fontWeight: 600, fontSize: 10 }}>🔗</a>
                     ) : (
-                      <span style={{ color: B.gray300, fontSize: 10 }}>-</span>
+                      <span style={{ color: "var(--text-hint)", fontSize: 10 }}>-</span>
                     )}
                   </td>
                 </tr>
@@ -318,36 +283,36 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery }) {
   );
 }
 
-const P = "#1A4A9E";
-const P_PALE = "#e8eef8";
-const P_LIGHT = "#4a7fd4";
-const GRAY_BORDER = "#e8e8e8";
-const GRAY_TEXT = "#999";
-const DARK_TEXT = "#111";
+const P = "var(--blue)";
+const P_PALE = "var(--blue-light)";
+const P_LIGHT = "var(--purple)";
+const GRAY_BORDER = "var(--border-color)";
+const GRAY_TEXT = "var(--text-muted)";
+const DARK_TEXT = "var(--text-primary)";
 
 function ChartPanel({ title, subtitle, children }) {
   return (
-    <div style={{ background: "#fff", border: `1px solid ${GRAY_BORDER}`, borderRadius: 6, overflow: "hidden" }}>
-      <div style={{ padding: "16px 20px 14px", borderBottom: `1px solid ${GRAY_BORDER}` }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT }}>{title}</div>
-        {subtitle && <div style={{ fontSize: 11, color: GRAY_TEXT, marginTop: 3 }}>{subtitle}</div>}
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-color)", borderRadius: 6, overflow: "hidden" }}>
+      <div style={{ padding: "16px 20px 14px", borderBottom: "1px solid var(--border-color)" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>{subtitle}</div>}
       </div>
       <div style={{ padding: "20px" }}>{children}</div>
     </div>
   );
 }
 
-function KpiCard({ label, value, sub }) {
+function KpiCard({ label, value, sub, isMobile }) {
   return (
-    <div style={{ background: "#fff", border: `1px solid ${GRAY_BORDER}`, borderRadius: 6, padding: "18px 20px" }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: GRAY_TEXT, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: P, lineHeight: 1, marginBottom: 6 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: GRAY_TEXT }}>{sub}</div>}
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-color)", borderRadius: 6, padding: isMobile ? "14px 16px" : "18px 20px" }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: "var(--blue)", lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{sub}</div>}
     </div>
   );
 }
 
-function Charts({ articles }) {
+function Charts({ articles, isMobile }) {
   if (articles.length === 0) {
     return (
       <div style={{ padding: "60px 0", textAlign: "center" }}>
@@ -397,15 +362,20 @@ function Charts({ articles }) {
   return (
     <div>
       {/* ── KPI ROW ── */}
-      <div className="grid-4col" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 16 }}>
-        <KpiCard label="Articles"       value={articles.length}  sub="filtered selection" />
-        <KpiCard label="Strong Signals" value={`${strongPct}%`}  sub={`${strong} strong · ${weak} weak`} />
-        <KpiCard label="Avg Relevance"  value={avgRel}           sub="score out of 10" />
-        <KpiCard label="Sources"        value={uniqueSrc}        sub={`top: ${topSource.length > 16 ? topSource.slice(0,16)+"…" : topSource}`} />
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4,1fr)", gap: 12, marginBottom: 16 }}>
+        <style>{`
+          @media (min-width: 480px) and (max-width: 767px) {
+            .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          }
+        `}</style>
+        <KpiCard label="Articles" value={articles.length} sub="filtered selection" isMobile={isMobile} />
+        <KpiCard label="Strong Signals" value={`${strongPct}%`} sub={`${strong} strong · ${weak} weak`} isMobile={isMobile} />
+        <KpiCard label="Avg Relevance" value={avgRel} sub="score out of 10" isMobile={isMobile} />
+        <KpiCard label="Sources" value={uniqueSrc} sub={`top: ${topSource.length > 16 ? topSource.slice(0,16)+"…" : topSource}`} isMobile={isMobile} />
       </div>
 
       {/* ── ROW 1: Signal + Relevance ── */}
-      <div className="grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+      <div className="grid-2col" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
 
         <ChartPanel title="Signal Distribution" subtitle={`Strong vs Weak · ${articles.length} articles`}>
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
@@ -488,12 +458,12 @@ function Charts({ articles }) {
   );
 }
 
-function FundingAndActors({ newsSources, fundingRounds }) {
+function FundingAndActors({ newsSources, fundingRounds, isMobile }) {
   const fundingData = fundingRounds || [];
   const actorsData  = newsSources  || [];
 
   return (
-    <div className="grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+    <div className="grid-2col" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 20 }}>
       {/* Funding Rounds */}
       <div>
         <h3 style={{ fontSize: 12, fontWeight: 700, marginBottom: 4, color: B.gray900 }}>💰 Funding Rounds</h3>
@@ -608,63 +578,41 @@ function FilterBar({ articles, onFilterChange, isMobile }) {
 
   const isFiltered = activeTopic !== "All" || activeSignal !== "All";
 
+  // Build categories with counts for combobox
+  const topicCategories = topics.map(t => ({
+    id: t,
+    label: `${t} (${topicCount(t)})`,
+  }));
+
   return (
     <div style={{
-      background: B.white,
-      border: `1px solid ${B.gray200}`,
+      background: "var(--card-bg)",
+      border: "1px solid var(--border-color)",
       borderRadius: 6,
       padding: isMobile ? "12px" : "14px 16px",
       marginBottom: 16,
       display: "flex",
-      flexDirection: "column",
-      gap: isMobile ? 10 : 10,
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: isMobile ? "stretch" : "center",
+      gap: isMobile ? 12 : 12,
     }}>
 
-      {/* ── Topic chips row ── */}
-      <div style={{
-        display: "flex",
-        gap: 6,
-        overflowX: isMobile ? "auto" : "visible",
-        WebkitOverflowScrolling: "touch",
-        scrollbarWidth: isMobile ? "none" : "auto",
-        flexWrap: isMobile ? "nowrap" : "wrap",
-        alignItems: "center",
-      }}>
-        {topics.map(t => {
-          const active = activeTopic === t;
-          return (
-            <button
-              key={t}
-              onClick={() => setActiveTopic(t)}
-              style={{
-                flexShrink: 0,
-                padding: isMobile ? "4px 10px" : "5px 13px",
-                borderRadius: 999,
-                border: active ? "1.5px solid #1A4A9E" : `1px solid ${B.gray200}`,
-                background: active ? "#e8eef8" : B.white,
-                color: active ? "#1A4A9E" : B.gray600,
-                fontSize: isMobile ? 12 : 13,
-                fontWeight: active ? 700 : 400,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.12s",
-              }}
-            >
-              {t}{" "}
-              <span style={{ color: active ? "#1A4A9E" : B.gray400, fontSize: isMobile ? 10 : 11 }}>
-                ({topicCount(t)})
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Topic dropdown ── */}
+      <CategoryCombobox
+        selected={activeTopic}
+        onSelect={setActiveTopic}
+        categories={topicCategories}
+        isMobile={isMobile}
+        fullWidth={isMobile}
+        placeholder="All Topics"
+      />
 
       {/* ── Signal toggle + count + clear ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap" }}>
         {/* Signal pill group */}
         <div style={{
           display: "flex",
-          border: `1px solid ${B.gray200}`,
+          border: "1px solid var(--border-color)",
           borderRadius: 6,
           overflow: "hidden",
           flexShrink: 0,
@@ -678,16 +626,18 @@ function FilterBar({ articles, onFilterChange, isMobile }) {
                 onClick={() => setActiveSignal(s)}
                 style={{
                   ...(isMobile ? { flex: 1 } : {}),
-                  padding: isMobile ? "6px 12px" : "6px 16px",
+                  padding: isMobile ? "10px 12px" : "6px 16px",
+                  minHeight: isMobile ? 40 : "auto",
                   border: "none",
-                  borderLeft: i > 0 ? `1px solid ${B.gray200}` : "none",
-                  background: active ? "#1A4A9E" : B.white,
-                  color: active ? "#fff" : B.gray600,
+                  borderLeft: i > 0 ? "1px solid var(--border-color)" : "none",
+                  background: active ? "var(--blue)" : "var(--card-bg)",
+                  color: active ? "#fff" : "var(--text-secondary)",
                   fontSize: 12,
                   fontWeight: active ? 700 : 400,
                   cursor: "pointer",
                   transition: "all 0.12s",
                   whiteSpace: "nowrap",
+                  boxSizing: "border-box",
                 }}
               >
                 {s}
@@ -698,8 +648,8 @@ function FilterBar({ articles, onFilterChange, isMobile }) {
 
         {/* Count + Clear — always same line */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 12, color: B.gray500 }}>
-            <span style={{ fontWeight: 700, color: B.gray900 }}>{displayCount}</span> articles
+          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{displayCount}</span> articles
           </span>
           {isFiltered && (
             <button
@@ -707,11 +657,12 @@ function FilterBar({ articles, onFilterChange, isMobile }) {
               style={{
                 background: "none",
                 border: "none",
-                color: "#1A4A9E",
+                color: "var(--blue)",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
-                padding: "2px 6px",
+                padding: isMobile ? "8px 12px" : "2px 6px",
+                minHeight: isMobile ? 36 : "auto",
                 flexShrink: 0,
               }}
             >
@@ -785,17 +736,25 @@ export default function DataPreview() {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: B.gray50, padding: isMobile ? "16px" : "24px" }}>
+    <div className="page-container" style={{
+      minHeight: "100vh",
+      background: "var(--page-bg)",
+      padding: isMobile ? "16px" : "24px",
+      paddingBottom: isMobile ? "max(24px, env(safe-area-inset-bottom))" : "24px",
+      maxWidth: "100vw",
+      overflowX: "hidden",
+      boxSizing: "border-box",
+    }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: B.gray900, marginBottom: 4 }}>Data Preview</h1>
-        <p style={{ fontSize: 12, color: B.gray500 }}>Explore articles, funding, and key actors</p>
+        <h1 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>Data Preview</h1>
+        <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>Explore articles, funding, and key actors</p>
       </div>
 
       {/* Error state */}
       {error && (
-        <div style={{ background: "#fdf0ef", border: "1px solid #c0392b", borderRadius: 6, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: "#c0392b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ background: "var(--red-light)", border: "1px solid var(--red)", borderRadius: 6, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: "var(--red)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <span>Error loading articles: {error}</span>
-          <button onClick={loadArticles} style={{ padding: "6px 14px", background: B.purple, color: B.white, border: "none", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Retry</button>
+          <button onClick={loadArticles} style={{ padding: isMobile ? "10px 16px" : "6px 14px", minHeight: isMobile ? 40 : "auto", background: "var(--blue)", color: "#fff", border: "none", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Retry</button>
         </div>
       )}
 
@@ -806,9 +765,9 @@ export default function DataPreview() {
       <div style={{
         display: "flex",
         gap: 0,
-        background: B.white,
-        border: `1px solid ${B.gray200}`,
-        borderRadius: 2,
+        background: "var(--card-bg)",
+        border: "1px solid var(--border-color)",
+        borderRadius: 6,
         marginBottom: 20,
         overflow: "auto",
         WebkitOverflowScrolling: "touch",
@@ -819,15 +778,18 @@ export default function DataPreview() {
             onClick={() => setActiveTab(tab.id)}
             style={{
               flex: 1,
-              padding: "14px 16px",
+              padding: isMobile ? "12px 10px" : "14px 16px",
+              minHeight: 44,
               border: "none",
-              background: activeTab === tab.id ? B.purplePale : B.white,
-              color: activeTab === tab.id ? B.purple : B.gray600,
-              fontSize: 12,
+              background: activeTab === tab.id ? "var(--blue-light)" : "var(--card-bg)",
+              color: activeTab === tab.id ? "var(--blue)" : "var(--text-secondary)",
+              fontSize: isMobile ? 11 : 12,
               fontWeight: activeTab === tab.id ? 700 : 500,
               cursor: "pointer",
-              borderRight: tab.id !== tabs[tabs.length - 1].id ? `1px solid ${B.gray200}` : "none",
+              borderRight: tab.id !== tabs[tabs.length - 1].id ? "1px solid var(--border-color)" : "none",
               transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              boxSizing: "border-box",
             }}
           >
             {tab.label}
@@ -837,9 +799,9 @@ export default function DataPreview() {
 
       {/* Tab Content */}
       <div>
-        {activeTab === "table"   && <DataTable articles={displayedArticles} loading={loading} error={null} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
-        {activeTab === "charts"  && <Charts articles={displayedArticles} />}
-        {activeTab === "funding" && <FundingAndActors newsSources={newsSources} fundingRounds={fundingRounds} />}
+        {activeTab === "table"   && <DataTable articles={displayedArticles} loading={loading} error={null} searchQuery={searchQuery} setSearchQuery={setSearchQuery} isMobile={isMobile} />}
+        {activeTab === "charts"  && <Charts articles={displayedArticles} isMobile={isMobile} />}
+        {activeTab === "funding" && <FundingAndActors newsSources={newsSources} fundingRounds={fundingRounds} isMobile={isMobile} />}
       </div>
     </div>
   );

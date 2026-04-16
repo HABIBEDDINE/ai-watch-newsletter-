@@ -25,46 +25,28 @@ const ROLE_LABELS = {
 
 const LS_TOPIC_KEY = "aiwatch_explore_topic";
 
-const ACCENT   = "#1A4A9E";
-const ACCENT_BG = "#e8eef8";
-
-const B = {
-  purple:    ACCENT,
-  purplePale: ACCENT_BG,
-  white:     "#ffffff",
-  gray50:    "#fafafa",
-  gray100:   "#f4f4f4",
-  gray200:   "#e8e8e8",
-  gray300:   "#d0d0d0",
-  gray400:   "#999999",
-  gray500:   "#666666",
-  gray600:   "#444444",
-  gray700:   "#222222",
-  gray900:   "#111111",
-  green:     "#C45F00",
-  greenLight:"#fdf0e6",
-  amber:     "#b45309",
-  amberLight:"#fef3e2",
-  blue:      "#1a5fa8",
-};
+// Colors now use CSS variables for dark mode support
+// Kept as fallbacks for JS-based conditional styling only
+const ACCENT   = "var(--blue)";
+const ACCENT_BG = "var(--blue-light)";
 
 const SIGNALS = ["All", "Strong", "Weak"];
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, isMobile }) {
   return (
     <div style={{
-      background: B.white,
-      border: `1px solid ${B.gray200}`,
+      background: "var(--card-bg)",
+      border: "1px solid var(--border-color)",
       borderRadius: 6,
-      padding: "18px 20px",
+      padding: isMobile ? "14px 16px" : "18px 20px",
     }}>
-      <div style={{ fontSize: 24, fontWeight: 800, color: ACCENT, marginBottom: 4, letterSpacing: -0.5 }}>{value}</div>
-      <div style={{ fontSize: 13, color: B.gray500, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: "var(--purple)", marginBottom: 4, letterSpacing: -0.5 }}>{value}</div>
+      <div style={{ fontSize: isMobile ? 12 : 13, color: "var(--text-secondary)", fontWeight: 500 }}>{label}</div>
     </div>
   );
 }
 
-function ArticleCard({ article, onOpen, isSaved, onToggleSave }) {
+function ArticleCard({ article, onOpen, isSaved, onToggleSave, isMobile }) {
   const isStrong = article.signal_strength === "Strong";
   const title    = cleanText(article.title);
   const rawSum   = cleanText(article.summary || article.description || "")
@@ -77,22 +59,25 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave }) {
 
   return (
     <div
+      className="article-card"
       onMouseEnter={e => {
         e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
-        e.currentTarget.style.borderColor = B.gray300;
+        e.currentTarget.style.borderColor = "var(--blue)";
       }}
       onMouseLeave={e => {
         e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = B.gray200;
+        e.currentTarget.style.borderColor = "var(--border-color)";
       }}
       style={{
-        background: B.white,
-        border: `1px solid ${B.gray200}`,
+        background: "var(--card-bg)",
+        border: "1px solid var(--border-color)",
         borderRadius: 6,
-        padding: "20px",
+        padding: isMobile ? "16px" : "20px",
         cursor: "pointer",
         transition: "box-shadow 0.2s, border-color 0.2s",
         position: "relative",
+        overflow: "hidden",
+        minWidth: 0,
       }}
     >
       {/* Bookmark button */}
@@ -101,34 +86,55 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave }) {
           onClick={e => { e.stopPropagation(); onToggleSave("article", article.id, { title: article.title, category: industry, signal: article.signal_strength, source: article.source, url: article.url }); }}
           title={isSaved ? "Remove from saved" : "Save article"}
           style={{
-            position: "absolute", top: 14, right: 14,
+            position: "absolute", top: isMobile ? 12 : 14, right: isMobile ? 12 : 14,
             background: "none", border: "none", cursor: "pointer", padding: 4,
-            color: isSaved ? ACCENT : B.gray300,
+            color: isSaved ? "var(--blue)" : "var(--text-muted)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          <Bookmark size={16} strokeWidth={2} fill={isSaved ? ACCENT : "none"} />
+          <Bookmark size={16} strokeWidth={2} fill={isSaved ? "var(--blue)" : "none"} />
         </button>
       )}
 
       {/* Clickable area */}
-      <div onClick={() => onOpen(article)}>
+      <div onClick={() => onOpen(article)} style={{ minWidth: 0 }}>
         {/* Title + Signal badge */}
-        <div className="article-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 10, paddingRight: onToggleSave ? 28 : 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: B.gray900, lineHeight: 1.4, flex: 1 }}>
+        <div className="article-card-header" style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: isMobile ? 10 : 14,
+          marginBottom: 10,
+          paddingRight: onToggleSave ? 28 : 0,
+          minWidth: 0,
+        }}>
+          <div style={{
+            fontSize: isMobile ? 15 : 18,
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            lineHeight: 1.4,
+            flex: 1,
+            minWidth: 0,
+            wordWrap: "break-word",
+            overflowWrap: "break-word",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}>
             {title}
           </div>
           <span className="signal-badge" style={{
             flexShrink: 0,
-            fontSize: 10,
+            fontSize: isMobile ? 9 : 10,
             fontWeight: 700,
-            padding: "4px 10px",
+            padding: isMobile ? "3px 8px" : "4px 10px",
             borderRadius: 999,
             letterSpacing: 0.5,
             marginTop: 2,
             ...(isStrong
-              ? { background: B.green, color: "#fff" }
-              : { background: "transparent", color: B.gray400, border: `1px solid ${B.gray300}` }),
+              ? { background: "var(--orange)", color: "#fff" }
+              : { background: "var(--bg-hover)", color: "var(--text-muted)", border: "1px solid var(--border-color)" }),
           }}>
             {isStrong ? "STRONG" : "WEAK"}
           </span>
@@ -136,12 +142,12 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave }) {
 
         {/* Summary */}
         <div style={{
-          fontSize: 15,
-          color: summary ? B.gray500 : B.gray300,
+          fontSize: isMobile ? 13 : 15,
+          color: summary ? "var(--text-secondary)" : "var(--text-muted)",
           lineHeight: 1.65,
           marginBottom: 14,
           display: "-webkit-box",
-          WebkitLineClamp: 3,
+          WebkitLineClamp: isMobile ? 2 : 3,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
           fontStyle: summary ? "normal" : "italic",
@@ -150,7 +156,13 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave }) {
         </div>
 
         {/* Metadata footer */}
-        <div style={{ fontSize: 13, color: B.gray400 }}>
+        <div style={{
+          fontSize: isMobile ? 11 : 13,
+          color: "var(--text-muted)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
           {industry} · {article.source} · {date}
         </div>
       </div>
@@ -189,17 +201,37 @@ export default function Explore() {
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [reportFormat, setReportFormat]     = useState("md");
   const [searchTimeout, setSearchTimeout]   = useState(null);
+  const [dateFilter, setDateFilter]         = useState("Today");
 
   const { saved, toggleSave } = useSaved();
+
+  // Helper to get date string based on filter
+  const getDateParam = (filter) => {
+    const now = new Date();
+    if (filter === "Today") {
+      return now.toISOString().split("T")[0];
+    }
+    if (filter === "This Week") {
+      const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+      return weekAgo.toISOString().split("T")[0];
+    }
+    if (filter === "This Month") {
+      const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+      return monthAgo.toISOString().split("T")[0];
+    }
+    return undefined; // All Time = no date filter
+  };
 
   const fetchArticles = useCallback(async (page = 1, pageSize = itemsPerPage, isRetry = false) => {
     setLoading(true);
     setError(null);
     try {
+      const dateFrom = getDateParam(dateFilter);
       const response = await getArticles({
         topic:    selectedTopic === "All Industries" ? undefined : selectedTopic,
         signal:   selectedSignal === "All" ? undefined : selectedSignal,
         search:   searchQuery || undefined,
+        dateFrom,
         page,
         pageSize,
       });
@@ -219,7 +251,7 @@ export default function Explore() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTopic, selectedSignal, searchQuery, itemsPerPage]);
+  }, [selectedTopic, selectedSignal, searchQuery, itemsPerPage, dateFilter]);
 
   // On mount and filter/search change: fetch articles and mirror into context.
   const isInitialMount = useRef(true);
@@ -385,12 +417,20 @@ export default function Explore() {
     : "—";
 
   return (
-    <div className="pad-mobile" style={{ background: B.white, padding: "24px 28px", minHeight: "100%" }}>
+    <div className="page-container" style={{
+      background: "var(--card-bg)",
+      padding: isMobile ? "16px" : "24px 28px",
+      paddingBottom: isMobile ? "max(24px, env(safe-area-inset-bottom))" : "24px",
+      minHeight: "100%",
+      maxWidth: "100vw",
+      overflowX: "hidden",
+      boxSizing: "border-box",
+    }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* ── PAGE HEADER ── */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: B.gray900, letterSpacing: -0.3, margin: "0 0 4px" }}>
+        <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "var(--text-primary)", letterSpacing: -0.3, margin: "0 0 4px" }}>
           Explore Intelligence
         </h1>
         {user?.role && ROLE_LABELS[user.role] && (
@@ -430,9 +470,9 @@ export default function Explore() {
 
       {/* ── KPI STRIP (3 cards) ── */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
-        <StatCard label="Articles Today"  value={totalCount} />
-        <StatCard label="Strong Signals"  value={strongCount} />
-        <StatCard label="Avg Relevance"   value={articles.length ? `${avgRelevance}/10` : "—"} />
+        <StatCard label="Articles" value={totalCount} isMobile={isMobile} />
+        <StatCard label="Strong Signals" value={strongCount} isMobile={isMobile} />
+        <StatCard label="Avg Relevance" value={articles.length ? `${avgRelevance}/10` : "—"} isMobile={isMobile} />
       </div>
 
       {/* ── TOOLBAR: search + category combobox + view toggle ── */}
@@ -441,30 +481,32 @@ export default function Explore() {
           <Search
             size={14}
             strokeWidth={1.8}
-            style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: B.gray400, pointerEvents: "none" }}
+            style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }}
           />
           <input
             type="text"
             placeholder="Search articles..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
-            onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = `0 0 0 3px ${ACCENT}20`; }}
-            onBlur={e => { e.target.style.borderColor = B.gray200; e.target.style.boxShadow = "none"; }}
+            onFocus={e => { e.target.style.borderColor = "var(--blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(24,94,165,0.2)"; }}
+            onBlur={e => { e.target.style.borderColor = "var(--border-color)"; e.target.style.boxShadow = "none"; }}
             style={{
               width: "100%",
               padding: "9px 12px 9px 36px",
-              border: `1px solid ${B.gray200}`,
+              border: "1px solid var(--border-color)",
               borderRadius: 6,
               fontSize: 13,
               outline: "none",
               transition: "border-color 0.15s, box-shadow 0.15s",
-              background: B.white,
+              background: "var(--input-bg)",
+              color: "var(--text-primary)",
             }}
           />
         </div>
         <CategoryCombobox
           selected={selectedTopic}
           onSelect={handleTopicChange}
+          isMobile={isMobile}
         />
 
         {/* Grid / List toggle */}
@@ -479,10 +521,10 @@ export default function Explore() {
               title={title}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
-                width: 34, height: 34, borderRadius: 6, border: `1.5px solid`,
-                borderColor: viewMode === mode ? ACCENT : B.gray200,
-                background:  viewMode === mode ? ACCENT_BG : B.white,
-                color:       viewMode === mode ? ACCENT : B.gray400,
+                width: 34, height: 34, borderRadius: 6, border: "1.5px solid",
+                borderColor: viewMode === mode ? "var(--blue)" : "var(--border-color)",
+                background:  viewMode === mode ? "var(--blue-light)" : "var(--card-bg)",
+                color:       viewMode === mode ? "var(--blue)" : "var(--text-muted)",
                 cursor: "pointer", transition: "all 0.15s",
               }}
             >
@@ -492,12 +534,46 @@ export default function Explore() {
         </div>
       </div>
 
+      {/* ── DATE FILTER ROW ── */}
+      <div className="filter-chips-scroll" style={{
+        display: "flex",
+        gap: 8,
+        marginBottom: 20,
+        alignItems: "center",
+        overflowX: isMobile ? "auto" : "visible",
+        paddingBottom: isMobile ? 4 : 0,
+      }}>
+        <span style={{ fontSize: isMobile ? 12 : 13, color: "var(--text-muted)", marginRight: 4, flexShrink: 0 }}>Period:</span>
+        {["Today", "This Week", "This Month", "All Time"].map((period) => (
+          <button
+            key={period}
+            onClick={() => setDateFilter(period)}
+            style={{
+              fontSize: isMobile ? 11 : 12,
+              padding: isMobile ? "5px 12px" : "6px 16px",
+              borderRadius: 20,
+              border: "1px solid",
+              borderColor: dateFilter === period ? "var(--blue)" : "var(--border-color)",
+              background: dateFilter === period ? "var(--blue)" : "var(--card-bg)",
+              color: dateFilter === period ? "#fff" : "var(--text-secondary)",
+              cursor: "pointer",
+              transition: "all 0.15s",
+              fontWeight: dateFilter === period ? 600 : 400,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {period}
+          </button>
+        ))}
+      </div>
+
       {/* ── ERROR ── */}
       {error && (
         <div style={{
-          background: B.amberLight,
-          border: `1px solid ${B.amber}`,
-          color: B.amber,
+          background: "var(--amber-light)",
+          border: "1px solid var(--amber)",
+          color: "var(--amber)",
           padding: "12px 16px",
           marginBottom: 16,
           borderRadius: 6,
@@ -509,19 +585,19 @@ export default function Explore() {
 
       {/* ── LOADING ── */}
       {loading && (
-        <div style={{ textAlign: "center", padding: "60px 40px", fontSize: 12, color: B.gray500 }}>
+        <div style={{ textAlign: "center", padding: "60px 40px", fontSize: 12, color: "var(--text-secondary)" }}>
           <div style={{
             width: 36, height: 36,
             margin: "0 auto 16px",
-            border: `3px solid ${B.gray200}`,
-            borderTop: `3px solid ${ACCENT}`,
+            border: "3px solid var(--border-color)",
+            borderTop: "3px solid var(--blue)",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }} />
-          <div style={{ fontSize: 14, fontWeight: 700, color: B.gray900, marginBottom: 6 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
             Loading articles...
           </div>
-          <div style={{ fontSize: 12, color: B.gray400, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
             Fetching intelligence from NewsAPI, Google News and Perplexity
           </div>
         </div>
@@ -532,23 +608,23 @@ export default function Explore() {
         <div style={{
           textAlign: "center",
           padding: "60px 40px",
-          background: B.gray50,
-          border: `1px solid ${B.gray200}`,
+          background: "var(--surface)",
+          border: "1px solid var(--border-color)",
           borderRadius: 6,
           marginBottom: 24,
         }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: B.gray900, marginBottom: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
             No articles yet
           </div>
-          <div style={{ fontSize: 13, color: B.gray500, marginBottom: 24, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 24, lineHeight: 1.6 }}>
             Click "Refresh Intelligence" above to fetch the latest tech news across all sectors.
           </div>
           <button
             onClick={handleIngest}
             disabled={loading}
             style={{
-              background: ACCENT,
-              color: B.white,
+              background: "var(--blue)",
+              color: "#fff",
               border: "none",
               padding: "10px 24px",
               borderRadius: 6,
@@ -592,6 +668,7 @@ export default function Explore() {
                 onOpen={(a) => navigate(`/article/${a.id}`, { state: { article: a } })}
                 isSaved={saved.has(String(article.id))}
                 onToggleSave={toggleSave}
+                isMobile={isMobile}
               />
             ))}
           </div>
@@ -602,109 +679,123 @@ export default function Explore() {
       {!loading && articles.length > 0 && (
         <div className="pagination-bar" style={{
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
-          alignItems: "center",
-          border: `1px solid ${B.gray200}`,
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? 12 : 0,
+          border: "1px solid var(--border-color)",
           borderRadius: 6,
-          padding: "14px 20px",
-          background: B.white,
+          padding: isMobile ? "12px 16px" : "14px 20px",
+          background: "var(--card-bg)",
         }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: 12, color: B.gray500, marginRight: 4 }}>Show:</span>
-            {[10, 25, 50, 100].map(count => (
+          {/* Show count selector - hidden on mobile */}
+          {!isMobile && (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "var(--text-secondary)", marginRight: 4 }}>Show:</span>
+              {[10, 25, 50, 100].map(count => (
+                <button
+                  key={count}
+                  onClick={() => { setItemsPerPage(count); handlePageChange(1); }}
+                  style={{
+                    padding: "4px 10px",
+                    border: itemsPerPage === count ? "2px solid var(--blue)" : "1px solid var(--border-color)",
+                    background: itemsPerPage === count ? "var(--blue-light)" : "var(--card-bg)",
+                    color: itemsPerPage === count ? "var(--blue)" : "var(--text-secondary)",
+                    fontSize: 11,
+                    fontWeight: itemsPerPage === count ? 700 : 500,
+                    cursor: "pointer",
+                    borderRadius: 4,
+                  }}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Page info and nav row */}
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            width: isMobile ? "100%" : "auto",
+          }}>
+            <span className="pagination-page-info" style={{ fontSize: isMobile ? 11 : 12, color: "var(--text-muted)" }}>
+              Page {currentPage} of {totalPages}
+            </span>
+
+            <div className="pagination-nav" style={{ display: "flex", gap: 6 }}>
               <button
-                key={count}
-                onClick={() => { setItemsPerPage(count); handlePageChange(1); }}
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
                 style={{
-                  padding: "4px 10px",
-                  border: itemsPerPage === count ? `2px solid ${ACCENT}` : `1px solid ${B.gray200}`,
-                  background: itemsPerPage === count ? ACCENT_BG : B.white,
-                  color: itemsPerPage === count ? ACCENT : B.gray600,
-                  fontSize: 11,
-                  fontWeight: itemsPerPage === count ? 700 : 500,
-                  cursor: "pointer",
+                  padding: isMobile ? "6px 12px" : "6px 14px",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--card-bg)",
                   borderRadius: 4,
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  opacity: currentPage === 1 ? 0.4 : 1,
+                  fontSize: isMobile ? 11 : 12,
+                  color: "var(--text-secondary)",
                 }}
               >
-                {count}
+                Prev
               </button>
-            ))}
-          </div>
-
-          <span className="pagination-page-info" style={{ fontSize: 12, color: B.gray500 }}>
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <div className="pagination-nav" style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              style={{
-                padding: "6px 14px",
-                border: `1px solid ${B.gray200}`,
-                background: B.white,
-                borderRadius: 4,
-                cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                opacity: currentPage === 1 ? 0.4 : 1,
-                fontSize: 12,
-                color: B.gray600,
-              }}
-            >
-              Prev
-            </button>
-            <button
-              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              style={{
-                padding: "6px 14px",
-                border: `1px solid ${B.gray200}`,
-                background: B.white,
-                borderRadius: 4,
-                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-                opacity: currentPage === totalPages ? 0.4 : 1,
-                fontSize: 12,
-                color: B.gray600,
-              }}
-            >
-              Next
-            </button>
+              <button
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: isMobile ? "6px 12px" : "6px 14px",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--card-bg)",
+                  borderRadius: 4,
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  opacity: currentPage === totalPages ? 0.4 : 1,
+                  fontSize: isMobile ? 11 : 12,
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* ── FLOATING REFRESH BUTTON (FAB) ── */}
       <button
+        className="floating-action-btn"
         onClick={handleIngest}
         disabled={loading}
         title="Refresh Intelligence"
         style={{
           position: "fixed",
-          bottom: 28,
-          right: 28,
+          bottom: isMobile ? "calc(20px + env(safe-area-inset-bottom, 0px))" : 28,
+          right: isMobile ? 16 : 28,
           zIndex: 200,
           display: "flex",
           alignItems: "center",
           gap: 8,
-          padding: loading ? "14px 20px" : "14px 22px",
+          padding: loading ? (isMobile ? "12px 16px" : "14px 20px") : (isMobile ? "12px 18px" : "14px 22px"),
           borderRadius: 999,
           border: "none",
-          background: loading ? ACCENT_BG : ACCENT,
-          color: loading ? ACCENT : "#fff",
-          fontSize: 13,
+          background: loading ? "var(--blue-light)" : "var(--blue)",
+          color: loading ? "var(--blue)" : "#fff",
+          fontSize: isMobile ? 12 : 13,
           fontWeight: 700,
           cursor: loading ? "not-allowed" : "pointer",
-          boxShadow: "0 4px 20px rgba(26,74,158,0.35)",
+          boxShadow: "0 4px 20px rgba(24,94,165,0.35)",
           transition: "background 0.15s, box-shadow 0.15s",
           letterSpacing: 0.2,
         }}
-        onMouseEnter={e => { if (!loading) e.currentTarget.style.boxShadow = "0 6px 28px rgba(26,74,158,0.5)"; }}
-        onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(26,74,158,0.35)"; }}
+        onMouseEnter={e => { if (!loading) e.currentTarget.style.boxShadow = "0 6px 28px rgba(24,94,165,0.5)"; }}
+        onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(24,94,165,0.35)"; }}
       >
         {loading ? (
           <span style={{
             width: 14, height: 14,
-            border: `2px solid ${ACCENT}40`,
-            borderTop: `2px solid ${ACCENT}`,
+            border: "2px solid rgba(24,94,165,0.4)",
+            borderTop: "2px solid var(--blue)",
             borderRadius: "50%",
             display: "inline-block",
             animation: "spin 0.8s linear infinite",
@@ -716,7 +807,7 @@ export default function Explore() {
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg>
         )}
-        {loading ? "Refreshing..." : "Refresh Intelligence"}
+        {isMobile ? (loading ? "..." : "Refresh") : (loading ? "Refreshing..." : "Refresh Intelligence")}
       </button>
 
       {/* ── REPORT MODAL ── */}
@@ -728,7 +819,7 @@ export default function Explore() {
           zIndex: 1000,
         }}>
           <div style={{
-            background: B.white,
+            background: "var(--card-bg)",
             borderRadius: 8,
             boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
             maxWidth: 560,
@@ -738,21 +829,21 @@ export default function Explore() {
           }}>
             <div style={{
               padding: "20px 24px",
-              borderBottom: `1px solid ${B.gray200}`,
+              borderBottom: "1px solid var(--border-color)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
             }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: B.gray900, margin: 0 }}>Generate Report</h2>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Generate Report</h2>
               <button
                 onClick={() => { setShowReportModal(false); setSelectedArticles(new Set()); }}
-                style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: B.gray400 }}
+                style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)" }}
               >
                 x
               </button>
             </div>
             <div style={{ padding: "24px" }}>
-              <div style={{ fontSize: 13, color: B.gray600, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
                 {selectedArticles.size} article{selectedArticles.size !== 1 ? "s" : ""} selected
               </div>
               <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
@@ -762,9 +853,9 @@ export default function Explore() {
                     onClick={() => setReportFormat(fmt)}
                     style={{
                       padding: "8px 20px",
-                      border: reportFormat === fmt ? `2px solid ${ACCENT}` : `1px solid ${B.gray200}`,
-                      background: reportFormat === fmt ? ACCENT_BG : B.white,
-                      color: reportFormat === fmt ? ACCENT : B.gray600,
+                      border: reportFormat === fmt ? "2px solid var(--blue)" : "1px solid var(--border-color)",
+                      background: reportFormat === fmt ? "var(--blue-light)" : "var(--card-bg)",
+                      color: reportFormat === fmt ? "var(--blue)" : "var(--text-secondary)",
                       fontWeight: reportFormat === fmt ? 700 : 400,
                       fontSize: 12, cursor: "pointer", borderRadius: 4,
                     }}
@@ -777,7 +868,7 @@ export default function Explore() {
                 <button
                   onClick={handleGenerateReport}
                   style={{
-                    background: ACCENT, color: B.white, border: "none",
+                    background: "var(--blue)", color: "#fff", border: "none",
                     padding: "10px 20px", borderRadius: 4, fontSize: 13,
                     fontWeight: 700, cursor: "pointer", flex: 1,
                   }}
@@ -787,8 +878,8 @@ export default function Explore() {
                 <button
                   onClick={handleDownloadReport}
                   style={{
-                    background: B.white, color: ACCENT,
-                    border: `1.5px solid ${ACCENT}`,
+                    background: "var(--card-bg)", color: "var(--blue)",
+                    border: "1.5px solid var(--blue)",
                     padding: "10px 20px", borderRadius: 4, fontSize: 13,
                     fontWeight: 700, cursor: "pointer", flex: 1,
                   }}

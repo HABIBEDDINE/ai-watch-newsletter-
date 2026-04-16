@@ -1,21 +1,33 @@
 import { useState, useRef, useEffect } from "react";
 
-const ACCENT     = "#1A4A9E";
-const ACCENT_BG  = "#e8eef8";
-const CATEGORIES = [
-  "All Industries",
-  "AI",
-  "Fintech",
-  "HealthTech",
-  "Cybersecurity",
-  "CleanTech",
-  "Robotics",
+// Default categories for Explore page
+const DEFAULT_CATEGORIES = [
+  { id: "All Industries", label: "All Industries" },
+  { id: "AI", label: "AI" },
+  { id: "Fintech", label: "Fintech" },
+  { id: "HealthTech", label: "HealthTech" },
+  { id: "Cybersecurity", label: "Cybersecurity" },
+  { id: "CleanTech", label: "CleanTech" },
+  { id: "Robotics", label: "Robotics" },
 ];
 
-export default function CategoryCombobox({ onSelect, selected: externalSelected, dropdownAlign = "left" }) {
-  const [open, setOpen]       = useState(false);
-  const [selected, setSelected] = useState(externalSelected || "All Industries");
+export default function CategoryCombobox({
+  onSelect,
+  selected: externalSelected,
+  categories = DEFAULT_CATEGORIES,
+  dropdownAlign = "left",
+  placeholder = "Select...",
+  isMobile = false,
+  fullWidth = false,
+}) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(externalSelected || (categories[0]?.id ?? ""));
   const ref = useRef(null);
+
+  // Normalize categories to always be { id, label } objects
+  const normalizedCategories = categories.map(cat =>
+    typeof cat === "string" ? { id: cat, label: cat } : cat
+  );
 
   // Sync when parent changes the selected value
   useEffect(() => {
@@ -30,13 +42,23 @@ export default function CategoryCombobox({ onSelect, selected: externalSelected,
   }, []);
 
   const handleSelect = (cat) => {
-    setSelected(cat);
+    setSelected(cat.id);
     setOpen(false);
-    if (onSelect) onSelect(cat);
+    if (onSelect) onSelect(cat.id);
   };
 
+  // Find the selected category label
+  const selectedCat = normalizedCategories.find(c => c.id === selected);
+  const displayLabel = selectedCat?.label || placeholder;
+  const isDefault = selected === normalizedCategories[0]?.id;
+
   return (
-    <div ref={ref} style={{ position: "relative", userSelect: "none", flexShrink: 0 }}>
+    <div ref={ref} style={{
+      position: "relative",
+      userSelect: "none",
+      flexShrink: fullWidth ? 1 : 0,
+      width: fullWidth ? "100%" : "auto",
+    }}>
       {/* Trigger button */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -44,22 +66,29 @@ export default function CategoryCombobox({ onSelect, selected: externalSelected,
           display: "flex",
           alignItems: "center",
           gap: 8,
-          padding: "9px 14px",
-          border: open ? `1.5px solid ${ACCENT}` : "1.5px solid #e2e0ea",
+          padding: isMobile ? "12px 14px" : "10px 14px",
+          minHeight: isMobile ? 44 : 40,
+          border: open ? "1.5px solid var(--blue)" : "1.5px solid var(--border-color)",
           borderRadius: 8,
-          background: selected !== "All Industries" ? ACCENT_BG : "#fff",
-          color: selected !== "All Industries" ? ACCENT : "#444",
+          background: !isDefault ? "var(--blue-light)" : "var(--card-bg)",
+          color: !isDefault ? "var(--blue)" : "var(--text-primary)",
           fontSize: 13,
-          fontWeight: selected !== "All Industries" ? 700 : 500,
+          fontWeight: !isDefault ? 700 : 500,
           cursor: "pointer",
-          minWidth: 160,
+          minWidth: fullWidth ? "100%" : 160,
+          width: fullWidth ? "100%" : "auto",
           justifyContent: "space-between",
-          transition: "border-color 0.15s",
-          boxShadow: open ? `0 0 0 3px ${ACCENT}18` : "none",
+          transition: "border-color 0.15s, box-shadow 0.15s",
+          boxShadow: open ? "0 0 0 3px rgba(24,94,165,0.15)" : "none",
           outline: "none",
+          boxSizing: "border-box",
         }}
       >
-        <span>{selected}</span>
+        <span style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>{displayLabel}</span>
         <svg
           width="12" height="12" viewBox="0 0 12 12" fill="none"
           style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}
@@ -75,27 +104,31 @@ export default function CategoryCombobox({ onSelect, selected: externalSelected,
           top: "calc(100% + 6px)",
           ...(dropdownAlign === "right" ? { right: 0 } : { left: 0 }),
           minWidth: "100%",
-          background: "#fff",
-          border: "1.5px solid #e2e0ea",
+          maxWidth: isMobile ? "calc(100vw - 32px)" : 300,
+          maxHeight: 280,
+          overflowY: "auto",
+          background: "var(--card-bg)",
+          border: "1.5px solid var(--border-color)",
           borderRadius: 8,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
           zIndex: 200,
           overflow: "hidden",
         }}>
-          {CATEGORIES.map(cat => {
-            const active = cat === selected;
+          {normalizedCategories.map(cat => {
+            const active = cat.id === selected;
             return (
               <div
-                key={cat}
+                key={cat.id}
                 onClick={() => handleSelect(cat)}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "#e8eef8"; }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
                 style={{
-                  padding: "9px 14px",
+                  padding: isMobile ? "12px 14px" : "10px 14px",
+                  minHeight: isMobile ? 44 : 36,
                   fontSize: 13,
                   fontWeight: active ? 700 : 400,
-                  color: active ? ACCENT : "#333",
-                  background: active ? ACCENT_BG : "transparent",
+                  color: active ? "var(--blue)" : "var(--text-primary)",
+                  background: active ? "var(--blue-light)" : "transparent",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -105,11 +138,11 @@ export default function CategoryCombobox({ onSelect, selected: externalSelected,
               >
                 {active && (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6l3 3 5-5" stroke={ACCENT} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 6l3 3 5-5" stroke="var(--blue)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
                 {!active && <span style={{ width: 12, display: "inline-block" }} />}
-                {cat}
+                {cat.label}
               </div>
             );
           })}

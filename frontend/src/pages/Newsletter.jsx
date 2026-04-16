@@ -6,32 +6,16 @@ import {
   getSchedule, saveSchedule, getSentHistory,
 } from "../services/api";
 
-// ── Colours ──────────────────────────────────────────────────────────────────
-const O  = "#E05A2B";  // orange accent
-const OD = "#c04a1f";  // orange dark
-const OL = "#fdf0eb";  // orange light
-const N  = "#1A1A2E";  // navy
-const W  = "#ffffff";
-const G0 = "#fafafa";
-const G1 = "#f4f4f4";
-const G2 = "#e8e8e8";
-const G3 = "#d0d0d0";
-const G4 = "#999999";
-const G5 = "#666666";
-const G6 = "#444444";
-const G9 = "#111111";
-const GR = "#15803d";   // green
-const AM = "#b45309";   // amber
-const AML= "#fef3e2";
-
+// Colors now use CSS variables for dark mode support
+// Sector colors are kept as explicit values for badges
 const SECTOR_COLORS = {
-  AI:            { bg: "#e8f0fb", color: "#1a5fa8" },
-  Fintech:       { bg: "#fdf0e6", color: "#C45F00" },
-  HealthTech:    { bg: "#fdf0ef", color: "#c0392b" },
-  Cybersecurity: { bg: "#fef3e2", color: "#b45309" },
-  CleanTech:     { bg: "#e8f5f0", color: "#0f7b5f" },
-  Robotics:      { bg: "#e8eef8", color: "#1A4A9E" },
-  General:       { bg: G1,        color: G5         },
+  AI:            { bg: "var(--blue-light)", color: "var(--blue)" },
+  Fintech:       { bg: "var(--orange-light)", color: "var(--orange)" },
+  HealthTech:    { bg: "var(--red-light)", color: "var(--red)" },
+  Cybersecurity: { bg: "var(--amber-light)", color: "var(--amber)" },
+  CleanTech:     { bg: "var(--delta-bg)", color: "var(--delta-color)" },
+  Robotics:      { bg: "var(--blue-light)", color: "var(--blue)" },
+  General:       { bg: "var(--surface)", color: "var(--text-secondary)" },
 };
 
 const TOPICS = ["All", "AI", "Fintech", "HealthTech", "Cybersecurity", "CleanTech", "Robotics"];
@@ -53,10 +37,10 @@ function Toast({ t }) {
   return (
     <div style={{
       position:"fixed", top:72, right:24, zIndex:9999,
-      background:W, border:`1px solid ${ok ? GR : O}`,
-      borderLeft:`4px solid ${ok ? GR : O}`,
+      background:"var(--card-bg)", border:`1px solid ${ok ? "var(--delta-color)" : "var(--orange)"}`,
+      borderLeft:`4px solid ${ok ? "var(--delta-color)" : "var(--orange)"}`,
       padding:"10px 16px", borderRadius:8, fontSize:13,
-      color: ok ? GR : O, boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+      color: ok ? "var(--delta-color)" : "var(--orange)", boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
       maxWidth:360, display:"flex", alignItems:"center", gap:8,
     }}>
       <span style={{ fontWeight:700 }}>{ok ? "✓" : "!"}</span> {t.msg}
@@ -72,10 +56,11 @@ function StepBar({ step, selectedCount }) {
     { n:3, label:"Send & Schedule",   sub:"Deliver" },
   ];
   return (
-    <div style={{
+    <div className="wizard-steps" style={{
       display:"flex", alignItems:"center", gap:0,
-      background:W, borderBottom:`1px solid ${G2}`,
-      padding:"0 32px", flexShrink:0,
+      background:"var(--card-bg)", borderBottom:"1px solid var(--border-color)",
+      padding:"0 16px", flexShrink:0,
+      overflowX:"auto", WebkitOverflowScrolling:"touch",
     }}>
       {steps.map((s, i) => {
         const done   = step > s.n;
@@ -88,19 +73,19 @@ function StepBar({ step, selectedCount }) {
             }}>
               <div style={{
                 width:28, height:28, borderRadius:"50%", flexShrink:0,
-                background: done ? GR : active ? O : G2,
-                color:W, display:"flex", alignItems:"center", justifyContent:"center",
+                background: done ? "var(--delta-color)" : active ? "var(--orange)" : "var(--border-color)",
+                color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:12, fontWeight:800,
               }}>
                 {done ? "✓" : s.n}
               </div>
               <div>
-                <div style={{ fontSize:13, fontWeight:700, color: active ? O : done ? G9 : G4 }}>{s.label}</div>
-                <div style={{ fontSize:11, color: active ? O : G4, marginTop:1 }}>{s.sub}</div>
+                <div style={{ fontSize:13, fontWeight:700, color: active ? "var(--orange)" : done ? "var(--text-primary)" : "var(--text-muted)" }}>{s.label}</div>
+                <div style={{ fontSize:11, color: active ? "var(--orange)" : "var(--text-muted)", marginTop:1 }}>{s.sub}</div>
               </div>
             </div>
             {i < 2 && (
-              <div style={{ flex:1, height:1, background:G2, margin:"0 20px" }} />
+              <div style={{ flex:1, height:1, background:"var(--border-color)", margin:"0 20px" }} />
             )}
           </div>
         );
@@ -118,12 +103,12 @@ function Section({ title, defaultOpen=true, children }) {
         onClick={() => setOpen(v => !v)}
         style={{
           width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
-          background:"none", border:"none", borderBottom:`1px solid ${G2}`,
-          padding:"10px 0", cursor:"pointer", marginBottom: open ? 16 : 0,
+          background:"none", border:"none", borderBottom:"1px solid var(--border-color)",
+          padding:"10px 0", cursor:"pointer", marginBottom: open ? 16 : 0, color:"var(--text-secondary)",
         }}
       >
-        <span style={{ fontSize:11, fontWeight:800, color:G5, letterSpacing:1.2, textTransform:"uppercase" }}>{title}</span>
-        <span style={{ fontSize:16, color:G4, lineHeight:1 }}>{open ? "−" : "+"}</span>
+        <span style={{ fontSize:11, fontWeight:800, color:"var(--text-secondary)", letterSpacing:1.2, textTransform:"uppercase" }}>{title}</span>
+        <span style={{ fontSize:16, color:"var(--text-muted)", lineHeight:1 }}>{open ? "−" : "+"}</span>
       </button>
       {open && <div>{children}</div>}
     </div>
@@ -135,24 +120,24 @@ function ToggleRow({ label, desc, value, onChange }) {
   return (
     <div style={{
       display:"flex", alignItems:"center", justifyContent:"space-between",
-      gap:12, padding:"10px 0", borderBottom:`1px solid ${G1}`,
+      gap:12, padding:"10px 0", borderBottom:"1px solid var(--surface)",
     }}>
       <div>
-        <div style={{ fontSize:13, fontWeight:600, color:G9 }}>{label}</div>
-        {desc && <div style={{ fontSize:11, color:G4, marginTop:2 }}>{desc}</div>}
+        <div style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)" }}>{label}</div>
+        {desc && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{desc}</div>}
       </div>
       <button
         onClick={() => onChange(!value)}
         style={{
           width:44, height:24, borderRadius:999, border:"none",
-          background: value ? O : G2, position:"relative",
+          background: value ? "var(--orange)" : "var(--border-color)", position:"relative",
           cursor:"pointer", flexShrink:0, transition:"background 0.2s",
         }}
       >
         <span style={{
           position:"absolute", top:3,
           left: value ? 23 : 3, width:18, height:18,
-          borderRadius:"50%", background:W,
+          borderRadius:"50%", background:"#fff",
           transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
         }} />
       </button>
@@ -165,16 +150,16 @@ function SelectRow({ label, value, options, onChange }) {
   return (
     <div style={{
       display:"flex", alignItems:"center", justifyContent:"space-between",
-      gap:12, padding:"10px 0", borderBottom:`1px solid ${G1}`,
+      gap:12, padding:"10px 0", borderBottom:"1px solid var(--surface)",
     }}>
-      <div style={{ fontSize:13, fontWeight:600, color:G9 }}>{label}</div>
+      <div style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)" }}>{label}</div>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          fontSize:12, fontWeight:600, color:G6,
-          border:`1.5px solid ${G2}`, borderRadius:6,
-          padding:"4px 10px", background:W, cursor:"pointer", outline:"none",
+          fontSize:12, fontWeight:600, color:"var(--text-secondary)",
+          border:"1.5px solid var(--border-color)", borderRadius:6,
+          padding:"4px 10px", background:"var(--input-bg)", cursor:"pointer", outline:"none",
         }}
       >
         {options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -184,7 +169,7 @@ function SelectRow({ label, value, options, onChange }) {
 }
 
 // ── Live Preview ──────────────────────────────────────────────────────────────
-function LivePreview({ articles, config, selectedIds, recipients }) {
+function LivePreview({ articles, config, selectedIds, recipients, isMobile }) {
   const selected = articles.filter(a => selectedIds.has(a.id || a.title));
   const limit = config.maxArticles === "All" ? 999 : parseInt(config.maxArticles);
   const shown = selected.slice(0, limit);
@@ -200,12 +185,18 @@ function LivePreview({ articles, config, selectedIds, recipients }) {
 
   return (
     <div style={{
-      width:300, flexShrink:0, display:"flex", flexDirection:"column",
-      borderLeft:`1px solid ${G2}`, height:"100%",
+      width: isMobile ? "100%" : 300,
+      flexShrink:0,
+      display:"flex",
+      flexDirection:"column",
+      borderLeft: isMobile ? "none" : "1px solid var(--border-color)",
+      borderTop: isMobile ? "1px solid var(--border-color)" : "none",
+      height: isMobile ? "auto" : "100%",
+      maxHeight: isMobile ? "50vh" : "none",
     }}>
       {/* Preview header */}
       <div style={{
-        background:N, color:W, padding:"12px 16px", flexShrink:0,
+        background:"var(--text-primary)", color:"#fff", padding:"12px 16px", flexShrink:0,
       }}>
         <div style={{ fontSize:9, fontWeight:800, letterSpacing:2, opacity:0.6, textTransform:"uppercase" }}>
           AI WATCH · STRATEGIC INTELLIGENCE
@@ -217,17 +208,17 @@ function LivePreview({ articles, config, selectedIds, recipients }) {
       </div>
 
       {/* Preview body */}
-      <div style={{ flex:1, overflowY:"auto", padding:14, background:"#f8f9fd" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:14, background:"var(--surface)" }}>
         {/* Executive summary */}
         {config.aiSummary && (
           <div style={{
-            background:W, border:`1px solid ${G2}`, borderLeft:`3px solid ${O}`,
+            background:"var(--card-bg)", border:"1px solid var(--border-color)", borderLeft:"3px solid var(--orange)",
             borderRadius:6, padding:"10px 12px", marginBottom:12,
           }}>
-            <div style={{ fontSize:9, fontWeight:800, color:O, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>
+            <div style={{ fontSize:9, fontWeight:800, color:"var(--orange)", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>
               Executive Summary
             </div>
-            <div style={{ fontSize:10, color:G5, lineHeight:1.5, fontStyle:"italic" }}>
+            <div style={{ fontSize:10, color:"var(--text-secondary)", lineHeight:1.5, fontStyle:"italic" }}>
               {shown.length} articles curated across {Object.keys(grouped).length} sector(s).
               Key signals this period include developments in AI infrastructure, fintech regulation,
               and emerging startup activity.
@@ -247,13 +238,13 @@ function LivePreview({ articles, config, selectedIds, recipients }) {
               }}>{grp}</div>
               {grpArticles.map((a, i) => (
                 <div key={i} style={{
-                  background:W, borderRadius:6, padding:"8px 10px",
-                  marginBottom:6, border:`1px solid ${G2}`,
+                  background:"var(--card-bg)", borderRadius:6, padding:"8px 10px",
+                  marginBottom:6, border:"1px solid var(--border-color)",
                 }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:G9, lineHeight:1.4, marginBottom:4 }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:"var(--text-primary)", lineHeight:1.4, marginBottom:4 }}>
                     {a.title}
                   </div>
-                  <div style={{ fontSize:9, color:G5, lineHeight:1.4, marginBottom:4 }}>
+                  <div style={{ fontSize:9, color:"var(--text-secondary)", lineHeight:1.4, marginBottom:4 }}>
                     {config.summaryLength === "1"
                       ? (a.summary || "").split(".")[0] + "."
                       : config.summaryLength === "3"
@@ -262,17 +253,17 @@ function LivePreview({ articles, config, selectedIds, recipients }) {
                     }
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ fontSize:8, color:G4 }}>{a.source} · {fmtDate(a.published_at)}</span>
+                    <span style={{ fontSize:8, color:"var(--text-muted)" }}>{a.source} · {fmtDate(a.published_at)}</span>
                     {config.signalBadges && a.signal_strength && (
                       <span style={{
                         fontSize:8, fontWeight:700,
-                        color: a.signal_strength === "Strong" ? "#C45F00" : AM,
-                        background: a.signal_strength === "Strong" ? "#fdf0e6" : AML,
+                        color: a.signal_strength === "Strong" ? "var(--orange)" : "var(--amber)",
+                        background: a.signal_strength === "Strong" ? "var(--orange-light)" : "var(--amber-light)",
                         padding:"1px 5px", borderRadius:3,
                       }}>{a.signal_strength === "Strong" ? "Strong Signal" : "Emerging"}</span>
                     )}
                     {config.showLinks && a.url && (
-                      <span style={{ fontSize:8, color:O, fontWeight:700 }}>Read more →</span>
+                      <span style={{ fontSize:8, color:"var(--orange)", fontWeight:700 }}>Read more →</span>
                     )}
                   </div>
                 </div>
@@ -282,7 +273,7 @@ function LivePreview({ articles, config, selectedIds, recipients }) {
         })}
 
         {shown.length === 0 && (
-          <div style={{ textAlign:"center", color:G4, fontSize:11, marginTop:24 }}>
+          <div style={{ textAlign:"center", color:"var(--text-muted)", fontSize:11, marginTop:24 }}>
             Select articles in Step 1 to preview
           </div>
         )}
@@ -290,7 +281,7 @@ function LivePreview({ articles, config, selectedIds, recipients }) {
 
       {/* Preview footer */}
       <div style={{
-        background:N, padding:"10px 16px", flexShrink:0,
+        background:"var(--text-primary)", padding:"10px 16px", flexShrink:0,
         display:"flex", alignItems:"center", justifyContent:"space-between",
       }}>
         <div style={{ fontSize:9, color:"rgba(255,255,255,0.5)" }}>
@@ -522,6 +513,14 @@ function generatePDF(articles, config, selectedIds) {
 export default function Newsletter() {
   const [step, setStep]       = useState(1);
   const [toast, setToast]     = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  // Handle resize
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
 
   // ── Step 1 state ──────────────────────────────────────────────────────────
   const [articles, setArticles]         = useState([]);
@@ -700,12 +699,12 @@ export default function Newsletter() {
   // ── Styles ────────────────────────────────────────────────────────────────
   const pill = (active) => ({
     fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:999, cursor:"pointer",
-    border:`1.5px solid ${active ? O : G2}`, background: active ? OL : W,
-    color: active ? O : G5, transition:"all 0.15s",
+    border:`1.5px solid ${active ? "var(--orange)" : "var(--border-color)"}`, background: active ? "var(--orange-light)" : "var(--card-bg)",
+    color: active ? "var(--orange)" : "var(--text-secondary)", transition:"all 0.15s",
   });
 
   const btnOrange = (loading) => ({
-    background: loading ? G3 : O, color:W, border:"none", borderRadius:8,
+    background: loading ? "var(--border-color)" : "var(--orange)", color:"#fff", border:"none", borderRadius:8,
     padding:"10px 24px", fontSize:13, fontWeight:700, cursor: loading ? "default" : "pointer",
     transition:"background 0.2s", letterSpacing:0.3,
   });
@@ -716,8 +715,8 @@ export default function Newsletter() {
   return (
     <div style={{
       display:"flex", flexDirection:"column",
-      height:"100vh", background:G0,
-      fontFamily:"'Inter','Segoe UI',Arial,sans-serif",
+      minHeight:"100vh", background:"var(--surface)",
+      fontFamily:"'Inter','Segoe UI',Arial,sans-serif", color:"var(--text-primary)",
     }}>
 
       <Toast t={toast} />
@@ -726,55 +725,75 @@ export default function Newsletter() {
       <StepBar step={step} selectedCount={selectedIds.size} />
 
       {/* Body */}
-      <div style={{ flex:1, display:"flex", overflow:"hidden", minHeight:0 }}>
+      <div style={{ flex:1, display:"flex", flexDirection: isMobile ? "column" : "row", overflow: isMobile ? "visible" : "hidden", minHeight:0 }}>
 
         {/* ── Main panel ── */}
-        <div style={{ flex:1, overflowY:"auto", padding:"24px 28px" }}>
+        <div style={{ flex:1, overflowY:"auto", padding: isMobile ? "16px" : "24px 28px" }}>
 
           {/* ────────────── STEP 1 ────────────── */}
           {step === 1 && (
             <div>
               {/* Filters */}
-              <div style={{
-                display:"flex", alignItems:"center", gap:8, flexWrap:"wrap",
-                marginBottom:16, padding:"12px 16px", background:W,
-                borderRadius:10, border:`1px solid ${G2}`,
+              <div className="filter-chips-scroll" style={{
+                display:"flex", alignItems:"center", gap:8,
+                flexWrap: isMobile ? "nowrap" : "wrap",
+                overflowX: isMobile ? "auto" : "visible",
+                marginBottom:16, padding: isMobile ? "10px 12px" : "12px 16px", background:"var(--card-bg)",
+                borderRadius:10, border:"1px solid var(--border-color)",
+                WebkitOverflowScrolling: "touch",
               }}>
-                <span style={{ fontSize:11, fontWeight:700, color:G4, marginRight:4 }}>TOPIC</span>
+                <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", marginRight:4, flexShrink:0 }}>TOPIC</span>
                 {TOPICS.map(t => (
-                  <button key={t} style={pill(topicFilter === t)} onClick={() => setTopicFilter(t)}>{t}</button>
+                  <button key={t} style={{...pill(topicFilter === t), flexShrink:0}} onClick={() => setTopicFilter(t)}>{t}</button>
                 ))}
-                <div style={{ width:1, height:20, background:G2, margin:"0 4px" }} />
-                <span style={{ fontSize:11, fontWeight:700, color:G4 }}>SIGNAL</span>
+                <div style={{ width:1, height:20, background:"var(--border-color)", margin:"0 4px", flexShrink:0 }} />
+                <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", flexShrink:0 }}>SIGNAL</span>
                 {["All","Strong","Weak"].map(s => (
-                  <button key={s} style={pill(signalFilter === s)} onClick={() => setSignalFilter(s)}>{s}</button>
+                  <button key={s} style={{...pill(signalFilter === s), flexShrink:0}} onClick={() => setSignalFilter(s)}>{s}</button>
                 ))}
-                <div style={{ width:1, height:20, background:G2, margin:"0 4px" }} />
-                <span style={{ fontSize:11, fontWeight:700, color:G4 }}>DATE</span>
-                {[["all","All time"],["today","Today"],["week","This week"],["month","This month"]].map(([v,l]) => (
-                  <button key={v} style={pill(dateFilter === v)} onClick={() => setDateFilter(v)}>{l}</button>
-                ))}
+                {!isMobile && <>
+                  <div style={{ width:1, height:20, background:"var(--border-color)", margin:"0 4px" }} />
+                  <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)" }}>DATE</span>
+                  {[["all","All time"],["today","Today"],["week","This week"],["month","This month"]].map(([v,l]) => (
+                    <button key={v} style={pill(dateFilter === v)} onClick={() => setDateFilter(v)}>{l}</button>
+                  ))}
+                </>}
               </div>
+              {/* Date filter row - separate on mobile */}
+              {isMobile && (
+                <div className="filter-chips-scroll" style={{
+                  display:"flex", alignItems:"center", gap:8,
+                  overflowX:"auto",
+                  marginBottom:16, padding:"10px 12px", background:"var(--card-bg)",
+                  borderRadius:10, border:"1px solid var(--border-color)",
+                  WebkitOverflowScrolling: "touch",
+                }}>
+                  <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", flexShrink:0 }}>DATE</span>
+                  {[["all","All"],["today","Today"],["week","Week"],["month","Month"]].map(([v,l]) => (
+                    <button key={v} style={{...pill(dateFilter === v), flexShrink:0}} onClick={() => setDateFilter(v)}>{l}</button>
+                  ))}
+                </div>
+              )}
 
               {/* Article list header */}
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ fontSize:13, color:G5 }}>
-                    <strong style={{ color:G9 }}>{filtered.length}</strong> articles · <strong style={{ color:O }}>{selectedIds.size}</strong> selected
+                  <div style={{ fontSize:13, color:"var(--text-secondary)" }}>
+                    <strong style={{ color:"var(--text-primary)" }}>{filtered.length}</strong> articles · <strong style={{ color:"var(--orange)" }}>{selectedIds.size}</strong> selected
                   </div>
                   <button
                     onClick={loadArticles}
                     disabled={articlesLoading}
                     title="Refresh articles"
                     style={{
-                      background:"none", border:`1px solid ${G2}`, borderRadius:6,
+                      background:"none", border:"1px solid var(--border-color)", borderRadius:6,
                       width:28, height:28, cursor: articlesLoading ? "default" : "pointer",
                       display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:14, color:G4, opacity: articlesLoading ? 0.4 : 1,
+                      fontSize:14, color:"var(--text-muted)", opacity: articlesLoading ? 0.4 : 1,
                     }}
                   >↻</button>
                 </div>
-                <button style={{ ...pill(false), background:G1 }} onClick={toggleAll}>
+                <button style={{ ...pill(false), background:"var(--surface)" }} onClick={toggleAll}>
                   {filtered.length > 0 && filtered.every(a => selectedIds.has(a.id || a.title)) ? "Deselect All" : "Select All"}
                 </button>
               </div>
@@ -786,10 +805,10 @@ export default function Newsletter() {
                   <div style={{ textAlign:"center", padding:"48px 0" }}>
                     <div style={{
                       width:32, height:32, borderRadius:"50%",
-                      border:`3px solid ${G2}`, borderTopColor:O,
+                      border:"3px solid var(--border-color)", borderTopColor:"var(--orange)",
                       animation:"spin 0.8s linear infinite", margin:"0 auto 12px",
                     }} />
-                    <div style={{ fontSize:13, color:G4 }}>Loading articles…</div>
+                    <div style={{ fontSize:13, color:"var(--text-muted)" }}>Loading articles…</div>
                     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                   </div>
                 )}
@@ -798,15 +817,15 @@ export default function Newsletter() {
                 {!articlesLoading && articles.length === 0 && (
                   <div style={{
                     textAlign:"center", padding:"48px 24px",
-                    background:W, borderRadius:10, border:`1px solid ${G2}`,
+                    background:"var(--card-bg)", borderRadius:10, border:"1px solid var(--border-color)",
                   }}>
                     <div style={{ fontSize:28, marginBottom:12 }}>📭</div>
-                    <div style={{ fontSize:14, fontWeight:700, color:G9, marginBottom:6 }}>No articles loaded yet</div>
-                    <div style={{ fontSize:13, color:G4, marginBottom:16 }}>
+                    <div style={{ fontSize:14, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>No articles loaded yet</div>
+                    <div style={{ fontSize:13, color:"var(--text-muted)", marginBottom:16 }}>
                       Go to News Feed and click "Generate New Data" first, then come back.
                     </div>
                     <a href="/" style={{
-                      display:"inline-block", background:O, color:W,
+                      display:"inline-block", background:"var(--orange)", color:"#fff",
                       padding:"8px 20px", borderRadius:8, fontSize:13, fontWeight:700,
                       textDecoration:"none",
                     }}>Go to News Feed →</a>
@@ -815,7 +834,7 @@ export default function Newsletter() {
 
                 {/* Filtered but empty */}
                 {!articlesLoading && articles.length > 0 && filtered.length === 0 && (
-                  <div style={{ textAlign:"center", color:G4, padding:"32px 0", fontSize:13 }}>
+                  <div style={{ textAlign:"center", color:"var(--text-muted)", padding:"32px 0", fontSize:13 }}>
                     No articles match the current filters. Try clearing the filters above.
                   </div>
                 )}
@@ -835,17 +854,17 @@ export default function Newsletter() {
                       onClick={() => toggleId(id)}
                       style={{
                         display:"flex", alignItems:"flex-start", gap:12,
-                        background:W, borderRadius:8,
-                        border:`1.5px solid ${sel ? O : G2}`,
+                        background:"var(--card-bg)", borderRadius:8,
+                        border:`1.5px solid ${sel ? "var(--orange)" : "var(--border-color)"}`,
                         padding:"12px 14px", cursor:"pointer",
                         transition:"border-color 0.15s",
-                        boxShadow: sel ? `0 0 0 3px ${OL}` : "none",
+                        boxShadow: sel ? "0 0 0 3px var(--orange-light)" : "none",
                       }}
                     >
                       {/* Checkbox */}
                       <div style={{
                         width:18, height:18, borderRadius:4, flexShrink:0, marginTop:2,
-                        border:`2px solid ${sel ? O : G3}`, background: sel ? O : W,
+                        border:`2px solid ${sel ? "var(--orange)" : "var(--border-color)"}`, background: sel ? "var(--orange)" : "var(--card-bg)",
                         display:"flex", alignItems:"center", justifyContent:"center",
                         transition:"all 0.15s",
                       }}>
@@ -856,12 +875,12 @@ export default function Newsletter() {
 
                       {/* Content */}
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:G9, lineHeight:1.4, marginBottom:6 }}>
+                        <div style={{ fontSize:13, fontWeight:700, color:"var(--text-primary)", lineHeight:1.4, marginBottom:6 }}>
                           {a.title}
                         </div>
                         <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
                           {source && (
-                            <span style={{ fontSize:10, color:G5, fontWeight:600 }}>{source}</span>
+                            <span style={{ fontSize:10, color:"var(--text-secondary)", fontWeight:600 }}>{source}</span>
                           )}
                           {topic && (
                             <span style={{
@@ -872,14 +891,14 @@ export default function Newsletter() {
                           )}
                           <span style={{
                             fontSize:10, fontWeight:700,
-                            background: strong ? "#fdf0e6" : AML,
-                            color: strong ? "#C45F00" : AM,
+                            background: strong ? "var(--orange-light)" : "var(--amber-light)",
+                            color: strong ? "var(--orange)" : "var(--amber)",
                             padding:"2px 8px", borderRadius:999,
                           }}>
                             {strong ? "Strong Signal" : "Emerging"}
                           </span>
                           {date && (
-                            <span style={{ fontSize:10, color:G4 }}>{fmtDate(date)}</span>
+                            <span style={{ fontSize:10, color:"var(--text-muted)" }}>{fmtDate(date)}</span>
                           )}
                         </div>
                       </div>
@@ -893,11 +912,11 @@ export default function Newsletter() {
           {/* ────────────── STEP 2 ────────────── */}
           {step === 2 && (
             <div style={{ maxWidth:580 }}>
-              <div style={{ fontSize:15, fontWeight:800, color:G9, marginBottom:20, letterSpacing:-0.3 }}>
+              <div style={{ fontSize:15, fontWeight:800, color:"var(--text-primary)", marginBottom:20, letterSpacing:-0.3 }}>
                 Configure Edition
               </div>
 
-              <div style={{ background:W, borderRadius:12, padding:"20px 24px", border:`1px solid ${G2}` }}>
+              <div style={{ background:"var(--card-bg)", borderRadius:12, padding:"20px 24px", border:"1px solid var(--border-color)" }}>
                 <Section title="Content">
                   <ToggleRow label="Include article images"       desc="Pull cover image from source URL"              value={config.includeImages}    onChange={v => cfg("includeImages",v)} />
                   <ToggleRow label='Show "Read article" links'    desc="Append source URL below each summary"          value={config.showLinks}        onChange={v => cfg("showLinks",v)} />
@@ -924,17 +943,17 @@ export default function Newsletter() {
           {/* ────────────── STEP 3 ────────────── */}
           {step === 3 && (
             <div style={{ maxWidth:580 }}>
-              <div style={{ fontSize:15, fontWeight:800, color:G9, marginBottom:20, letterSpacing:-0.3 }}>
+              <div style={{ fontSize:15, fontWeight:800, color:"var(--text-primary)", marginBottom:20, letterSpacing:-0.3 }}>
                 Send & Schedule
               </div>
 
               {/* Sub-tabs */}
-              <div style={{ display:"flex", gap:0, marginBottom:20, borderBottom:`1px solid ${G2}` }}>
+              <div style={{ display:"flex", gap:0, marginBottom:20, borderBottom:"1px solid var(--border-color)" }}>
                 {["now","schedule","history"].map(t => (
                   <button key={t} onClick={() => setSendTab(t)} style={{
                     background:"none", border:"none",
-                    borderBottom:`2px solid ${sendTab === t ? O : "transparent"}`,
-                    color: sendTab === t ? O : G4, fontWeight:700,
+                    borderBottom:`2px solid ${sendTab === t ? "var(--orange)" : "transparent"}`,
+                    color: sendTab === t ? "var(--orange)" : "var(--text-muted)", fontWeight:700,
                     fontSize:13, padding:"10px 20px", cursor:"pointer",
                     transition:"all 0.15s", textTransform:"capitalize",
                   }}>
@@ -945,22 +964,22 @@ export default function Newsletter() {
 
               {/* ── Send Now ── */}
               {sendTab === "now" && (
-                <div style={{ background:W, borderRadius:12, padding:24, border:`1px solid ${G2}` }}>
+                <div style={{ background:"var(--card-bg)", borderRadius:12, padding:24, border:"1px solid var(--border-color)" }}>
                   <div style={{ marginBottom:20 }}>
-                    <label style={{ fontSize:11, fontWeight:700, color:G5, letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>
+                    <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>
                       Recipients ({recipients.length})
                     </label>
                     <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:12 }}>
                       {recipients.map(email => (
                         <div key={email} style={{
                           display:"flex", alignItems:"center", justifyContent:"space-between",
-                          background:G0, border:`1px solid ${G2}`, borderRadius:8,
+                          background:"var(--surface)", border:"1px solid var(--border-color)", borderRadius:8,
                           padding:"8px 12px",
                         }}>
-                          <span style={{ fontSize:13, color:G9 }}>{email}</span>
+                          <span style={{ fontSize:13, color:"var(--text-primary)" }}>{email}</span>
                           <button
                             onClick={() => handleRemoveRecipient(email)}
-                            style={{ background:"none", border:"none", cursor:"pointer", color:G4, fontSize:16, lineHeight:1 }}
+                            style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-muted)", fontSize:16, lineHeight:1 }}
                           >×</button>
                         </div>
                       ))}
@@ -972,11 +991,11 @@ export default function Newsletter() {
                         onKeyDown={e => e.key === "Enter" && handleAddRecipient()}
                         placeholder="email@example.com"
                         style={{
-                          flex:1, height:38, padding:"0 12px", border:`1.5px solid ${G2}`,
-                          borderRadius:8, fontSize:13, outline:"none",
+                          flex:1, height:38, padding:"0 12px", border:"1.5px solid var(--border-color)",
+                          borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)",
                         }}
-                        onFocus={e => { e.target.style.borderColor = O; }}
-                        onBlur={e  => { e.target.style.borderColor = G2; }}
+                        onFocus={e => { e.target.style.borderColor = "var(--orange)"; }}
+                        onBlur={e  => { e.target.style.borderColor = "var(--border-color)"; }}
                       />
                       <button onClick={handleAddRecipient} style={{ ...btnOrange(false), padding:"0 20px" }}>
                         + Add
@@ -985,7 +1004,7 @@ export default function Newsletter() {
                   </div>
 
                   <div style={{ marginBottom:20 }}>
-                    <label style={{ fontSize:11, fontWeight:700, color:G5, letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>
+                    <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>
                       Subject Line
                     </label>
                     <input
@@ -993,13 +1012,13 @@ export default function Newsletter() {
                       onChange={e => setSubject(e.target.value)}
                       style={{
                         width:"100%", height:42, padding:"0 14px",
-                        border:`1.5px solid ${G2}`, borderRadius:8,
-                        fontSize:13, outline:"none", boxSizing:"border-box",
+                        border:"1.5px solid var(--border-color)", borderRadius:8,
+                        fontSize:13, outline:"none", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text-primary)",
                       }}
-                      onFocus={e => { e.target.style.borderColor = O; }}
-                      onBlur={e  => { e.target.style.borderColor = G2; }}
+                      onFocus={e => { e.target.style.borderColor = "var(--orange)"; }}
+                      onBlur={e  => { e.target.style.borderColor = "var(--border-color)"; }}
                     />
-                    <div style={{ fontSize:11, color:G4, marginTop:4 }}>
+                    <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:4 }}>
                       Preview: <em>{subject}</em>
                     </div>
                   </div>
@@ -1009,16 +1028,14 @@ export default function Newsletter() {
                       onClick={handleSendNow}
                       disabled={sending}
                       style={{ ...btnOrange(sending), fontSize:14, padding:"12px 32px" }}
-                      onMouseEnter={e => { if (!sending) e.currentTarget.style.background = OD; }}
-                      onMouseLeave={e => { if (!sending) e.currentTarget.style.background = O; }}
                     >
                       {sending ? "Sending…" : "Send Now"}
                     </button>
                     <button
                       onClick={() => generatePDF(articles, config, selectedIds)}
                       style={{
-                        background:W, border:`1.5px solid ${G2}`, borderRadius:8,
-                        padding:"12px 20px", fontSize:13, fontWeight:700, color:G6,
+                        background:"var(--card-bg)", border:"1.5px solid var(--border-color)", borderRadius:8,
+                        padding:"12px 20px", fontSize:13, fontWeight:700, color:"var(--text-secondary)",
                         cursor:"pointer",
                       }}
                     >
@@ -1027,8 +1044,8 @@ export default function Newsletter() {
                   </div>
 
                   {selectedIds.size > 0 && (
-                    <div style={{ marginTop:16, fontSize:12, color:G4 }}>
-                      Will include <strong style={{ color:G9 }}>{selectedIds.size}</strong> selected article(s) to <strong style={{ color:G9 }}>{recipients.length}</strong> recipient(s).
+                    <div style={{ marginTop:16, fontSize:12, color:"var(--text-muted)" }}>
+                      Will include <strong style={{ color:"var(--text-primary)" }}>{selectedIds.size}</strong> selected article(s) to <strong style={{ color:"var(--text-primary)" }}>{recipients.length}</strong> recipient(s).
                     </div>
                   )}
                 </div>
@@ -1036,9 +1053,9 @@ export default function Newsletter() {
 
               {/* ── Schedule ── */}
               {sendTab === "schedule" && (
-                <div style={{ background:W, borderRadius:12, padding:24, border:`1px solid ${G2}` }}>
+                <div style={{ background:"var(--card-bg)", borderRadius:12, padding:24, border:"1px solid var(--border-color)" }}>
                   <div style={{ marginBottom:20 }}>
-                    <label style={{ fontSize:11, fontWeight:700, color:G5, letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:10 }}>
+                    <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:10 }}>
                       Days
                     </label>
                     <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
@@ -1051,8 +1068,8 @@ export default function Newsletter() {
                             }));
                           }} style={{
                             width:44, height:44, borderRadius:8, fontWeight:700, fontSize:12,
-                            border:`1.5px solid ${on ? O : G2}`,
-                            background: on ? OL : W, color: on ? O : G5, cursor:"pointer",
+                            border:`1.5px solid ${on ? "var(--orange)" : "var(--border-color)"}`,
+                            background: on ? "var(--orange-light)" : "var(--card-bg)", color: on ? "var(--orange)" : "var(--text-secondary)", cursor:"pointer",
                           }}>{d}</button>
                         );
                       })}
@@ -1061,25 +1078,25 @@ export default function Newsletter() {
 
                   <div style={{ display:"flex", gap:16, marginBottom:20, flexWrap:"wrap" }}>
                     <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:G5, letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>Time (UTC)</label>
+                      <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>Time (UTC)</label>
                       <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                         <select value={schedule.hour} onChange={e => setSchedule(s => ({...s, hour:parseInt(e.target.value)}))}
-                          style={{ height:38, padding:"0 8px", border:`1.5px solid ${G2}`, borderRadius:8, fontSize:13, outline:"none" }}>
+                          style={{ height:38, padding:"0 8px", border:"1.5px solid var(--border-color)", borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)" }}>
                           {Array.from({length:24},(_,i) => <option key={i} value={i}>{String(i).padStart(2,"0")}</option>)}
                         </select>
-                        <span style={{ fontWeight:700, color:G4 }}>:</span>
+                        <span style={{ fontWeight:700, color:"var(--text-muted)" }}>:</span>
                         <select value={schedule.minute} onChange={e => setSchedule(s => ({...s, minute:parseInt(e.target.value)}))}
-                          style={{ height:38, padding:"0 8px", border:`1.5px solid ${G2}`, borderRadius:8, fontSize:13, outline:"none" }}>
+                          style={{ height:38, padding:"0 8px", border:"1.5px solid var(--border-color)", borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)" }}>
                           {[0,15,30,45].map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}</option>)}
                         </select>
-                        <span style={{ fontSize:12, color:G4 }}>UTC</span>
+                        <span style={{ fontSize:12, color:"var(--text-muted)" }}>UTC</span>
                       </div>
                     </div>
 
                     <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:G5, letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>Frequency</label>
+                      <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>Frequency</label>
                       <select value={schedule.frequency} onChange={e => setSchedule(s => ({...s, frequency:e.target.value}))}
-                        style={{ height:38, padding:"0 12px", border:`1.5px solid ${G2}`, borderRadius:8, fontSize:13, outline:"none" }}>
+                        style={{ height:38, padding:"0 12px", border:"1.5px solid var(--border-color)", borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)" }}>
                         {["Weekly","Bi-weekly","Daily"].map(f => <option key={f} value={f}>{f}</option>)}
                       </select>
                     </div>
@@ -1088,10 +1105,10 @@ export default function Newsletter() {
                   {/* Next send preview */}
                   {schedule.days.length > 0 && (
                     <div style={{
-                      background:G0, border:`1px solid ${G2}`, borderRadius:8,
-                      padding:"10px 14px", marginBottom:20, fontSize:12, color:G5,
+                      background:"var(--surface)", border:"1px solid var(--border-color)", borderRadius:8,
+                      padding:"10px 14px", marginBottom:20, fontSize:12, color:"var(--text-secondary)",
                     }}>
-                      Next send: <strong style={{ color:G9 }}>
+                      Next send: <strong style={{ color:"var(--text-primary)" }}>
                         {schedule.days[0]} {String(schedule.hour).padStart(2,"0")}:{String(schedule.minute).padStart(2,"0")} UTC
                       </strong>
                     </div>
@@ -1101,8 +1118,6 @@ export default function Newsletter() {
                     onClick={handleSaveSchedule}
                     disabled={savingSched}
                     style={btnOrange(savingSched)}
-                    onMouseEnter={e => { if (!savingSched) e.currentTarget.style.background = OD; }}
-                    onMouseLeave={e => { if (!savingSched) e.currentTarget.style.background = O; }}
                   >
                     {savingSched ? "Saving…" : "Save Schedule"}
                   </button>
@@ -1111,30 +1126,30 @@ export default function Newsletter() {
 
               {/* ── History ── */}
               {sendTab === "history" && (
-                <div style={{ background:W, borderRadius:12, padding:24, border:`1px solid ${G2}` }}>
-                  {loadingHist && <div style={{ color:G4, fontSize:13 }}>Loading…</div>}
+                <div style={{ background:"var(--card-bg)", borderRadius:12, padding:24, border:"1px solid var(--border-color)" }}>
+                  {loadingHist && <div style={{ color:"var(--text-muted)", fontSize:13 }}>Loading…</div>}
                   {!loadingHist && sentHistory.length === 0 && (
-                    <div style={{ color:G4, fontSize:13, textAlign:"center", padding:"24px 0" }}>
+                    <div style={{ color:"var(--text-muted)", fontSize:13, textAlign:"center", padding:"24px 0" }}>
                       No sends yet. Use "Send Now" to send your first edition.
                     </div>
                   )}
                   {sentHistory.map(h => (
                     <div key={h.id} style={{
                       display:"flex", justifyContent:"space-between", alignItems:"center",
-                      padding:"12px 0", borderBottom:`1px solid ${G1}`, gap:12, flexWrap:"wrap",
+                      padding:"12px 0", borderBottom:"1px solid var(--surface)", gap:12, flexWrap:"wrap",
                     }}>
                       <div>
-                        <div style={{ fontSize:13, fontWeight:700, color:G9 }}>{h.subject}</div>
-                        <div style={{ fontSize:11, color:G4, marginTop:3 }}>{fmtDate(h.sent_at)}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:"var(--text-primary)" }}>{h.subject}</div>
+                        <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:3 }}>{fmtDate(h.sent_at)}</div>
                       </div>
                       <div style={{ display:"flex", gap:12 }}>
                         <div style={{ textAlign:"right" }}>
-                          <div style={{ fontSize:12, fontWeight:700, color:G9 }}>{h.recipient_count}</div>
-                          <div style={{ fontSize:10, color:G4 }}>recipients</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:"var(--text-primary)" }}>{h.recipient_count}</div>
+                          <div style={{ fontSize:10, color:"var(--text-muted)" }}>recipients</div>
                         </div>
                         <div style={{ textAlign:"right" }}>
-                          <div style={{ fontSize:12, fontWeight:700, color:G9 }}>{h.article_count}</div>
-                          <div style={{ fontSize:10, color:G4 }}>articles</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:"var(--text-primary)" }}>{h.article_count}</div>
+                          <div style={{ fontSize:10, color:"var(--text-muted)" }}>articles</div>
                         </div>
                       </div>
                     </div>
@@ -1150,8 +1165,8 @@ export default function Newsletter() {
               onClick={() => setStep(s => Math.max(1, s - 1))}
               disabled={step === 1}
               style={{
-                background:"none", border:`1.5px solid ${G2}`, borderRadius:8,
-                padding:"10px 24px", fontSize:13, fontWeight:700, color:G5,
+                background:"none", border:"1.5px solid var(--border-color)", borderRadius:8,
+                padding:"10px 24px", fontSize:13, fontWeight:700, color:"var(--text-secondary)",
                 cursor: step === 1 ? "default" : "pointer",
                 opacity: step === 1 ? 0.4 : 1,
               }}
@@ -1161,8 +1176,6 @@ export default function Newsletter() {
                 onClick={() => setStep(s => s + 1)}
                 disabled={nextDisabled}
                 style={{ ...btnOrange(nextDisabled), opacity: nextDisabled ? 0.4 : 1 }}
-                onMouseEnter={e => { if (!nextDisabled) e.currentTarget.style.background = OD; }}
-                onMouseLeave={e => { if (!nextDisabled) e.currentTarget.style.background = O; }}
               >
                 Next →
               </button>
@@ -1176,6 +1189,7 @@ export default function Newsletter() {
           config={config}
           selectedIds={selectedIds}
           recipients={recipients}
+          isMobile={isMobile}
         />
       </div>
     </div>
