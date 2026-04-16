@@ -6,7 +6,6 @@ export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // ← CRITICAL: wait for auth check before deciding anything
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -17,7 +16,6 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!user) {
-    // Save the page they tried to visit so we can redirect back after login
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 

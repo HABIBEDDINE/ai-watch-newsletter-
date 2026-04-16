@@ -106,6 +106,17 @@ All backend calls go through `src/services/api.js` — a thin wrapper with:
 - Per-request timeout (default 25 s)
 - Consistent error handling
 
+## Documentation
+
+- **[Trends Page Documentation](docs/TRENDS_PAGE.md)** — Complete A-Z guide covering:
+  - Architecture flow (Perplexity → GPT-4 → Supabase → Frontend)
+  - Database schema and data structures
+  - All API endpoints with parameters
+  - Frontend components and state management
+  - Personalization and onboarding flow
+  - Caching strategy and scheduled refresh
+  - Troubleshooting guide
+
 ## Key Files
 
 ```

@@ -1,22 +1,22 @@
+// src/pages/ReportsPage.jsx
 import { useState, useEffect, useCallback } from "react";
 import { getReports, getReport, deleteReport, getArticles, saveReport } from "../services/api";
 import { generatePDF } from "../utils/generatePDF";
+import DashboardLayout from "../components/layout/DashboardLayout";
 import CategoryCombobox from "../components/CategoryCombobox";
-
-// Colors now use CSS variables for dark mode support
 
 const formatDate = (d) =>
   new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-// ── Generate Report Modal ─────────────────────────────────────────────────
+// Generate Report Modal
 function GenerateReportModal({ onClose, onSaved }) {
-  const [articles,  setArticles]  = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState(null);
-  const [selected,  setSelected]  = useState(new Set());
-  const [search,    setSearch]    = useState("");
-  const [topic,     setTopic]     = useState("All");
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [selected, setSelected] = useState(new Set());
+  const [search, setSearch] = useState("");
+  const [topic, setTopic] = useState("All");
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -52,18 +52,18 @@ function GenerateReportModal({ onClose, onSaved }) {
   const selectedArticles = articles.filter(a => selected.has(a.id));
 
   const buildReportData = () => ({
-    title:        `AI Report - ${new Date().toLocaleDateString()}`,
-    summary:      `Report with ${selectedArticles.length} articles (topic: ${topic})`,
-    key_points:   selectedArticles.slice(0, 5).map(a => a.title),
-    articles:     selectedArticles.map((a, idx) => ({
-      number:    idx + 1,
-      title:     a.title,
-      source:    a.source,
-      date:      a.published_at ? new Date(a.published_at).toLocaleDateString() : "",
-      signal:    a.signal_strength?.toLowerCase(),
+    title: `AI Report - ${new Date().toLocaleDateString()}`,
+    summary: `Report with ${selectedArticles.length} articles (topic: ${topic})`,
+    key_points: selectedArticles.slice(0, 5).map(a => a.title),
+    articles: selectedArticles.map((a, idx) => ({
+      number: idx + 1,
+      title: a.title,
+      source: a.source,
+      date: a.published_at ? new Date(a.published_at).toLocaleDateString() : "",
+      signal: a.signal_strength?.toLowerCase(),
       relevance: a.relevance,
-      url:       a.url,
-      summary:   a.summary,
+      url: a.url,
+      summary: a.summary,
     })),
     funding_count: 0,
   });
@@ -95,7 +95,7 @@ function GenerateReportModal({ onClose, onSaved }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 1000,
     }}>
-      <div className="modal-inner" style={{
+      <div style={{
         background: "var(--card-bg)", borderRadius: 10,
         width: "min(700px, 95vw)", maxHeight: "90vh",
         display: "flex", flexDirection: "column",
@@ -110,7 +110,7 @@ function GenerateReportModal({ onClose, onSaved }) {
         }}>
           <div>
             <h2 style={{ fontSize: 17, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Generate Report</h2>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 0" }}>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
               Select articles to include, then save or download as PDF.
             </p>
           </div>
@@ -168,9 +168,9 @@ function GenerateReportModal({ onClose, onSaved }) {
                   type="checkbox"
                   checked={selected.size === articles.length && articles.length > 0}
                   onChange={toggleAll}
-                  style={{ cursor: "pointer", accentColor: "var(--blue)", width: 15, height: 15 }}
+                  style={{ cursor: "pointer", accentColor: "var(--orange)", width: 15, height: 15 }}
                 />
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   {selected.size > 0
                     ? `${selected.size} of ${articles.length} selected`
                     : `Select all (${articles.length} articles)`}
@@ -187,10 +187,10 @@ function GenerateReportModal({ onClose, onSaved }) {
                     onClick={() => toggle(article.id)}
                     style={{
                       display: "flex", alignItems: "flex-start", gap: 12,
-                      padding: "14px 0", borderBottom: "1px solid var(--border-color)",
+                      padding: "14px 24px", borderBottom: "1px solid var(--surface)",
                       cursor: "pointer",
-                      background: isChecked ? "var(--blue-light)" : "transparent",
-                      margin: "0 -24px", padding: "14px 24px",
+                      background: isChecked ? "var(--orange-light)" : "transparent",
+                      margin: "0 -24px",
                       transition: "background 0.1s",
                     }}
                   >
@@ -199,7 +199,7 @@ function GenerateReportModal({ onClose, onSaved }) {
                       checked={isChecked}
                       onChange={() => toggle(article.id)}
                       onClick={e => e.stopPropagation()}
-                      style={{ cursor: "pointer", accentColor: "var(--blue)", width: 15, height: 15, marginTop: 3, flexShrink: 0 }}
+                      style={{ cursor: "pointer", accentColor: "var(--orange)", width: 15, height: 15, marginTop: 3, flexShrink: 0 }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
@@ -233,7 +233,7 @@ function GenerateReportModal({ onClose, onSaved }) {
           display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between",
           flexShrink: 0, background: "var(--surface)",
         }}>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
             {selected.size} article{selected.size !== 1 ? "s" : ""} selected
           </span>
           <div style={{ display: "flex", gap: 10 }}>
@@ -242,8 +242,8 @@ function GenerateReportModal({ onClose, onSaved }) {
               disabled={selected.size === 0}
               style={{
                 padding: "9px 20px", borderRadius: 6,
-                border: "1.5px solid var(--blue)",
-                background: "transparent", color: "var(--blue)",
+                border: "1.5px solid var(--orange)",
+                background: "transparent", color: "var(--orange)",
                 fontSize: 13, fontWeight: 700,
                 cursor: selected.size === 0 ? "not-allowed" : "pointer",
                 opacity: selected.size === 0 ? 0.4 : 1,
@@ -256,7 +256,7 @@ function GenerateReportModal({ onClose, onSaved }) {
               disabled={saving || selected.size === 0}
               style={{
                 padding: "9px 20px", borderRadius: 6,
-                border: "none", background: "var(--blue)", color: "#fff",
+                border: "none", background: "var(--orange)", color: "#fff",
                 fontSize: 13, fontWeight: 700,
                 cursor: saving || selected.size === 0 ? "not-allowed" : "pointer",
                 opacity: saving || selected.size === 0 ? 0.5 : 1,
@@ -271,12 +271,12 @@ function GenerateReportModal({ onClose, onSaved }) {
   );
 }
 
-// ── Daily Report Modal ───────────────────────────────────────────────────
+// Daily Report Modal
 function DailyReportModal({ onClose, onSaved }) {
-  const [articles,  setArticles]  = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState(null);
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const todayIso = new Date().toISOString().split("T")[0];
@@ -289,7 +289,6 @@ function DailyReportModal({ onClose, onSaved }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Group articles by topic
   const grouped = articles.reduce((acc, a) => {
     const key = a.topic || a.search_topic || "General";
     if (!acc[key]) acc[key] = [];
@@ -297,31 +296,29 @@ function DailyReportModal({ onClose, onSaved }) {
     return acc;
   }, {});
 
-  const strongCount = articles.filter(a => a.signal_strength === "Strong").length;
+  const uniqueSources = [...new Set(articles.map(a => a.source).filter(Boolean))].length;
   const avgRel = articles.length
     ? (articles.reduce((s, a) => s + (a.relevance || 5), 0) / articles.length).toFixed(1)
     : "—";
 
-  // Build report data structure
   const buildDailyData = () => ({
     title: `Daily Brief — ${todayIso}`,
-    summary: `AI Watch daily intelligence summary for ${today}. ${articles.length} articles monitored across ${Object.keys(grouped).length} topics. ${strongCount} strong signals detected. Average relevance: ${avgRel}/10.`,
+    summary: `AI Watch daily intelligence summary for ${today}. ${articles.length} articles monitored across ${Object.keys(grouped).length} topics from ${uniqueSources} sources. Average relevance: ${avgRel}/10.`,
     key_points: Object.entries(grouped).slice(0, 8).map(([topic, arts]) =>
       `${topic}: ${arts.length} article${arts.length > 1 ? "s" : ""} — top signal: ${arts[0]?.title?.slice(0, 60)}...`
     ),
     articles: articles.map((a, idx) => ({
-      number:    idx + 1,
-      title:     a.title,
-      source:    a.source,
-      date:      a.published_at ? new Date(a.published_at).toLocaleDateString() : todayIso,
-      signal:    a.signal_strength?.toLowerCase(),
+      number: idx + 1,
+      title: a.title,
+      source: a.source,
+      date: a.published_at ? new Date(a.published_at).toLocaleDateString() : todayIso,
+      signal: a.signal_strength?.toLowerCase(),
       relevance: a.relevance,
-      url:       a.url,
-      summary:   a.summary || "",
+      url: a.url,
+      summary: a.summary || "",
     })),
     funding_count: 0,
   });
-
 
   const handleSave = async () => {
     if (articles.length === 0) { setError("No articles to save."); return; }
@@ -343,7 +340,7 @@ function DailyReportModal({ onClose, onSaved }) {
       <div style={{ background: "var(--card-bg)", borderRadius: 10, width: "min(640px, 95vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
 
         {/* Header */}
-        <div style={{ background: "var(--blue)", color: "#fff", padding: "20px 24px", flexShrink: 0 }}>
+        <div style={{ background: "var(--orange)", color: "#fff", padding: "20px 24px", flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 4px" }}>Daily Brief</h2>
@@ -354,10 +351,10 @@ function DailyReportModal({ onClose, onSaved }) {
           {!loading && (
             <div style={{ display: "flex", gap: 16, marginTop: 14 }}>
               {[
-                { label: "Articles",       value: articles.length },
-                { label: "Strong Signals", value: strongCount },
-                { label: "Topics",         value: Object.keys(grouped).length },
-                { label: "Avg Relevance",  value: `${avgRel}/10` },
+                { label: "Articles", value: articles.length },
+                { label: "Sources", value: uniqueSources },
+                { label: "Topics", value: Object.keys(grouped).length },
+                { label: "Avg Relevance", value: `${avgRel}/10` },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 18, fontWeight: 800 }}>{s.value}</div>
@@ -383,35 +380,27 @@ function DailyReportModal({ onClose, onSaved }) {
           ) : (
             Object.entries(grouped).map(([topic, arts]) => (
               <div key={topic} style={{ marginBottom: 20 }}>
-                {/* Topic label */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue)", background: "var(--blue-light)", padding: "3px 10px", borderRadius: 999 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--orange)", background: "var(--orange-light)", padding: "3px 10px", borderRadius: 999 }}>
                     {topic}
                   </span>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{arts.length} article{arts.length > 1 ? "s" : ""}</span>
                 </div>
 
-                {/* Articles in topic */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 4 }}>
-                  {arts.map((a, i) => {
-                    const isStrong = a.signal_strength === "Strong";
-                    return (
-                      <div key={i} style={{ borderLeft: `3px solid ${isStrong ? "var(--orange)" : "var(--border-color)"}`, paddingLeft: 12 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3, lineHeight: 1.4 }}>{a.title}</div>
-                        {a.summary && a.summary !== a.title && (
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                            {a.summary}
-                          </div>
-                        )}
-                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                          {a.source} · {a.published_at ? new Date(a.published_at).toLocaleDateString() : ""}
-                          <span style={{ marginLeft: 8, color: isStrong ? "var(--orange)" : "var(--text-muted)", fontWeight: 600 }}>
-                            {isStrong ? "STRONG" : "WEAK"}
-                          </span>
+                  {arts.map((a, i) => (
+                    <div key={i} style={{ borderLeft: "3px solid var(--orange)", paddingLeft: 12 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3, lineHeight: 1.4 }}>{a.title}</div>
+                      {a.summary && a.summary !== a.title && (
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          {a.summary}
                         </div>
+                      )}
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        {a.source} · {a.published_at ? new Date(a.published_at).toLocaleDateString() : ""}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))
@@ -425,7 +414,7 @@ function DailyReportModal({ onClose, onSaved }) {
             disabled={loading || articles.length === 0}
             style={{
               padding: "9px 20px", borderRadius: 6,
-              border: "1.5px solid var(--blue)", background: "transparent", color: "var(--blue)",
+              border: "1.5px solid var(--orange)", background: "transparent", color: "var(--orange)",
               fontSize: 13, fontWeight: 700,
               cursor: loading || articles.length === 0 ? "not-allowed" : "pointer",
               opacity: loading || articles.length === 0 ? 0.4 : 1,
@@ -438,7 +427,7 @@ function DailyReportModal({ onClose, onSaved }) {
             disabled={saving || loading || articles.length === 0}
             style={{
               padding: "9px 20px", borderRadius: 6,
-              border: "none", background: "var(--blue)", color: "#fff",
+              border: "none", background: "var(--orange)", color: "#fff",
               fontSize: 13, fontWeight: 700,
               cursor: saving || loading || articles.length === 0 ? "not-allowed" : "pointer",
               opacity: saving || loading || articles.length === 0 ? 0.5 : 1,
@@ -454,11 +443,11 @@ function DailyReportModal({ onClose, onSaved }) {
 
 const MAX_REPORTS = 30;
 
-// ── Reports List ──────────────────────────────────────────────────────────
+// Reports List
 function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
-  const [reports,     setReports]     = useState([]);
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState(null);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(null);
 
   useEffect(() => {
@@ -472,7 +461,7 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
       })
       .catch(err => { setError(err.message); setReports([]); onCountChange?.(0); })
       .finally(() => setLoading(false));
-  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshKey, onCountChange]);
 
   const handleDownloadPDF = async (e, reportId) => {
     e.stopPropagation();
@@ -502,7 +491,7 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
       ) : reports.length === 0 ? (
         <div style={{ padding: "60px 40px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border-color)", borderRadius: 6 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>No reports yet</div>
-          <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
             Click "Generate Report" above to create your first report.
           </div>
         </div>
@@ -512,8 +501,6 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
             <div
               key={report.id}
               onClick={() => onSelectReport(report.id)}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--blue)"; e.currentTarget.style.boxShadow = "0 2px 12px rgba(108,71,255,0.1)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.boxShadow = "none"; }}
               style={{
                 background: "var(--card-bg)", border: "1px solid var(--border-color)", borderRadius: 6,
                 padding: "16px 20px", cursor: "pointer",
@@ -525,11 +512,11 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
                 <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {report.title}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {report.summary || "No summary"}
                 </div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <span style={{ fontSize: 11, background: "var(--blue-light)", color: "var(--blue)", padding: "3px 8px", borderRadius: 4, fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, background: "var(--orange-light)", color: "var(--orange)", padding: "3px 8px", borderRadius: 4, fontWeight: 600 }}>
                     {report.article_count || 0} articles
                   </span>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -541,12 +528,10 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
               <button
                 onClick={(e) => handleDownloadPDF(e, report.id)}
                 disabled={downloading === report.id}
-                onMouseEnter={e => { e.currentTarget.style.background = "var(--blue)"; e.currentTarget.style.color = "#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "var(--blue-light)"; e.currentTarget.style.color = "var(--blue)"; }}
                 style={{
                   flexShrink: 0, padding: "8px 16px",
-                  background: "var(--blue-light)", color: "var(--blue)",
-                  border: "1.5px solid var(--blue)", borderRadius: 6,
+                  background: "var(--orange-light)", color: "var(--orange)",
+                  border: "1.5px solid var(--orange)", borderRadius: 6,
                   fontSize: 12, fontWeight: 700,
                   cursor: downloading === report.id ? "not-allowed" : "pointer",
                   opacity: downloading === report.id ? 0.6 : 1,
@@ -564,11 +549,11 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
   );
 }
 
-// ── Report Detail ─────────────────────────────────────────────────────────
+// Report Detail
 function ReportDetail({ reportId, onClose, onDelete }) {
-  const [report,   setReport]   = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState(null);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -601,7 +586,7 @@ function ReportDetail({ reportId, onClose, onDelete }) {
   if (error || !report) return (
     <div style={{ padding: 24, border: "1px solid var(--border-color)", borderRadius: 6 }}>
       <div style={{ color: "var(--amber)", fontSize: 13, marginBottom: 16 }}>{error || "Report not found."}</div>
-      <button onClick={onClose} style={{ padding: "8px 16px", background: "var(--blue)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+      <button onClick={onClose} style={{ padding: "8px 16px", background: "var(--orange)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
         Back
       </button>
     </div>
@@ -610,7 +595,7 @@ function ReportDetail({ reportId, onClose, onDelete }) {
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-color)", borderRadius: 6, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ background: "var(--blue)", color: "#fff", padding: "20px 24px" }}>
+      <div style={{ background: "var(--orange)", color: "#fff", padding: "20px 24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
             Back
@@ -618,7 +603,7 @@ function ReportDetail({ reportId, onClose, onDelete }) {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => generatePDF(report)}
-              style={{ background: "#fff", color: "var(--blue)", border: "none", padding: "7px 16px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+              style={{ background: "#fff", color: "var(--orange)", border: "none", padding: "7px 16px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 700 }}
             >
               Download PDF
             </button>
@@ -662,24 +647,17 @@ function ReportDetail({ reportId, onClose, onDelete }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {report.articles.map((a, i) => (
                 <div key={i}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--blue)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-color)"; }}
                   style={{ background: "var(--surface)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "14px 16px", transition: "border-color 0.2s" }}
                 >
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue)", background: "var(--blue-light)", padding: "3px 8px", borderRadius: 4 }}>#{a.number || i + 1}</span>
-                    <span style={{ fontSize: 10, background: a.signal === "strong" ? "var(--orange-light)" : "var(--amber-light)", color: a.signal === "strong" ? "var(--orange)" : "var(--amber)", padding: "3px 8px", borderRadius: 4, fontWeight: 600 }}>
-                      {a.signal?.toUpperCase() || "SIGNAL"}
-                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--orange)", background: "var(--orange-light)", padding: "3px 8px", borderRadius: 4 }}>#{a.number || i + 1}</span>
                   </div>
                   <h4 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6, lineHeight: 1.4 }}>{a.title}</h4>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{a.source} · {a.date} · {a.relevance || 0}/10</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>{a.source} · {a.date} · {a.relevance || 0}/10</div>
                   {a.summary && <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.6 }}>{a.summary}</p>}
                   {a.url && (
                     <a href={a.url} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 12, color: "var(--blue)", fontWeight: 600, textDecoration: "none" }}
-                      onMouseEnter={e => e.target.style.textDecoration = "underline"}
-                      onMouseLeave={e => e.target.style.textDecoration = "none"}
+                      style={{ fontSize: 12, color: "var(--orange)", fontWeight: 600, textDecoration: "none" }}
                     >
                       Read article
                     </a>
@@ -688,18 +666,18 @@ function ReportDetail({ reportId, onClose, onDelete }) {
               ))}
             </div>
           ) : (
-            <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>No articles in this report.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No articles in this report.</p>
           )}
         </div>
 
         <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 16, marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <p style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Report ID</p>
-            <p style={{ fontSize: 11, color: "var(--text-primary)", fontFamily: "monospace" }}>{report.id}</p>
+            <p style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "monospace" }}>{report.id}</p>
           </div>
           <div>
             <p style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Generated</p>
-            <p style={{ fontSize: 11, color: "var(--text-primary)" }}>{formatDate(report.generated_date || new Date())}</p>
+            <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>{formatDate(report.generated_date || new Date())}</p>
           </div>
         </div>
       </div>
@@ -707,19 +685,13 @@ function ReportDetail({ reportId, onClose, onDelete }) {
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────
-export default function Reports() {
-  const [selectedReportId,   setSelectedReportId]   = useState(null);
-  const [refreshKey,         setRefreshKey]          = useState(0);
-  const [showGenerateModal,  setShowGenerateModal]   = useState(false);
-  const [showDailyModal,     setShowDailyModal]      = useState(false);
-  const [reportCount,        setReportCount]         = useState(0);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
+// Main
+export default function ReportsPage() {
+  const [selectedReportId, setSelectedReportId] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showDailyModal, setShowDailyModal] = useState(false);
+  const [reportCount, setReportCount] = useState(0);
 
   const atLimit = reportCount >= MAX_REPORTS;
 
@@ -733,56 +705,52 @@ export default function Reports() {
   };
 
   return (
-    <div style={{ background: "var(--card-bg)", padding: isMobile ? "16px" : "24px 28px", minHeight: "100%", color: "var(--text-primary)" }}>
+    <DashboardLayout>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", letterSpacing: -0.5 }}>
+          My Reports
+        </h1>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+          Generate, save, and download intelligence reports as PDF.
+          {" "}
+          <span style={{ fontWeight: 700, color: atLimit ? "var(--red)" : "var(--text-muted)" }}>
+            {reportCount}/{MAX_REPORTS} reports used
+          </span>
+        </p>
+        {atLimit && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--red)", background: "var(--red-light)", border: "1px solid var(--red)", borderRadius: 6, padding: "8px 12px", display: "inline-block" }}>
+            Report limit reached — delete a report to create a new one.
+          </div>
+        )}
+      </div>
+
       {!selectedReportId && (
-        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-start", gap: 12, marginBottom: 24 }}>
-          <div>
-            <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "var(--text-primary)", letterSpacing: -0.3, marginBottom: 4 }}>My Reports</h1>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-              Generate, save, and download intelligence reports as PDF.
-              {" "}
-              <span style={{ fontWeight: 700, color: atLimit ? "var(--red)" : "var(--text-secondary)" }}>
-                {reportCount}/{MAX_REPORTS} reports used
-              </span>
-            </p>
-            {atLimit && (
-              <div style={{ marginTop: 8, fontSize: 12, color: "var(--red)", background: "var(--red-light)", border: "1px solid var(--red)", borderRadius: 6, padding: "8px 12px", display: "inline-block" }}>
-                Report limit reached — delete a report to create a new one.
-              </div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              onClick={() => !atLimit && setShowDailyModal(true)}
-              disabled={atLimit}
-              title={atLimit ? "Delete a report to make room" : ""}
-              onMouseEnter={e => { if (!atLimit) { e.currentTarget.style.background = "var(--blue-light)"; e.currentTarget.style.color = "var(--blue)"; } }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = atLimit ? "var(--text-muted)" : "var(--blue)"; }}
-              style={{
-                padding: "10px 20px", background: "transparent",
-                color: atLimit ? "var(--text-muted)" : "var(--blue)",
-                border: `1.5px solid ${atLimit ? "var(--border-color)" : "var(--blue)"}`, borderRadius: 6, fontSize: 13, fontWeight: 700,
-                cursor: atLimit ? "not-allowed" : "pointer", transition: "background 0.15s",
-                opacity: atLimit ? 0.6 : 1,
-              }}
-            >
-              Daily Brief
-            </button>
-            <button
-              onClick={() => !atLimit && setShowGenerateModal(true)}
-              disabled={atLimit}
-              title={atLimit ? "Delete a report to make room" : ""}
-              onMouseEnter={e => { if (!atLimit) e.currentTarget.style.background = "#5535e0"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = atLimit ? "var(--border-color)" : "var(--blue)"; }}
-              style={{
-                padding: "10px 20px", background: atLimit ? "var(--border-color)" : "var(--blue)", color: "#fff",
-                border: "none", borderRadius: 6, fontSize: 13, fontWeight: 700,
-                cursor: atLimit ? "not-allowed" : "pointer", transition: "background 0.15s",
-              }}
-            >
-              Generate Report
-            </button>
-          </div>
+        <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
+          <button
+            onClick={() => !atLimit && setShowDailyModal(true)}
+            disabled={atLimit}
+            style={{
+              padding: "10px 20px", background: "transparent",
+              color: atLimit ? "var(--text-muted)" : "var(--orange)",
+              border: `1.5px solid ${atLimit ? "var(--border-color)" : "var(--orange)"}`, borderRadius: 6,
+              fontSize: 13, fontWeight: 700,
+              cursor: atLimit ? "not-allowed" : "pointer",
+              opacity: atLimit ? 0.6 : 1,
+            }}
+          >
+            Daily Brief
+          </button>
+          <button
+            onClick={() => !atLimit && setShowGenerateModal(true)}
+            disabled={atLimit}
+            style={{
+              padding: "10px 20px", background: atLimit ? "var(--border-color)" : "var(--orange)", color: "#fff",
+              border: "none", borderRadius: 6, fontSize: 13, fontWeight: 700,
+              cursor: atLimit ? "not-allowed" : "pointer",
+            }}
+          >
+            Generate Report
+          </button>
         </div>
       )}
 
@@ -809,6 +777,6 @@ export default function Reports() {
           onSaved={handleReportSaved}
         />
       )}
-    </div>
+    </DashboardLayout>
   );
 }

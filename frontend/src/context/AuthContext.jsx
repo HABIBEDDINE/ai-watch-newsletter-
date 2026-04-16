@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { setApiToken, clearApiToken } from '../services/api';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 // Empty — requests go to the same origin and are proxied to the backend.
 const API = '';
@@ -30,7 +30,16 @@ export function AuthProvider({ children }) {
     setToken(accessToken);
     try {
       const payload = decodePayload(accessToken);
-      setUser({ user_id: payload.sub, role: payload.role, full_name: payload.full_name, email: payload.email ?? "", is_verified: payload.is_verified ?? false });
+      setUser(prev => ({
+        user_id: payload.sub,
+        role: payload.role,
+        full_name: payload.full_name,
+        email: payload.email ?? "",
+        is_verified: payload.is_verified ?? false,
+        // Preserve these fields if already set from a previous fetch
+        trend_topics: prev?.trend_topics || [],
+        onboarding_completed: prev?.onboarding_completed ?? false,
+      }));
       // Persist so Ctrl+R / page reload can restore the session immediately
       localStorage.setItem(LS_KEY, accessToken);
       const msUntilExpiry = (payload.exp * 1000) - Date.now() - 60_000;
@@ -140,8 +149,13 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, [token]);
 
+  // Update user object (e.g., after onboarding completion)
+  const updateUser = useCallback((updates) => {
+    setUser(prev => prev ? { ...prev, ...updates } : null);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, silentRefresh, applyToken }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, silentRefresh, applyToken, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

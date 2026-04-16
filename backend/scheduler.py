@@ -2,6 +2,7 @@
 Background scheduler for automated daily data ingestion and newsletter delivery.
 - Ingestion:  runs every day at 00:00 UTC
 - Newsletter: runs every day at 07:00 UTC (after ingestion is complete)
+- Trends:     runs every day at 08:00 UTC (V4 Sprint 4)
 - Alerts:     runs every hour at :00 (V4 Sprint 3)
 """
 
@@ -13,10 +14,58 @@ from db import supabase
 from datetime import datetime, timedelta
 import asyncio
 import logging
+import httpx
+import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
 TOPICS = ["AI", "Fintech", "HealthTech", "Cybersecurity", "CleanTech", "Robotics"]
+
+# Free RSS feeds for AI trends (cost: $0/month)
+RSS_FEEDS = [
+    # Original feeds
+    {"name": "MIT Tech Review AI", "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed"},
+    {"name": "VentureBeat AI", "url": "https://venturebeat.com/category/ai/feed/"},
+    {"name": "The Verge AI", "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"},
+    {"name": "Ars Technica AI", "url": "https://feeds.arstechnica.com/arstechnica/technology-lab"},
+    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=AI+OR+LLM+OR+GPT"},
+    # New feeds for better coverage
+    {"name": "Google News AI", "url": "https://news.google.com/rss/search?q=artificial+intelligence+OR+LLM+OR+GPT&hl=en-US&gl=US&ceid=US:en"},
+    {"name": "TechCrunch AI", "url": "https://techcrunch.com/category/artificial-intelligence/feed/"},
+    {"name": "arXiv AI", "url": "http://export.arxiv.org/rss/cs.AI"},
+    {"name": "OpenAI Blog", "url": "https://openai.com/blog/rss/"},
+    {"name": "Anthropic News", "url": "https://www.anthropic.com/news/rss"},
+]
+
+
+async def fetch_rss_articles() -> list:
+    """Fetch articles from free RSS feeds for trend context."""
+    articles = []
+    async with httpx.AsyncClient(timeout=15, verify=False) as client:
+        for feed in RSS_FEEDS:
+            try:
+                resp = await client.get(feed["url"])
+                if resp.status_code == 200:
+                    root = ET.fromstring(resp.text)
+                    # Handle both RSS and Atom formats
+                    items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
+                    for item in items[:5]:  # Top 5 per feed
+                        title = item.findtext("title") or item.findtext("{http://www.w3.org/2005/Atom}title") or ""
+                        desc = item.findtext("description") or item.findtext("{http://www.w3.org/2005/Atom}summary") or ""
+                        link = item.findtext("link") or ""
+                        if not link:
+                            link_elem = item.find("{http://www.w3.org/2005/Atom}link")
+                            link = link_elem.get("href", "") if link_elem is not None else ""
+                        articles.append({
+                            "source": feed["name"],
+                            "title": title,
+                            "description": desc[:500],
+                            "url": link,
+                        })
+                    logger.info(f"[RSS] {feed['name']}: {len(items[:5])} articles")
+            except Exception as e:
+                logger.warning(f"[RSS] {feed['name']} failed: {e}")
+    return articles
 
 
 def _db_cleanup():
@@ -223,6 +272,53 @@ def scan_and_send_alerts():
     )
 
 
+# ── V4 Sprint 4: Daily trends refresh at 8AM UTC ─────────────────────────────
+
+def scheduled_daily_trends():
+    """
+    Runs every day at 08:00 UTC.
+    1. Fetches RSS articles (FREE - 10 sources)
+    2. Clusters with GPT-4o-mini (~$0.01/day)
+    3. Falls back to Perplexity only if RSS fails
+    4. Saves to DB with generated_date and detected_at
+
+    Cost: ~$0.30/month (was ~$9/month with Perplexity-only)
+    """
+    logger.info("📊 Scheduled trends refresh starting — 08:00 UTC")
+    try:
+        # Fetch RSS articles (FREE)
+        rss_articles = asyncio.run(fetch_rss_articles())
+        logger.info(f"[Trends] Fetched {len(rss_articles)} RSS articles (FREE)")
+
+        # Pass RSS to refresh_trends — uses GPT-4o-mini clustering
+        # Falls back to Perplexity only if <10 RSS articles
+        trends = asyncio.run(refresh_trends(rss_articles))
+        logger.info(f"[Trends] Generated {len(trends)} trends")
+
+        # Save to DB with generated_date
+        today = datetime.utcnow().date().isoformat()
+        for t in trends:
+            try:
+                supabase.table("trends").upsert({
+                    "id":             t.get("id", ""),
+                    "category":       t.get("category", ""),
+                    "topic":          t.get("topic", ""),
+                    "data":           t,
+                    "generated_date": today,
+                    "detected_at":    t.get("detected_at") or datetime.utcnow().isoformat(),
+                }).execute()
+            except Exception as e:
+                logger.error(f"[Trends] Failed to save trend {t.get('topic')}: {e}")
+
+        # Cleanup old trends (> 30 days)
+        cutoff_30d = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        supabase.table("trends").delete().lt("created_at", cutoff_30d).execute()
+
+        logger.info(f"✅ Daily trends refresh complete — {len(trends)} trends saved")
+    except Exception as e:
+        logger.error(f"❌ Trends job failed: {e}")
+
+
 # Create scheduler instance
 scheduler = BackgroundScheduler(timezone="UTC")
 
@@ -243,10 +339,9 @@ def start():
             replace_existing=True,
         )
         scheduler.add_job(
-            lambda: asyncio.run(refresh_trends()),
-            "interval",
-            hours=6,
-            id="trends_refresh",
+            scheduled_daily_trends,
+            trigger=CronTrigger(hour=8, minute=0),
+            id="daily_trends",
             replace_existing=True,
         )
         scheduler.add_job(
@@ -256,7 +351,7 @@ def start():
             replace_existing=True,
         )
         scheduler.start()
-        logger.info("📅 Scheduler started — ingestion 00:00 UTC, newsletter 07:00 UTC, trends every 6h, alerts every hour")
+        logger.info("📅 Scheduler started — ingestion 00:00, newsletter 07:00, trends 08:00, alerts hourly (all UTC)")
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}")
 

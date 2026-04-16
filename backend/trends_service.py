@@ -63,7 +63,7 @@ def _normalize_category(raw: str) -> str:
     return _LABEL_TO_ID.get(raw.lower().strip(), "llm_models")
 
 
-PERPLEXITY_ENABLED = False  # Disabled — set to True to re-enable
+PERPLEXITY_ENABLED = True  # Enabled for daily 8AM refresh
 
 
 async def fetch_perplexity_trend(query: str, category: str) -> dict:
@@ -227,11 +227,112 @@ RAW INTELLIGENCE:
         return []
 
 
-async def refresh_trends() -> list:
+async def cluster_rss_trends(rss_articles: list) -> list:
+    """
+    Use GPT-4o-mini to extract structured trends from RSS articles.
+    Cost: ~$0.01/day (vs ~$0.30/day with Perplexity)
+    """
+    import asyncio
+
+    if not rss_articles:
+        print("[RSS Clustering] ⚠️ No RSS articles provided")
+        return []
+
+    print(f"[RSS Clustering] 🧠 Processing {len(rss_articles)} RSS articles")
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("[RSS Clustering] ❌ OPENAI_API_KEY is not set")
+        return []
+
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+
+    # Format RSS articles for LLM
+    combined = "\n\n".join([
+        f"SOURCE: {a.get('source', 'Unknown')}\nTITLE: {a.get('title', '')}\nDESCRIPTION: {a.get('description', '')[:300]}\nURL: {a.get('url', '')}"
+        for a in rss_articles[:50]  # Limit to 50 articles to control token usage
+    ])
+
+    prompt = f"""You are a strategic AI analyst for enterprise technology leaders (CTOs, Innovation Managers).
+
+From the following RSS news articles about AI, extract the TOP 12 most important trends.
+
+Group similar articles into trends. For each trend return a JSON object with:
+- topic: short punchy name (max 6 words)
+- category: one of [llm_models, dev_tools, ai_agents, open_source, ai_infrastructure, enterprise_apps]
+- score: strategic importance 1-10 for enterprise adoption
+- momentum: percentage string like "+45%" or "+12%"
+- summary: ONE paragraph, 3-4 sentences. Answer: WHAT is this, WHY it matters for enterprise, WHO should pay attention, WHAT to do next. Never restate the topic name. Write as a strategic analyst, not a journalist.
+- tags: array of 2-3 relevant tags
+- url: most relevant source URL from the articles
+
+Return ONLY a JSON object with a "trends" array, no other text.
+
+RSS ARTICLES:
+{combined[:8000]}"""
+
+    try:
+        print("[RSS Clustering] 📤 Calling gpt-4o-mini...")
+        resp = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            max_tokens=2000,
+        )
+        content = resp.choices[0].message.content
+        print(f"[RSS Clustering] 📥 Response received ({len(content)} chars)")
+
+        data = json.loads(content)
+        trends = data.get("trends", data) if isinstance(data, dict) else data
+
+        if not isinstance(trends, list):
+            print(f"[RSS Clustering] ❌ 'trends' is not a list")
+            return []
+
+        print(f"[RSS Clustering] ✅ Extracted {len(trends)} trends")
+
+        for i, t in enumerate(trends):
+            raw_cat = t.get("category", "")
+            t["category"] = _normalize_category(raw_cat)
+            t["id"] = f"trend_{i}_{datetime.now().strftime('%Y%m%d%H%M')}"
+            t["detected_at"] = datetime.now(timezone.utc).isoformat()
+            t["saved"] = False
+            t["deep_dive"] = None
+
+        return sorted(trends, key=lambda x: x.get("score", 0), reverse=True)
+
+    except Exception as e:
+        print(f"[RSS Clustering] ❌ Error: {type(e).__name__}: {e}")
+        logger.error("[RSS Clustering] Error: %s", e, exc_info=True)
+        return []
+
+
+async def refresh_trends(rss_articles: list = None) -> list:
+    """
+    Refresh trends using RSS articles (free) or Perplexity (paid fallback).
+
+    Cost optimization:
+    - Primary: RSS feeds → GPT-4o-mini clustering (~$0.01/day)
+    - Fallback: Perplexity queries (~$0.30/day) — only if RSS fails
+    """
     global _trends_cache, _trends_last_updated
 
     import asyncio
-    print(f"[refresh_trends] 🚀 Starting refresh — {len(TREND_QUERIES)} categories")
+
+    # Try RSS-based approach first (FREE)
+    if rss_articles and len(rss_articles) >= 10:
+        print(f"[refresh_trends] 🆓 Using {len(rss_articles)} RSS articles (cost: $0)")
+        _trends_cache = await cluster_rss_trends(rss_articles)
+        if _trends_cache:
+            _trends_last_updated = datetime.now(timezone.utc).isoformat()
+            print(f"[refresh_trends] ✅ RSS-based refresh complete — {len(_trends_cache)} trends")
+            return _trends_cache
+        print("[refresh_trends] ⚠️ RSS clustering failed, falling back to Perplexity")
+
+    # Fallback to Perplexity (PAID)
+    print(f"[refresh_trends] 💰 Falling back to Perplexity — {len(TREND_QUERIES)} categories")
 
     tasks = [fetch_perplexity_trend(q["query"], q["category"]) for q in TREND_QUERIES]
     raw_results = await asyncio.gather(*tasks)

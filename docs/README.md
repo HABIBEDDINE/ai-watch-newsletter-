@@ -1,4 +1,4 @@
-# AI Watch – V3
+# AI Watch – V4
 
 > Strategic technology intelligence platform powered by multi-source news aggregation and AI analysis
 
@@ -10,7 +10,13 @@
 
 ---
 
-## What's New in V3
+## What's New in V4
+
+### Trends Page Enhancements
+- **Onboarding Flow** — New users see a role/topic selection wizard (`TrendsOnboarding.jsx`) with emoji icons; preferences saved to localStorage and synced to backend when available
+- **Deep Dive with Sources** — Deep Dive modal now displays structured JSON content (What It Is, Enterprise Impact, Action Plan) with Perplexity-style numbered source chips and full source cards
+- **Role-aware Analysis** — Deep dive content tailored to user's selected role (CTO, Innovation Manager, Strategy Director, Other)
+- **Smart Cache Invalidation** — Backend detects old markdown-format cached deep dives and regenerates fresh JSON with sources
 
 ### Backend
 - **Multi-LLM fallback chain** — OpenAI GPT-4o-mini (primary) → OpenAI backup key → Anthropic Claude Haiku. If the primary key fails or hits quota, the backup key is tried automatically before falling to Anthropic
@@ -99,6 +105,7 @@ ai-watch-V3/
 │       │   ├── Explore.jsx           # News feed — filter, search, paginate, grid/list toggle
 │       │   ├── ArticleDetail.jsx     # Full article view with AI summary + DXC solution match
 │       │   ├── Trends.jsx            # AI trend intelligence with Deep Dive + solution match
+│       │   ├── TrendsOnboarding.jsx  # Role/topic selection wizard for new users
 │       │   ├── DataPreview.jsx       # Charts, stats, funding rounds, news sources
 │       │   ├── Reports.jsx           # Saved reports with PDF/Markdown export
 │       │   ├── Solutions.jsx         # DXC AI Accelerator product catalog (14 products)
@@ -220,7 +227,7 @@ npm start
 | POST | `/api/trends/refresh` | Fetch fresh trends from Perplexity + re-cluster with GPT |
 | GET | `/api/trends/saved` | Get watchlisted trends |
 | GET | `/api/trends/top` | Top 3 trends by score |
-| POST | `/api/trends/{id}/deepdive` | Generate deep-dive analysis for a trend |
+| POST | `/api/trends/{id}/deepdive` | Generate role-aware deep-dive analysis with sources (JSON format) |
 | POST | `/api/trends/{id}/save` | Save trend to watchlist |
 | DELETE | `/api/trends/{id}/save` | Remove trend from watchlist |
 | GET | `/test-perplexity` | Debug: raw Perplexity API connection test |
@@ -302,7 +309,7 @@ npm start
 - Real-time BI dashboard with charts
 - PDF report export
 
-### V3 — MVP+ (current — branch: ABDO / main)
+### V3 — MVP+ (done)
 - Multi-source ingestion (4 APIs in parallel)
 - OpenAI → backup OpenAI → Anthropic fallback chain
 - Strategic AI prompts (WHAT / WHY / WHO / WHAT NEXT)
@@ -388,8 +395,15 @@ npm start
 - **`asyncio.to_thread()`** — all synchronous OpenAI/Anthropic SDK calls wrapped to prevent blocking the uvicorn event loop
 - **Health check debounce** — frontend flips to "API DOWN" only after 2 consecutive failures
 
-### V4 — Planned
-- Role-based feed personalisation (CTO / Innovation Manager / Strategy Director default filters)
+### V4 — Current (branch: ABDO / main)
+- **Trends Onboarding** — First-time users complete a role/topic selection wizard; preferences stored in localStorage with server sync fallback
+- **Role-based Deep Dive** — Deep dive analysis tailored to user role (CTO, Innovation Manager, Strategy Director, Other)
+- **Perplexity-style Sources** — Deep dive modal displays numbered source chips and expandable source cards with publisher, title, and snippet
+- **JSON-structured Deep Dive** — Backend returns structured JSON (what_it_is, enterprise_impact, action_plan, sources) instead of raw markdown
+- **Smart Cache Invalidation** — Old markdown-format cached content automatically detected and regenerated with new JSON format
+- **Emoji-based UI** — Role and topic cards use native emojis instead of Material UI icons for better compatibility
+
+### V5 — Planned
 - User profile page — edit name, company, role
 - Microsoft SSO (DXC Active Directory integration)
 - Email verification (send confirmation on register)
@@ -404,4 +418,4 @@ npm start
 
 ---
 
-**Version**: 3.5.0 | **Branch**: ABDO → main | **Status**: Active Development | **Last Updated**: April 6, 2026
+**Version**: 4.0.0 | **Branch**: ABDO → main | **Status**: Active Development | **Last Updated**: April 16, 2026

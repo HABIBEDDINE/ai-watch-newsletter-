@@ -187,6 +187,10 @@ class UpdateMeBody(BaseModel):
     company:   Optional[str] = None
     role:      Optional[str] = None
 
+class OnboardingBody(BaseModel):
+    role: str
+    trend_topics: list = []
+
 # ── rate limiters (in-memory) ─────────────────────────────────────────────────
 _attempts: dict = {}
 _resend_times: dict = {}  # user_id → last resend datetime
@@ -475,5 +479,39 @@ async def update_me(body: UpdateMeBody, request: Request):
             "user_id": user["id"], "full_name": user["full_name"],
             "role": user["role"], "company": user.get("company", ""),
             "email": user["email"], "is_verified": user.get("is_verified", False),
+        },
+    }
+
+# ── onboarding (trend personalization) ───────────────────────────────────────
+@users_router.post("/onboarding")
+async def complete_onboarding(body: OnboardingBody, request: Request):
+    """Save user's trend preferences and mark onboarding as completed."""
+    payload = _require_auth(request)
+    user_id = payload["sub"]
+
+    if body.role not in VALID_ROLES:
+        raise HTTPException(422, f"Role must be one of: {', '.join(VALID_ROLES)}")
+
+    updates = {
+        "role": body.role,
+        "trend_topics": body.trend_topics,
+        "onboarding_completed": True,
+    }
+
+    result = supabase.table("users").update(updates).eq("id", user_id).execute()
+    if not result.data:
+        raise HTTPException(404, "User not found")
+
+    user = result.data[0]
+    return {
+        "ok": True,
+        "access_token": _access_token(
+            user["id"], user["role"], user["full_name"], bool(user.get("is_verified")), user["email"]
+        ),
+        "token_type": "bearer",
+        "user": {
+            "user_id": user["id"], "full_name": user["full_name"],
+            "role": user["role"], "trend_topics": user.get("trend_topics", []),
+            "onboarding_completed": True,
         },
     }

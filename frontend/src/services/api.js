@@ -113,8 +113,26 @@ export async function refreshTrends() {
   return request("/api/trends/refresh", { method: "POST" });
 }
 
-export async function getDeepDive(trendId) {
-  return request(`/api/trends/${trendId}/deepdive`, { method: "POST" });
+export async function getDeepDive(trendId, role = null) {
+  const params = role ? `?role=${role}` : "";
+  return request(`/api/trends/${trendId}/deepdive${params}`, { method: "POST" });
+}
+
+export async function getPersonalizedTrends(role, topics = []) {
+  const params = new URLSearchParams();
+  if (role) params.append("role", role);
+  if (topics.length > 0) params.append("topics", topics.join(","));
+  const query = params.toString();
+  return request(`/api/trends/personalized${query ? `?${query}` : ""}`);
+}
+
+export async function completeOnboarding(role, topics = []) {
+  return request("/api/users/onboarding", {
+    method: "POST",
+    body: { role, trend_topics: topics },
+    retries: 0,
+    timeoutMs: 10000,
+  });
 }
 
 export async function saveTrend(trendId) {
