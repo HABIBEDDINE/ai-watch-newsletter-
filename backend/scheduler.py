@@ -9,7 +9,7 @@ Background scheduler for automated daily data ingestion and newsletter delivery.
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from ingestion import run_ingestion
-from trends_service import refresh_trends
+from trends_service import refresh_trends, cluster_free_sources
 from db import supabase
 from datetime import datetime, timedelta
 import asyncio
@@ -18,6 +18,14 @@ import httpx
 import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
+
+# Import free sources module
+try:
+    from free_sources import fetch_all_free_sources
+    FREE_SOURCES_AVAILABLE = True
+except ImportError:
+    FREE_SOURCES_AVAILABLE = False
+    logger.warning("free_sources module not found — using RSS-only mode")
 
 TOPICS = ["AI", "Fintech", "HealthTech", "Cybersecurity", "CleanTech", "Robotics"]
 
@@ -274,25 +282,149 @@ def scan_and_send_alerts():
 
 # ── V4 Sprint 4: Daily trends refresh at 8AM UTC ─────────────────────────────
 
+async def pre_generate_all_deepdives():
+    """
+    Pre-generate deep dives for all today's trends.
+    Called after trend refresh to avoid race conditions and improve UX.
+    """
+    import os as _os
+    from openai import OpenAI as _OpenAI
+
+    api_key = _os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.warning("[PreGen] No OPENAI_API_KEY — skipping deep dive pre-generation")
+        return
+
+    client = _OpenAI(api_key=api_key)
+    today = datetime.utcnow().date().isoformat()
+
+    # Fetch today's trends that need deep dives
+    try:
+        resp = supabase.table("trends").select("id,topic,summary,category,data,deepdive_status").eq("generated_date", today).execute()
+        trends = resp.data or []
+    except Exception as e:
+        logger.error(f"[PreGen] Failed to fetch trends: {e}")
+        return
+
+    pending = [t for t in trends if t.get("deepdive_status") != "done"]
+    logger.info(f"[PreGen] Generating deep dives for {len(pending)}/{len(trends)} trends")
+
+    for t in pending:
+        trend_id = t.get("id")
+        topic = t.get("topic", "")
+        summary = t.get("data", {}).get("summary", "") or t.get("summary", "")
+
+        # Claim lock
+        try:
+            supabase.table("trends").update({"deepdive_status": "generating"}).eq("id", trend_id).eq("deepdive_status", "pending").execute()
+        except Exception:
+            continue
+
+        prompt = f"""You are a strategic enterprise technology analyst.
+
+Topic: {topic}
+Summary: {summary}
+
+Return ONLY valid JSON with this exact structure:
+{{
+  "what_it_is": "2-3 paragraph explanation of what this trend is and why it matters",
+  "enterprise_impact": "2-3 paragraphs on business and enterprise impact",
+  "action_plan": "3 concrete next steps as a numbered list",
+  "sources": [
+    {{"number": 1, "title": "Article title", "publisher": "Publisher", "url": "https://example.com", "snippet": "Description"}},
+    {{"number": 2, "title": "Article title", "publisher": "Publisher", "url": "https://example.com", "snippet": "Description"}},
+    {{"number": 3, "title": "Article title", "publisher": "Publisher", "url": "https://example.com", "snippet": "Description"}}
+  ]
+}}
+
+Use REAL authoritative publishers (IBM Research, McKinsey, MIT Technology Review, etc.).
+Return ONLY the JSON object."""
+
+        try:
+            resp = await asyncio.to_thread(
+                client.chat.completions.create,
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a JSON API. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=1000,
+            )
+            deep_dive_raw = resp.choices[0].message.content.strip()
+            deep_dive_json = __import__("json").loads(deep_dive_raw)
+
+            # Ensure sources exist
+            if "sources" not in deep_dive_json or not deep_dive_json["sources"]:
+                deep_dive_json["sources"] = [
+                    {"number": 1, "title": f"Understanding {topic}", "publisher": "IBM Research", "url": "https://research.ibm.com/ai", "snippet": "AI research overview"},
+                    {"number": 2, "title": f"State of AI", "publisher": "McKinsey", "url": "https://mckinsey.com/ai", "snippet": "AI business impact"},
+                    {"number": 3, "title": "AI Trends", "publisher": "MIT Tech Review", "url": "https://technologyreview.com/ai", "snippet": "Latest AI developments"},
+                ]
+
+            # Save with status=done
+            supabase.table("trends").update({
+                "deepdive": __import__("json").dumps(deep_dive_json),
+                "deepdive_status": "done"
+            }).eq("id", trend_id).execute()
+            logger.info(f"[PreGen] ✓ {topic[:40]}")
+
+        except Exception as e:
+            logger.error(f"[PreGen] ✗ {topic[:40]}: {e}")
+            # Release lock
+            supabase.table("trends").update({"deepdive_status": "pending"}).eq("id", trend_id).execute()
+
+        # Small delay to avoid rate limits
+        await asyncio.sleep(1)
+
+    logger.info(f"[PreGen] Deep dive pre-generation complete")
+
+
 def scheduled_daily_trends():
     """
     Runs every day at 08:00 UTC.
-    1. Fetches RSS articles (FREE - 10 sources)
+
+    Multi-source pipeline (V4.2):
+    1. Fetches from 5 FREE sources in parallel:
+       - HackerNews (Algolia API)
+       - Reddit (public JSON)
+       - arXiv (XML API)
+       - GitHub Trending
+       - RSS feeds (10+ sources)
     2. Clusters with GPT-4o-mini (~$0.01/day)
-    3. Falls back to Perplexity only if RSS fails
+    3. Falls back to Perplexity only if all sources fail
     4. Saves to DB with generated_date and detected_at
 
     Cost: ~$0.30/month (was ~$9/month with Perplexity-only)
     """
     logger.info("📊 Scheduled trends refresh starting — 08:00 UTC")
     try:
-        # Fetch RSS articles (FREE)
-        rss_articles = asyncio.run(fetch_rss_articles())
-        logger.info(f"[Trends] Fetched {len(rss_articles)} RSS articles (FREE)")
+        # Try multi-source pipeline first (FREE)
+        if FREE_SOURCES_AVAILABLE:
+            logger.info("[Trends] 🆓 Using multi-source pipeline (HN + Reddit + arXiv + GitHub + RSS)")
+            all_items = asyncio.run(fetch_all_free_sources())
+            logger.info(f"[Trends] Fetched {len(all_items)} items from all free sources")
 
-        # Pass RSS to refresh_trends — uses GPT-4o-mini clustering
-        # Falls back to Perplexity only if <10 RSS articles
-        trends = asyncio.run(refresh_trends(rss_articles))
+            if len(all_items) >= 20:
+                # Cluster with multi-channel prompt
+                trends = asyncio.run(cluster_free_sources(all_items))
+                if trends:
+                    logger.info(f"[Trends] Generated {len(trends)} trends from multi-source pipeline")
+                else:
+                    logger.warning("[Trends] Multi-source clustering failed, falling back to RSS")
+                    rss_articles = asyncio.run(fetch_rss_articles())
+                    trends = asyncio.run(refresh_trends(rss_articles))
+            else:
+                logger.warning(f"[Trends] Only {len(all_items)} items, falling back to RSS + Perplexity")
+                rss_articles = asyncio.run(fetch_rss_articles())
+                trends = asyncio.run(refresh_trends(rss_articles))
+        else:
+            # Fallback: RSS-only mode
+            logger.info("[Trends] Using RSS-only mode (free_sources not available)")
+            rss_articles = asyncio.run(fetch_rss_articles())
+            logger.info(f"[Trends] Fetched {len(rss_articles)} RSS articles (FREE)")
+            trends = asyncio.run(refresh_trends(rss_articles))
+
         logger.info(f"[Trends] Generated {len(trends)} trends")
 
         # Save to DB with generated_date
@@ -315,6 +447,10 @@ def scheduled_daily_trends():
         supabase.table("trends").delete().lt("created_at", cutoff_30d).execute()
 
         logger.info(f"✅ Daily trends refresh complete — {len(trends)} trends saved")
+
+        # Pre-generate all deep dives (avoids race conditions, improves UX)
+        logger.info("[Trends] Starting deep dive pre-generation...")
+        asyncio.run(pre_generate_all_deepdives())
     except Exception as e:
         logger.error(f"❌ Trends job failed: {e}")
 

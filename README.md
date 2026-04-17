@@ -11,6 +11,8 @@ Strategic AI technology intelligence platform for DXC Technology. Monitor trends
 | **Sprint 1** | Server-side summarizer cache (30-day TTL) + client-side API cache (5-min TTL) + `alert_preferences` DB table | ~67% reduction in OpenAI API spend |
 | **Sprint 2** | `saved_items` DB table + full bookmark system (articles & trends) + role-based feed personalisation | New retention features, instant content relevance |
 | **Sprint 3** | Hourly email alert scanner + `send_alert_digest()` + 3 alert API routes | Proactive re-engagement at $0 extra API cost |
+| **Sprint 4** | Multi-source trends pipeline (HN, Reddit, arXiv, GitHub, RSS) + GPT-4o-mini clustering | ~$0.30/month vs ~$9/month with Perplexity |
+| **V4.2** | **Verified Sources Upgrade** — 26 tiered primary sources (OFFICIAL, RESEARCH, MEDIA, YOUTUBE) + trust-weighted scoring + role recommendations with AI insights | Higher signal quality, role-specific relevance |
 | **V4 UX** | Profile page redesign (hero banner, role card grid) · Newsletter 3-step composer wizard · Live email preview panel · PDF export · File-backed recipients · Synchronous SMTP with real error surfacing | End-to-end email delivery, polished UI |
 
 ---
@@ -23,10 +25,11 @@ Strategic AI technology intelligence platform for DXC Technology. Monitor trends
 | Backend | FastAPI (Python), Uvicorn |
 | Database | Supabase (PostgreSQL) |
 | Auth | JWT (HS256, 15 min) + HTTP-only rotating refresh cookies (7 days) + Google OAuth 2.0 |
-| AI | OpenAI GPT-4o-mini (summaries, solution matching, deep-dives) |
+| AI | OpenAI GPT-4o-mini (summaries, solution matching, deep-dives, trend clustering) |
 | News | NewsAPI, NewsData.io |
+| Trends Sources | 26 verified RSS feeds (OpenAI, Anthropic, DeepMind, Meta AI, etc.) + HackerNews Algolia API + Reddit JSON + arXiv XML + GitHub Trending |
 | Email | SMTP (Gmail App Password) — verification, newsletter composer, alert digests |
-| Scheduling | APScheduler — daily ingest (00:00 UTC), daily newsletter (07:00 UTC), trends refresh (6 h), alerts (1 h) |
+| Scheduling | APScheduler — daily ingest (00:00 UTC), daily newsletter (07:00 UTC), trends refresh (08:00 UTC), alerts (1 h) |
 
 ---
 
@@ -41,7 +44,9 @@ ai-watch-V4/
 │   ├── ingestion.py      # News ingestion from NewsAPI + NewsData.io
 │   ├── summarizer.py     # OpenAI summaries + 30-day in-memory cache
 │   ├── newsletter.py     # Newsletter HTML generation + SMTP delivery + alert digest emails
-│   └── scheduler.py      # Background jobs (ingest, newsletter, trends, alerts)
+│   ├── scheduler.py      # Background jobs (ingest, newsletter, trends, alerts)
+│   ├── trends_service.py # Trend clustering, refresh, role personalisation
+│   └── free_sources.py   # Multi-source fetchers (verified RSS, HN, Reddit, arXiv, GitHub)
 ├── frontend/
 │   └── src/
 │       ├── App.js
@@ -97,9 +102,19 @@ ai-watch-V4/
 - **AI Summaries** — GPT-4o-mini summaries with urgency signals and DXC solution matching, cached 30 days
 - **Article Detail** — full article view with summary, key info, source link, and bookmark
 
-### Trends
-- **Trend Tracking** — categorised AI trends with signal strength scoring
-- **Deep-Dive** — AI-generated deep-dive analysis per trend
+### Trends (V4.2 Upgrade)
+- **Multi-Source Pipeline** — aggregates from 6 source types in parallel:
+  - **Verified Sources** — 26 official blogs (OpenAI, Anthropic, DeepMind, Meta AI, Mistral, HuggingFace, Google, Microsoft, AWS, IBM, NVIDIA, Cohere) + research publications (MIT Tech Review, Nature, Papers With Code) + tech media (TechCrunch, VentureBeat, Wired, The Verge) + YouTube channels
+  - **Community Sources** — HackerNews (Algolia API), Reddit (public JSON), arXiv (XML API), GitHub Trending
+- **Trust-Weighted Scoring** — OFFICIAL sources (10/10), RESEARCH (8/10), MEDIA (7/10), community (4-6/10)
+- **Rich Trend Data** — each trend includes:
+  - `primary_source` — verified org, URL, publication date
+  - `all_sources` — up to 6 cross-referenced sources per trend
+  - `why_trending` — explanation of timing (e.g., "Released 6 hours ago, 847 HN points")
+  - `trend_trigger` — NEW_RELEASE, BENCHMARK, FUNDING, REGULATION, RESEARCH, or VIRAL
+  - `channels` — source channels that detected this trend (OFFICIAL, MEDIA, HN, RD, etc.)
+- **Role Personalisation** — `/api/trends/personalized` re-ranks trends by role category weights and generates cached AI insights
+- **Deep-Dive** — AI-generated analysis with race condition protection (DB lock mechanism)
 - **Bookmark Trends** — save trends alongside articles in one unified collection
 
 ### Saved Items
@@ -283,8 +298,11 @@ Email verification
 | `GET` | `/api/articles` | — | Paginated articles with filters (topic, signal, industry, search, date) |
 | `GET` | `/api/articles/{id}` | — | Single article + AI summary (cached 30 days) |
 | `POST` | `/api/summarize` | — | Generate AI summary for an article dict |
-| `GET` | `/api/trends` | — | Trends with category filter |
-| `POST` | `/api/trends/{id}/deepdive` | — | AI deep-dive for a trend |
+| `GET` | `/api/trends` | — | Trends with category filter, includes new fields (primary_source, all_sources, why_trending, trend_trigger) |
+| `GET` | `/api/trends/personalized` | — | Role-ranked trends with `role_score` and `role_insight` (query: `?role=cto`) |
+| `POST` | `/api/trends/refresh` | — | Refresh trends from all sources (query: `?force=true` to skip cache) |
+| `GET` | `/api/trends/test-sources` | — | Test each source independently, returns status and sample |
+| `POST` | `/api/trends/{id}/deepdive` | — | AI deep-dive for a trend (with DB lock for race condition protection) |
 | `GET` | `/api/signals/live` | — | Live signal indicators |
 | `GET` | `/api/sectors/top` | — | Top sectors by volume |
 | `GET` | `/api/funding` | — | Paginated funding round data |
@@ -330,6 +348,42 @@ Email verification
 |---|---|---|---|
 | `GET` | `/health` | — | Backend liveness check |
 | `POST` | `/api/ingest` | Bearer | Manually trigger article ingestion for a topic |
+
+---
+
+## Verified Sources (V4.2)
+
+The trends pipeline fetches from 26+ verified primary sources across 4 tiers:
+
+| Tier | Trust | Sources |
+|---|---|---|
+| **OFFICIAL** | 10/10 | OpenAI Blog, Anthropic News, Google DeepMind, Meta AI, Mistral AI, Hugging Face, Google AI, Microsoft AI, AWS ML, IBM Research, NVIDIA AI, Cohere |
+| **RESEARCH** | 8/10 | MIT Technology Review AI, Nature Machine Intelligence, Papers With Code, The Gradient |
+| **MEDIA** | 7/10 | TechCrunch AI, VentureBeat AI, Wired AI, The Verge AI, Ars Technica |
+| **YOUTUBE** | 7/10 | Google DeepMind, OpenAI, Andrej Karpathy, Two Minute Papers, Yannic Kilcher |
+
+Community sources (HackerNews, Reddit, arXiv, GitHub) are also fetched but scored lower (4-6/10).
+
+### Trust-Weighted Clustering
+
+The GPT clustering prompt weights sources by trust score:
+- **OFFICIAL alone** = include as trend (score 7+)
+- **OFFICIAL + MEDIA** = very strong signal (score 8+)
+- **OFFICIAL + MEDIA + HN** = explosive signal (score 9-10)
+- **Community-only** = include if 3+ sources (score 5-6)
+
+### Role Category Weights
+
+The `/api/trends/personalized` endpoint re-ranks trends using role-specific category weights:
+
+| Category | CTO | Innovation Manager | Strategy Director |
+|---|---|---|---|
+| ai_infrastructure | 10 | 5 | 6 |
+| enterprise_apps | 9 | 7 | 10 |
+| llm_models | 8 | 9 | 8 |
+| ai_agents | 7 | 10 | 7 |
+| open_source | 6 | 8 | 5 |
+| dev_tools | 5 | 9 | 4 |
 
 ---
 

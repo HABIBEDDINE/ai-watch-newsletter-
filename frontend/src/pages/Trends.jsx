@@ -120,6 +120,63 @@ function MomentumBadge({ score }) {
   );
 }
 
+// Channel badges for multi-source signals
+const CHANNEL_CONFIG = {
+  NL: { label: "Newsletter", color: "#185EA5", bg: "#EEF2FF", emoji: "📰" },
+  HN: { label: "HackerNews", color: "#E35B1A", bg: "#fff3ee", emoji: "🔶" },
+  RD: { label: "Reddit", color: "#FF4500", bg: "#fff0ec", emoji: "👥" },
+  AX: { label: "arXiv", color: "#B31B1B", bg: "#fef0f0", emoji: "🔬" },
+  GH: { label: "GitHub", color: "#238636", bg: "#e6f4ea", emoji: "⭐" },
+  OFFICIAL: { label: "Official", color: "#185EA5", bg: "#EEF2FF", emoji: "✓" },
+  RESEARCH: { label: "Research", color: "#B31B1B", bg: "#fef0f0", emoji: "📚" },
+  MEDIA: { label: "Media", color: "#7c3aed", bg: "#ede9fe", emoji: "📰" },
+  YOUTUBE: { label: "YouTube", color: "#FF0000", bg: "#fee2e2", emoji: "▶️" },
+};
+
+// Trend trigger badges
+const TRIGGER_CONFIG = {
+  NEW_RELEASE:  { icon: '🚀', label: 'New Release',  color: '#185EA5', bg: '#EEF2FF' },
+  BENCHMARK:    { icon: '📊', label: 'Benchmark',    color: '#6B5CE7', bg: '#ede9fe' },
+  FUNDING:      { icon: '💰', label: 'Funding',      color: '#059669', bg: '#d1fae5' },
+  REGULATION:   { icon: '⚖️', label: 'Regulation',   color: '#d97706', bg: '#fef3c7' },
+  RESEARCH:     { icon: '🔬', label: 'Research',     color: '#B31B1B', bg: '#fef0f0' },
+  VIRAL:        { icon: '🔥', label: 'Viral',        color: '#E35B1A', bg: '#fff3ee' },
+};
+
+// Format publication date for display
+function formatPublishedDate(dateStr) {
+  if (!dateStr) return null;
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return null;
+  }
+}
+
+function SignalBadge({ channel }) {
+  const config = CHANNEL_CONFIG[channel] || CHANNEL_CONFIG.NL;
+  return (
+    <span
+      title={config.label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "3px",
+        padding: "2px 7px",
+        borderRadius: "20px",
+        fontSize: "10px",
+        fontWeight: "600",
+        background: config.bg,
+        color: config.color,
+        border: `1px solid ${config.color}22`,
+      }}
+    >
+      {config.emoji} {channel}
+    </span>
+  );
+}
+
 function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRole }) {
   const detectedDate = formatDate(trend.detected_at);
 
@@ -148,15 +205,52 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
         </div>
       </div>
 
-      {/* Date + Momentum */}
+      {/* Date + Momentum + Verified Badge + Trigger */}
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        {detectedDate && (
+        {/* Verified source badge */}
+        {trend.primary_source?.is_verified && (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            fontSize: '10px',
+            fontWeight: '600',
+            color: '#185EA5',
+            background: '#EEF2FF',
+            padding: '2px 7px',
+            borderRadius: '10px',
+            border: '1px solid #bfdbfe',
+          }}>
+            ✓ {trend.primary_source?.org || 'Verified'}
+          </span>
+        )}
+        {/* Publication date */}
+        {trend.primary_source?.published && (
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            {formatPublishedDate(trend.primary_source.published)}
+          </span>
+        )}
+        {!trend.primary_source?.published && detectedDate && (
           <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 500 }}>
             {detectedDate}
           </span>
         )}
         <MomentumBadge score={trend.score} />
         <span style={{ fontSize: 11, fontWeight: 700, color: "var(--delta-color)" }}>{trend.momentum}</span>
+        {/* Trend trigger badge */}
+        {trend.trend_trigger && TRIGGER_CONFIG[trend.trend_trigger] && (
+          <span style={{
+            fontSize: '10px',
+            fontWeight: '600',
+            padding: '2px 8px',
+            borderRadius: '10px',
+            background: TRIGGER_CONFIG[trend.trend_trigger].bg,
+            color: TRIGGER_CONFIG[trend.trend_trigger].color,
+          }}>
+            {TRIGGER_CONFIG[trend.trend_trigger].icon}{' '}
+            {TRIGGER_CONFIG[trend.trend_trigger].label}
+          </span>
+        )}
       </div>
 
       {/* Topic */}
@@ -193,6 +287,21 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
         {trend.summary}
       </div>
 
+      {/* Why trending */}
+      {trend.why_trending && (
+        <div style={{
+          fontSize: '12px',
+          color: 'var(--text-secondary)',
+          fontStyle: 'italic',
+          padding: '6px 10px',
+          background: 'var(--bg-hover)',
+          borderRadius: '6px',
+          borderLeft: '3px solid #E35B1A',
+        }}>
+          {trend.why_trending}
+        </div>
+      )}
+
       {/* Tags */}
       {trend.tags?.length > 0 && (
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -200,8 +309,60 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
         </div>
       )}
 
-      {/* Category */}
-      <CategoryPill category={trend.category} />
+      {/* Multiple source chips */}
+      {trend.all_sources && trend.all_sources.length > 0 && (
+        <div style={{
+          display: 'flex',
+          gap: '6px',
+          flexWrap: 'wrap',
+          paddingTop: '8px',
+          borderTop: '1px solid var(--border-color)',
+        }}>
+          {trend.all_sources.slice(0, 4).map((src, i) => (
+            <a
+              key={i}
+              href={src.url}
+              target="_blank"
+              rel="noreferrer"
+              title={src.title}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 8px',
+                borderRadius: '20px',
+                fontSize: '10px',
+                fontWeight: '600',
+                textDecoration: 'none',
+                background: src.is_verified ? '#EEF2FF' : 'var(--bg-hover)',
+                color: src.is_verified ? '#185EA5' : 'var(--text-muted)',
+                border: `1px solid ${src.is_verified ? '#bfdbfe' : 'var(--border-color)'}`,
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {src.is_verified && '✓ '}
+              {src.org || src.source}
+            </a>
+          ))}
+          {trend.all_sources.length > 4 && (
+            <span style={{
+              fontSize: '10px',
+              color: 'var(--text-muted)',
+              padding: '2px 6px',
+            }}>
+              +{trend.all_sources.length - 4} more
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Channel signals + Category */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        {(trend.channels || []).map(ch => (
+          <SignalBadge key={ch} channel={ch} />
+        ))}
+        <CategoryPill category={trend.category} />
+      </div>
 
       {/* Actions */}
       <div style={{ display: "flex", gap: 8, marginTop: 4, width: "100%", boxSizing: "border-box" }}>
@@ -270,6 +431,38 @@ function RankedRow({ trend, rank, onDeepDive, onSave, loadingDive, isSaved }) {
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <CategoryPill category={trend.category} />
+          {/* Verified source badge */}
+          {trend.primary_source?.is_verified && !isNarrow && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '2px',
+              fontSize: '9px',
+              fontWeight: '600',
+              color: '#185EA5',
+              background: '#EEF2FF',
+              padding: '1px 5px',
+              borderRadius: '8px',
+            }}>
+              ✓ {trend.primary_source?.org?.split(' ')[0] || 'Verified'}
+            </span>
+          )}
+          {/* Trend trigger badge */}
+          {trend.trend_trigger && TRIGGER_CONFIG[trend.trend_trigger] && !isNarrow && (
+            <span style={{
+              fontSize: '9px',
+              fontWeight: '600',
+              padding: '1px 5px',
+              borderRadius: '8px',
+              background: TRIGGER_CONFIG[trend.trend_trigger].bg,
+              color: TRIGGER_CONFIG[trend.trend_trigger].color,
+            }}>
+              {TRIGGER_CONFIG[trend.trend_trigger].icon}
+            </span>
+          )}
+          {!isNarrow && (trend.channels || []).slice(0, 2).map(ch => (
+            <SignalBadge key={ch} channel={ch} />
+          ))}
           {detectedDate && !isNarrow && (
             <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{detectedDate}</span>
           )}
@@ -707,14 +900,16 @@ function DeepDiveModal({ trend, onClose, onSave, loading, isSaved }) {
 
         {/* Body */}
         <div style={{ padding: isNarrow ? "16px" : "24px 28px", flex: 1 }}>
-          {loading ? (
+          {loading || trend._generating ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 0" }}>
               <div style={{
                 width: 36, height: 36, borderRadius: "50%",
                 border: "3px solid var(--blue)", borderTopColor: "transparent",
                 animation: "spin 0.8s linear infinite",
               }} />
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Generating deep dive analysis...</div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                {trend._generating ? "Deep dive is being prepared, please wait..." : "Generating deep dive analysis..."}
+              </div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : trend.deep_dive ? (
@@ -860,9 +1055,9 @@ export default function Trends() {
     }
   }, [loadPersonalizedTrends, user?.role, user?.onboarding_completed]);
 
-  const handleDeepDive = async (trend) => {
+  const handleDeepDive = async (trend, isRetry = false) => {
     // Check if we have valid cached data with sources (new JSON format)
-    if (trend.deep_dive) {
+    if (!isRetry && trend.deep_dive) {
       let cached = trend.deep_dive;
       if (typeof cached === 'string') {
         try {
@@ -886,6 +1081,17 @@ export default function Trends() {
     try {
       const data = await getDeepDive(trend.id, user?.role);
       console.log('[DeepDive] API response:', JSON.stringify(data, null, 2));
+
+      // Handle "generating" status - poll until complete
+      if (data.status === "generating") {
+        console.log('[DeepDive] Generation in progress, polling in', data.retry_in || 15, 'seconds...');
+        setDiveModal({ ...trend, deep_dive: null, _generating: true });
+        setTimeout(() => {
+          handleDeepDive(trend, true);  // Retry with isRetry flag
+        }, (data.retry_in || 15) * 1000);
+        return;
+      }
+
       console.log('[DeepDive] deep_dive field:', data.deep_dive);
       console.log('[DeepDive] sources:', data.deep_dive?.sources);
       const updated = { ...trend, deep_dive: data.deep_dive };
@@ -1131,6 +1337,141 @@ export default function Trends() {
             ))}
           </div>
         </>
+      )}
+
+      {/* RECOMMENDATIONS FOR ROLE */}
+      {user && personalizedTrends.length > 0 && personalizedTrends.some(t => t.role_insight) && (
+        <div style={{ marginTop: '48px' }}>
+          {/* Section header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '20px',
+            paddingBottom: '12px',
+            borderBottom: '1px solid var(--border-color)',
+          }}>
+            <div>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: 'var(--text-primary)',
+              }}>
+                Recommended for {({
+                  cto: 'CTOs',
+                  innovation_manager: 'Innovation Managers',
+                  strategy_director: 'Strategy Directors',
+                  other: 'You',
+                }[user?.role] || 'You')}
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--text-muted)',
+                marginTop: '2px',
+              }}>
+                Same trends re-ranked for your role with personalised insights
+              </div>
+            </div>
+            <span style={{
+              marginLeft: 'auto',
+              background: '#fff3ee',
+              color: '#E35B1A',
+              fontSize: '11px',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              fontWeight: '600',
+              flexShrink: 0,
+            }}>
+              {({
+                cto: 'CTO',
+                innovation_manager: 'Innovation',
+                strategy_director: 'Strategy',
+                other: 'General',
+              }[user?.role] || 'General')}
+            </span>
+          </div>
+
+          {/* Role trend cards */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}>
+            {personalizedTrends.filter(t => t.role_insight).slice(0, 5).map((trend, i) => (
+              <div
+                key={trend.id || i}
+                style={{
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '16px 20px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => handleDeepDive(trend)}
+              >
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  marginBottom: '8px',
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: 'var(--text-primary)',
+                      marginBottom: '4px',
+                    }}>
+                      {trend.topic}
+                    </div>
+                    <div style={{
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                    }}>
+                      {trend.summary}
+                    </div>
+                  </div>
+                  <div style={{
+                    textAlign: 'right',
+                    flexShrink: 0,
+                  }}>
+                    <div style={{
+                      fontSize: '20px',
+                      fontWeight: '700',
+                      color: '#E35B1A',
+                    }}>
+                      {trend.role_score || trend.score}
+                    </div>
+                    <div style={{
+                      fontSize: '10px',
+                      color: 'var(--text-muted)',
+                    }}>
+                      role score
+                    </div>
+                  </div>
+                </div>
+
+                {/* Role insight */}
+                {trend.role_insight && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#185EA5',
+                    background: '#EEF2FF',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    marginTop: '10px',
+                    fontStyle: 'italic',
+                    borderLeft: '3px solid #185EA5',
+                  }}>
+                    💡 {trend.role_insight}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Deep Dive Modal */}

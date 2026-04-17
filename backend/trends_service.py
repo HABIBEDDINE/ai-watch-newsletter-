@@ -227,71 +227,84 @@ RAW INTELLIGENCE:
         return []
 
 
-async def cluster_rss_trends(rss_articles: list) -> list:
+async def cluster_free_sources(items: list) -> list:
     """
-    Use GPT-4o-mini to extract structured trends from RSS articles.
+    Use GPT-4o-mini to extract structured trends from multi-source items.
+    Supports channel weighting with trust scores: OFFICIAL, RESEARCH, MEDIA, YOUTUBE, HN, RD, AX, GH, NL
     Cost: ~$0.01/day (vs ~$0.30/day with Perplexity)
     """
     import asyncio
 
-    if not rss_articles:
-        print("[RSS Clustering] ⚠️ No RSS articles provided")
+    if not items:
+        print("[Clustering] ⚠️ No items provided")
         return []
 
-    print(f"[RSS Clustering] 🧠 Processing {len(rss_articles)} RSS articles")
+    print(f"[Clustering] 🧠 Processing {len(items)} items from multiple sources")
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("[RSS Clustering] ❌ OPENAI_API_KEY is not set")
+        print("[Clustering] ❌ OPENAI_API_KEY is not set")
         return []
 
     from openai import OpenAI
     client = OpenAI(api_key=api_key)
 
-    # Format RSS articles for LLM
-    combined = "\n\n".join([
-        f"SOURCE: {a.get('source', 'Unknown')}\nTITLE: {a.get('title', '')}\nDESCRIPTION: {a.get('description', '')[:300]}\nURL: {a.get('url', '')}"
-        for a in rss_articles[:50]  # Limit to 50 articles to control token usage
-    ])
+    # Build prompt with trust-weighted channel signals
+    from free_sources import build_clustering_prompt
+    prompt = build_clustering_prompt(items)
 
-    prompt = f"""You are a strategic AI analyst for enterprise technology leaders (CTOs, Innovation Managers).
-
-From the following RSS news articles about AI, extract the TOP 12 most important trends.
-
-Group similar articles into trends. For each trend return a JSON object with:
-- topic: short punchy name (max 6 words)
-- category: one of [llm_models, dev_tools, ai_agents, open_source, ai_infrastructure, enterprise_apps]
-- score: strategic importance 1-10 for enterprise adoption
-- momentum: percentage string like "+45%" or "+12%"
-- summary: ONE paragraph, 3-4 sentences. Answer: WHAT is this, WHY it matters for enterprise, WHO should pay attention, WHAT to do next. Never restate the topic name. Write as a strategic analyst, not a journalist.
-- tags: array of 2-3 relevant tags
-- url: most relevant source URL from the articles
-
-Return ONLY a JSON object with a "trends" array, no other text.
-
-RSS ARTICLES:
-{combined[:8000]}"""
+    # Debug logging
+    print(f"[Clustering] 📊 Sending {min(len(items), 120)} items to GPT")
+    print(f"[Clustering] 📊 Prompt length: {len(prompt)} chars")
 
     try:
-        print("[RSS Clustering] 📤 Calling gpt-4o-mini...")
+        print("[Clustering] 📤 Calling gpt-4o-mini with trust-weighted prompt...")
         resp = await asyncio.to_thread(
             client.chat.completions.create,
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "You are a JSON API. Return a JSON object with a 'trends' array containing 12-15 trend items. Always return at least 12 trends."},
+                {"role": "user", "content": prompt}
+            ],
             response_format={"type": "json_object"},
-            max_tokens=2000,
+            max_tokens=4500,
+            temperature=0.3,
         )
         content = resp.choices[0].message.content
-        print(f"[RSS Clustering] 📥 Response received ({len(content)} chars)")
+        print(f"[Clustering] 📥 Response received ({len(content)} chars)")
+        print(f"[Clustering] 📥 Response preview: {content[:300]}...")
 
         data = json.loads(content)
         trends = data.get("trends", data) if isinstance(data, dict) else data
 
         if not isinstance(trends, list):
-            print(f"[RSS Clustering] ❌ 'trends' is not a list")
+            print(f"[Clustering] ❌ 'trends' is not a list")
             return []
 
-        print(f"[RSS Clustering] ✅ Extracted {len(trends)} trends")
+        print(f"[Clustering] ✅ Extracted {len(trends)} trends")
+
+        # Retry if too few trends
+        if len(trends) < 8:
+            print(f"[Clustering] ⚠️ WARNING: only {len(trends)} trends returned, retrying...")
+            retry_prompt = prompt + f"\n\nIMPORTANT: You returned only {len(trends)} trends. This is too few. You MUST return at least 12 trends. Look harder for distinct topics in the {min(len(items), 120)} items provided."
+
+            retry_resp = await asyncio.to_thread(
+                client.chat.completions.create,
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a JSON API. Return a JSON object with a 'trends' array containing 12-15 items. This is a retry - you must find more trends."},
+                    {"role": "user", "content": retry_prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=4500,
+                temperature=0.5,
+            )
+            retry_content = retry_resp.choices[0].message.content
+            retry_data = json.loads(retry_content)
+            retry_trends = retry_data.get("trends", [])
+            if len(retry_trends) > len(trends):
+                trends = retry_trends
+                print(f"[Clustering] ✅ After retry: {len(trends)} trends")
 
         for i, t in enumerate(trends):
             raw_cat = t.get("category", "")
@@ -301,12 +314,110 @@ RSS ARTICLES:
             t["saved"] = False
             t["deep_dive"] = None
 
+            # Map trend_score to score for backwards compatibility
+            if "trend_score" in t and "score" not in t:
+                t["score"] = t["trend_score"]
+            elif "score" not in t:
+                t["score"] = 5
+
+            # Keep channel info for transparency
+            if "channels" not in t:
+                t["channels"] = ["NL"]
+
+            # Ensure primary_source exists
+            if "primary_source" not in t:
+                t["primary_source"] = None
+
+            # Ensure why_trending exists
+            if "why_trending" not in t:
+                t["why_trending"] = ""
+
+            # Ensure trend_trigger exists
+            if "trend_trigger" not in t:
+                t["trend_trigger"] = None
+
+        # Attach raw sources to each trend
+        trends = attach_sources_to_trends(trends, items)
+
         return sorted(trends, key=lambda x: x.get("score", 0), reverse=True)
 
     except Exception as e:
-        print(f"[RSS Clustering] ❌ Error: {type(e).__name__}: {e}")
-        logger.error("[RSS Clustering] Error: %s", e, exc_info=True)
+        print(f"[Clustering] ❌ Error: {type(e).__name__}: {e}")
+        logger.error("[Clustering] Error: %s", e, exc_info=True)
         return []
+
+
+def attach_sources_to_trends(trends: list, raw_items: list) -> list:
+    """
+    After clustering, find all raw items that match each trend.
+    These become the trend's multiple verified sources.
+    Groups by: OFFICIAL first, then RESEARCH, then MEDIA, then community
+    """
+    for trend in trends:
+        topic = trend.get("topic", "").lower()
+        tags = [t.lower() for t in trend.get("tags", [])]
+
+        # Keywords to match against
+        keywords = set()
+        for word in topic.split():
+            if len(word) > 3:
+                keywords.add(word.lower())
+        for tag in tags:
+            keywords.add(tag.lower())
+
+        matching = []
+        for item in raw_items:
+            item_text = (
+                item.get("title", "") + " " +
+                item.get("summary", "")
+            ).lower()
+
+            match_count = sum(
+                1 for kw in keywords if kw in item_text
+            )
+
+            if match_count >= 2:
+                matching.append({
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "source": item.get("source", ""),
+                    "org": item.get("org", ""),
+                    "channel": item.get("channel", "NL"),
+                    "trust_score": item.get("trust_score", 5),
+                    "is_verified": item.get("is_verified", False),
+                    "published": item.get("published", ""),
+                })
+
+        # Sort: verified first, then by trust score
+        matching.sort(
+            key=lambda x: (x["is_verified"], x["trust_score"]),
+            reverse=True
+        )
+
+        trend["all_sources"] = matching[:6]  # max 6 sources
+        trend["verified_source_count"] = sum(
+            1 for s in matching if s["is_verified"]
+        )
+
+    return trends
+
+
+async def cluster_rss_trends(rss_articles: list) -> list:
+    """
+    Legacy function for RSS-only clustering.
+    Now wraps cluster_free_sources for backwards compatibility.
+    """
+    # Convert RSS articles to standard item format
+    items = []
+    for a in rss_articles:
+        items.append({
+            "title": a.get("title", ""),
+            "summary": a.get("description", "")[:300],
+            "url": a.get("url", ""),
+            "source": a.get("source", "RSS"),
+            "channel": "NL",
+        })
+    return await cluster_free_sources(items)
 
 
 async def refresh_trends(rss_articles: list = None) -> list:

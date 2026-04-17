@@ -1,159 +1,287 @@
-# AI Trends Page — Complete Technical Documentation (V4.1)
+# AI Trends Page — Complete Technical Documentation (V4.2)
 
 ## Overview
 
-The Trends page (`/trends`) displays real-time AI trend intelligence using a **cost-optimized pipeline**:
-- **Primary**: Free RSS feeds → GPT-4o-mini clustering (~$0.30/month)
-- **Fallback**: Perplexity AI (only if RSS fails)
-- **Deep Dive**: Perplexity + GPT-4o-mini with DB caching
+The Trends page (`/trends`) displays real-time AI trend intelligence using a **multi-source free pipeline**:
 
-Provides enterprise-focused insights across 6 AI categories with personalization based on user role.
+| Source | API | Cost |
+|--------|-----|------|
+| HackerNews | Algolia Search API | FREE |
+| Reddit | Public JSON API | FREE |
+| arXiv | XML/Atom API | FREE |
+| GitHub | Trending RSS + Topics API | FREE |
+| RSS Feeds | 10+ newsletters | FREE |
+| GPT-4o-mini | Clustering only | ~$0.01/day |
+| Perplexity | Deep-dive only | ~$0.005/click |
 
----
-
-## Architecture Flow (Cost-Optimized)
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           DAILY REFRESH (8:00 AM UTC)                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐                                                           │
-│  │  10 RSS Feeds │──────┐                                                   │
-│  │  (FREE)       │      │                                                   │
-│  └──────────────┘      │                                                   │
-│                         ▼                                                   │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌─────────────┐ │
-│  │  Google News  │   │  GPT-4o-mini │   │   Supabase   │   │  Frontend   │ │
-│  │  HackerNews   │──▶│  Clustering  │──▶│   (trends    │──▶│   React     │ │
-│  │  arXiv        │   │  (~$0.01/day)│   │    table)    │   │   /trends   │ │
-│  │  TechCrunch   │   └──────────────┘   └──────────────┘   └─────────────┘ │
-│  │  VentureBeat  │                                                          │
-│  │  MIT Tech Rev │         ▲                                                │
-│  │  OpenAI Blog  │         │ Fallback only                                  │
-│  │  Anthropic    │   ┌─────┴──────┐                                         │
-│  │  The Verge    │   │ Perplexity │                                         │
-│  │  Ars Technica │   │ (if <10    │                                         │
-│  └──────────────┘   │  RSS items) │                                         │
-│                      └────────────┘                                         │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           DEEP DIVE (On-Demand)                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  User clicks     ┌──────────────┐   ┌──────────────┐   ┌──────────────┐    │
-│  "Deep Dive" ───▶│  Check DB    │──▶│  If cached   │──▶│  Return      │    │
-│                  │  cache       │   │  with sources│   │  immediately │    │
-│                  └──────────────┘   └──────────────┘   └──────────────┘    │
-│                         │                                                   │
-│                         │ Cache miss                                        │
-│                         ▼                                                   │
-│                  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐    │
-│                  │  Perplexity  │──▶│  GPT-4o-mini │──▶│  Save to DB  │    │
-│                  │  Research    │   │  Structure   │   │  + Return    │    │
-│                  │  (~$0.005)   │   │  (~$0.005)   │   │              │    │
-│                  └──────────────┘   └──────────────┘   └──────────────┘    │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+**Total: ~$0.30-0.50/month** (was ~$9-15/month)
 
 ---
 
-## 1. Data Sources & APIs
+## Architecture Flow
 
-### 1.1 Free RSS Feeds (Primary Source)
-
-**Purpose**: Fetch real-time AI news at zero cost.
-
-**10 RSS Feeds** (defined in `backend/scheduler.py`):
-
-| Source | URL | Focus |
-|--------|-----|-------|
-| Google News AI | `news.google.com/rss/search?q=artificial+intelligence` | Broad AI news |
-| Hacker News | `hnrss.org/newest?q=AI+OR+LLM+OR+GPT` | Developer community |
-| arXiv AI | `export.arxiv.org/rss/cs.AI` | Research papers |
-| TechCrunch AI | `techcrunch.com/category/artificial-intelligence/feed/` | Startup news |
-| VentureBeat AI | `venturebeat.com/category/ai/feed/` | Enterprise AI |
-| MIT Tech Review | `technologyreview.com/topic/artificial-intelligence/feed` | Analysis |
-| OpenAI Blog | `openai.com/blog/rss/` | OpenAI releases |
-| Anthropic News | `anthropic.com/news/rss` | Anthropic releases |
-| The Verge AI | `theverge.com/rss/ai-artificial-intelligence/index.xml` | Consumer AI |
-| Ars Technica | `feeds.arstechnica.com/arstechnica/technology-lab` | Tech deep dives |
-
-**Fetch Logic** (`fetch_rss_articles()`):
-- Timeout: 15 seconds per feed
-- Max articles: 5 per feed (50 total)
-- Handles both RSS and Atom formats
-- Extracts: title, description, url, source
-
-### 1.2 GPT-4o-mini (Clustering)
-
-**Purpose**: Extract and score trends from RSS articles.
-
-**Configuration**:
-```bash
-# config/.env
-OPENAI_API_KEY=sk-xxxxxxxx
 ```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         DAILY REFRESH (8:00 AM UTC)                              │
+│                                                                                  │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│   │ HackerNews  │  │   Reddit    │  │   arXiv     │  │   GitHub    │            │
+│   │ Algolia API │  │ Public JSON │  │  XML API    │  │  Trending   │            │
+│   │    (HN)     │  │    (RD)     │  │    (AX)     │  │    (GH)     │            │
+│   └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘            │
+│          │                │                │                │                    │
+│          └────────────────┼────────────────┼────────────────┘                    │
+│                           │                │                                     │
+│                           ▼                ▼                                     │
+│                    ┌─────────────┐  ┌─────────────┐                             │
+│                    │  Extra RSS  │  │  Scheduler  │                             │
+│                    │ Newsletters │  │  RSS Feeds  │                             │
+│                    │    (NL)     │  │    (NL)     │                             │
+│                    └──────┬──────┘  └──────┬──────┘                             │
+│                           │                │                                     │
+│                           └────────┬───────┘                                     │
+│                                    ▼                                             │
+│                         ┌──────────────────┐                                    │
+│                         │  fetch_all_free  │                                    │
+│                         │    _sources()    │                                    │
+│                         │  ~76 items/day   │                                    │
+│                         └────────┬─────────┘                                    │
+│                                  ▼                                               │
+│                         ┌──────────────────┐                                    │
+│                         │   GPT-4o-mini    │                                    │
+│                         │   Clustering     │                                    │
+│                         │  (~$0.01/day)    │                                    │
+│                         └────────┬─────────┘                                    │
+│                                  ▼                                               │
+│                         ┌──────────────────┐      ┌──────────────────┐          │
+│                         │    Supabase      │      │    Frontend      │          │
+│                         │  trends table    │─────▶│   /trends page   │          │
+│                         └──────────────────┘      └──────────────────┘          │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-**Processing** (`cluster_rss_trends()`):
-1. Combines up to 50 RSS articles (8000 char limit)
-2. Extracts TOP 12 most important trends
-3. Scores each 1-10 for enterprise relevance
-4. Generates: topic, category, score, momentum, summary, tags, url
-
-**Cost**: ~$0.01/day (1 API call with ~2K input tokens)
-
-### 1.3 Perplexity AI (Fallback + Deep Dive)
-
-**Purpose**:
-- Fallback if RSS returns <10 articles
-- Research source for deep dive generation
-
-**Configuration**:
-```bash
-# config/.env
-PERPLEXITY_API_KEY=pplx-xxxxxxxx
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         DEEP DIVE (On-Demand)                                    │
+│                                                                                  │
+│  User clicks     ┌──────────────┐   ┌──────────────┐   ┌──────────────┐         │
+│  "Deep Dive" ───▶│  Check DB    │──▶│  If cached   │──▶│  Return      │         │
+│                  │  cache       │   │  with sources│   │  immediately │         │
+│                  └──────────────┘   └──────────────┘   └──────────────┘         │
+│                         │                                                        │
+│                         │ Cache miss                                             │
+│                         ▼                                                        │
+│                  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐         │
+│                  │  Perplexity  │──▶│  GPT-4o-mini │──▶│  Save to DB  │         │
+│                  │  Research    │   │  Structure   │   │  + Return    │         │
+│                  │  (~$0.005)   │   │  (~$0.005)   │   │              │         │
+│                  └──────────────┘   └──────────────┘   └──────────────┘         │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
-
-**API Details**:
-- Endpoint: `https://api.perplexity.ai/chat/completions`
-- Model: `sonar-pro`
-- Timeout: 30 seconds
-- Max tokens: 800 per query
-
-**6 Category Queries** (defined in `backend/trends_service.py`):
-
-| Category | Query Focus |
-|----------|-------------|
-| `llm_models` | GPT, Claude, Gemini, Llama, Mistral releases |
-| `dev_tools` | Cursor, GitHub Copilot, Claude Code, Aider |
-| `ai_agents` | LangChain, CrewAI, AutoGPT, Microsoft AutoGen |
-| `open_source` | Open source models, GitHub trending repos |
-| `ai_infrastructure` | RAG, vector DBs, MLOps, GPU cloud |
-| `enterprise_apps` | Microsoft Copilot, Salesforce Einstein, SAP AI |
 
 ---
 
-## 2. Cost Comparison
+## 1. Data Sources (All FREE)
 
-### Before Optimization
-| Operation | Frequency | Cost |
-|-----------|-----------|------|
-| Perplexity (6 queries) | Daily | $0.30/day |
-| Deep dive (no caching) | Per click | $0.01/click |
-| **Monthly Total** | | **~$9-15/month** |
+### 1.1 HackerNews — Algolia API
 
-### After Optimization (V4.1)
-| Operation | Frequency | Cost |
-|-----------|-----------|------|
-| RSS feeds | Daily | $0.00 |
-| GPT-4o-mini clustering | Daily (1 call) | ~$0.01 |
-| Perplexity fallback | Rare | ~$0.00 |
-| Deep dive (cached) | First click only | ~$0.01 |
-| **Monthly Total** | | **~$0.30-0.50/month** |
+**File**: `backend/free_sources.py` → `fetch_hackernews_items()`
 
-**Savings: ~97%**
+**Endpoint**: `https://hn.algolia.com/api/v1/search`
+
+**Queries**:
+```python
+SEARCHES = [
+    "LLM GPT Claude Gemini",
+    "AI agent autonomous",
+    "open source model llama mistral",
+    "RAG vector database embedding",
+    "AI coding cursor copilot",
+]
+```
+
+**Filters**:
+- Last 7 days
+- Points > 10
+- 8 results per query
+
+**Output**: `{ title, summary, url, source: "Hacker News", channel: "HN", score }`
+
+---
+
+### 1.2 Reddit — Public JSON API
+
+**File**: `backend/free_sources.py` → `fetch_reddit_items()`
+
+**Endpoint**: `https://www.reddit.com/r/{subreddit}/top.json`
+
+**Subreddits**:
+```python
+SUBREDDITS = [
+    "MachineLearning",
+    "LocalLLaMA",
+    "artificial",
+    "singularity",
+    "ChatGPT",
+]
+```
+
+**Filters**:
+- Time: `week`
+- Score > 100 upvotes
+- 10 posts per subreddit
+
+**Output**: `{ title, summary, url, source: "Reddit r/...", channel: "RD", score }`
+
+---
+
+### 1.3 arXiv — XML API
+
+**File**: `backend/free_sources.py` → `fetch_arxiv_items()`
+
+**Endpoint**: `https://export.arxiv.org/api/query`
+
+**Categories**:
+```python
+SEARCHES = [
+    ("cat:cs.AI", "AI"),
+    ("cat:cs.LG", "Machine Learning"),
+    ("cat:cs.CL", "NLP/LLMs"),
+    ("ti:LLM+OR+ti:agent+OR+ti:transformer", "LLM Research"),
+]
+```
+
+**Params**:
+- sortBy: `submittedDate`
+- max_results: 8 per category
+- 3 second delay between requests (arXiv requirement)
+
+**Output**: `{ title: "[Research] ...", summary, url, source: "arXiv (...)", channel: "AX" }`
+
+---
+
+### 1.4 GitHub — Trending RSS + Topics API
+
+**File**: `backend/free_sources.py` → `fetch_github_trending()`
+
+**Method 1 — RSS**:
+```python
+RSS_URLS = [
+    "https://github-trending-rss.vercel.app/daily/python",
+    "https://github-trending-rss.vercel.app/daily",
+]
+```
+
+**Method 2 — Topics API**:
+```python
+AI_TOPICS = ["llm", "ai-agents", "rag", "large-language-models"]
+# Endpoint: https://api.github.com/search/repositories
+```
+
+**AI Keywords Filter**:
+```python
+AI_KEYWORDS = [
+    'llm', 'ai', 'gpt', 'claude', 'llama', 'model',
+    'agent', 'rag', 'vector', 'embedding', 'transformer',
+    'neural', 'diffusion', 'stable', 'openai', 'hugging',
+    'langchain', 'copilot', 'cursor', 'ollama', 'mistral',
+]
+```
+
+**Output**: `{ title: "[GitHub] ...", summary, url, source: "GitHub", channel: "GH" }`
+
+---
+
+### 1.5 Extra RSS Feeds
+
+**File**: `backend/free_sources.py` → `fetch_extra_rss()`
+
+**Feeds**:
+```python
+EXTRA_RSS_FEEDS = [
+    ("https://www.artificialintelligence-news.com/feed/", "AI News"),
+    ("https://feeds.feedburner.com/AIWeekly", "AI Weekly"),
+    ("https://news.google.com/rss/search?q=LLM+language+model", "Google News LLM"),
+    ("https://news.google.com/rss/search?q=AI+agent+enterprise", "Google News Agents"),
+    ("https://news.google.com/rss/search?q=open+source+AI+model", "Google News OSS"),
+]
+```
+
+**Output**: `{ title, summary, url, source, channel: "NL" }`
+
+---
+
+### 1.6 Scheduler RSS Feeds
+
+**File**: `backend/scheduler.py` → `fetch_rss_articles()`
+
+**Feeds**:
+```python
+RSS_FEEDS = [
+    {"name": "MIT Tech Review AI", "url": "..."},
+    {"name": "VentureBeat AI", "url": "..."},
+    {"name": "The Verge AI", "url": "..."},
+    {"name": "Ars Technica AI", "url": "..."},
+    {"name": "Hacker News", "url": "hnrss.org/..."},
+    {"name": "Google News AI", "url": "..."},
+    {"name": "TechCrunch AI", "url": "..."},
+    {"name": "arXiv AI", "url": "..."},
+    {"name": "OpenAI Blog", "url": "..."},
+    {"name": "Anthropic News", "url": "..."},
+]
+```
+
+---
+
+## 2. Aggregation & Clustering
+
+### 2.1 Main Aggregation Function
+
+**File**: `backend/free_sources.py` → `fetch_all_free_sources()`
+
+```python
+async def fetch_all_free_sources() -> list:
+    results = await asyncio.gather(
+        fetch_hackernews_items(),   # HN Algolia
+        fetch_reddit_items(),       # Reddit JSON
+        fetch_arxiv_items(),        # arXiv XML
+        fetch_github_trending(),    # GitHub
+        fetch_extra_rss(),          # Extra RSS
+        return_exceptions=True
+    )
+    # Deduplicate by URL and title
+    # Returns ~70-100 items
+```
+
+### 2.2 GPT-4o-mini Clustering
+
+**File**: `backend/trends_service.py` → `cluster_free_sources()`
+
+**Prompt Features**:
+- Multi-channel weighting (HN+RD = strong signal)
+- Requires specific tool/model names in topics
+- arXiv = research signal, GitHub = developer adoption
+
+**Scoring**:
+| Score | Criteria |
+|-------|----------|
+| 9-10 | 3+ channels confirm, breaking development |
+| 7-8 | 2+ channels, strong community interest |
+| 5-6 | Single channel, emerging signal |
+| 3-4 | Research only (arXiv), not mainstream |
+
+**Output**: 15-20 trends with:
+```json
+{
+  "topic": "Llama 4 Multimodal Release",
+  "summary": "...",
+  "category": "llm_models",
+  "score": 9,
+  "momentum": "+45%",
+  "channels": ["HN", "RD", "NL"],
+  "tags": ["meta", "multimodal", "open-source"],
+  "url": "...",
+  "detected_at": "2026-04-16T08:00:00Z"
+}
+```
 
 ---
 
@@ -165,16 +293,16 @@ PERPLEXITY_API_KEY=pplx-xxxxxxxx
 |--------|------|-------------|
 | `id` | text (PK) | Format: `trend_{index}_{YYYYMMDDHHMM}` |
 | `category` | text | One of 6 category slugs |
-| `topic` | text | Short trend name (max 6 words) |
-| `data` | jsonb | Full trend object (see below) |
-| `deepdive` | text | JSON string of deep dive content |
+| `topic` | text | Short trend name |
+| `data` | jsonb | Full trend object |
+| `deepdive` | text | JSON string of deep dive |
 | `watchlisted` | boolean | User saved this trend |
-| `user_role` | text | Role used for deep dive generation |
-| `generated_date` | date | Date trends were generated |
-| `detected_at` | timestamp | When trend was first detected |
+| `user_role` | text | Role for deep dive |
+| `generated_date` | date | Date generated |
+| `detected_at` | timestamp | When detected |
 | `created_at` | timestamp | Auto-generated |
 
-### 3.2 Trend Data Object Structure
+### 3.2 Trend Data Object
 
 ```json
 {
@@ -183,29 +311,30 @@ PERPLEXITY_API_KEY=pplx-xxxxxxxx
   "category": "llm_models",
   "score": 9,
   "momentum": "+45%",
-  "summary": "Anthropic's latest model offers 200K context...",
-  "tags": ["anthropic", "enterprise", "context-window"],
-  "url": "https://example.com/article",
+  "summary": "...",
+  "tags": ["anthropic", "enterprise"],
+  "url": "https://...",
+  "channels": ["HN", "NL", "RD"],
   "detected_at": "2026-04-16T10:30:00Z",
   "saved": false,
   "deep_dive": null
 }
 ```
 
-### 3.3 Deep Dive Object Structure
+### 3.3 Deep Dive Object
 
 ```json
 {
-  "what_it_is": "Claude 4 Opus is Anthropic's flagship model...",
-  "enterprise_impact": "For CTOs, this means reduced latency...",
-  "action_plan": "1. Evaluate against current GPT-4 deployment...",
+  "what_it_is": "...",
+  "enterprise_impact": "...",
+  "action_plan": "...",
   "sources": [
     {
       "number": 1,
-      "title": "Anthropic Announces Claude 4",
-      "url": "https://anthropic.com/news/claude-4",
-      "publisher": "Anthropic Blog",
-      "snippet": "Today we're announcing..."
+      "title": "Article Title",
+      "url": "https://...",
+      "publisher": "TechCrunch",
+      "snippet": "..."
     }
   ]
 }
@@ -217,153 +346,112 @@ PERPLEXITY_API_KEY=pplx-xxxxxxxx
 
 ### 4.1 GET `/api/trends`
 
-**Purpose**: Returns all cached trends, optionally filtered by category.
+Returns all cached trends.
 
-**Query Parameters**:
-| Param | Type | Description |
-|-------|------|-------------|
-| `category` | string | Filter by category slug (optional) |
+**Query Params**: `?category=llm_models`
 
 **Response**:
 ```json
 {
   "trends": [...],
-  "total": 12,
+  "total": 15,
   "last_updated": "2026-04-16T08:00:00Z",
   "categories": [
-    {"id": "llm_models", "label": "LLM Models", "icon": "🧠"},
-    ...
+    {"id": "llm_models", "label": "LLM Models", "icon": "🧠"}
   ]
 }
 ```
 
 ### 4.2 GET `/api/trends/personalized`
 
-**Purpose**: Returns trends tailored to user's role with role-specific insights.
+Returns role-tailored trends.
 
-**Query Parameters**:
-| Param | Type | Description |
-|-------|------|-------------|
-| `role` | string | `cto`, `innovation_manager`, `strategy_director`, `other` |
-| `topics` | string | Comma-separated topic IDs |
+**Query Params**: `?role=cto&topics=llm_models,ai_agents`
 
-**Response**: Same as `/api/trends` but trends include `role_insight` field.
-
-**Role Prompts** (defined in `api.py`):
-- **CTO**: Focus on technical feasibility, integration complexity, security
-- **Innovation Manager**: Focus on use cases, pilot opportunities, competitive advantage
-- **Strategy Director**: Focus on market positioning, ROI, transformation roadmaps
+**Role Prompts**:
+| Role | Focus |
+|------|-------|
+| `cto` | Technical feasibility, integration, security |
+| `innovation_manager` | Use cases, pilots, competitive advantage |
+| `strategy_director` | Market positioning, ROI, roadmaps |
 
 ### 4.3 POST `/api/trends/refresh`
 
-**Purpose**: Triggers a trend refresh with cost optimization.
+Triggers manual refresh.
 
-**Logic** (V4.1):
-1. Checks if DB has trends < 6 hours old → returns cached
-2. Fetches RSS articles from 10 free feeds
-3. If ≥10 RSS articles → clusters with GPT-4o-mini (FREE path)
-4. If <10 RSS articles → falls back to Perplexity (PAID path)
-5. Saves to Supabase
-6. Deletes trends > 30 days old
-
-**Response**:
-```json
-{
-  "trends": [...],
-  "total": 12,
-  "message": "Refreshed 12 trends"
-}
-```
+**Logic**:
+1. Check DB freshness (< 6 hours → return cached)
+2. Fetch from all free sources
+3. Cluster with GPT-4o-mini
+4. Save to Supabase
+5. Cleanup trends > 30 days
 
 ### 4.4 POST `/api/trends/{trend_id}/deepdive`
 
-**Purpose**: Generates or returns cached deep dive analysis.
+Generate or return cached deep dive.
 
-**Query Parameters**:
-| Param | Type | Description |
-|-------|------|-------------|
-| `role` | string | User role for tailored content |
+**Query Params**: `?role=cto`
 
-**Caching Logic**:
-1. Checks DB for existing deep dive (same role)
-2. If found with `sources` array → returns cached immediately
-3. If old markdown format or missing → regenerates
-4. Calls Perplexity for research
-5. Calls GPT-4o-mini to structure into 3 sections + sources
-6. Saves JSON to DB `deepdive` column
-7. Returns structured deep dive
+**Caching**:
+- Checks DB for existing deep dive (same role)
+- If found with `sources` array → return cached
+- If cache miss → Perplexity + GPT-4o-mini → save to DB
+
+### 4.5 POST/DELETE `/api/trends/{trend_id}/save`
+
+Toggle watchlist.
+
+### 4.6 GET `/api/trends/saved`
+
+Return all watchlisted trends.
+
+### 4.7 GET `/api/trends/test-sources`
+
+Test each source independently.
 
 **Response**:
 ```json
 {
-  "deep_dive": {
-    "what_it_is": "...",
-    "enterprise_impact": "...",
-    "action_plan": "...",
-    "sources": [...]
+  "summary": "5/5 sources OK, 76 total items",
+  "sources": {
+    "hackernews": {"status": "ok", "count": 5},
+    "reddit": {"status": "ok", "count": 5},
+    "arxiv": {"status": "ok", "count": 24},
+    "github": {"status": "ok", "count": 18},
+    "extra_rss": {"status": "ok", "count": 24}
   }
 }
 ```
 
-### 4.5 POST/DELETE `/api/trends/{trend_id}/save`
-
-**Purpose**: Toggle watchlist status for a trend.
-
-**POST**: Sets `watchlisted=true` in DB
-**DELETE**: Sets `watchlisted=false` in DB
-
-### 4.6 GET `/api/trends/saved`
-
-**Purpose**: Returns all watchlisted trends.
-
 ---
 
-## 5. Backend Services
+## 5. Scheduled Jobs
 
-### 5.1 trends_service.py
+**File**: `backend/scheduler.py`
 
-**Key Functions**:
-
-| Function | Purpose |
-|----------|---------|
-| `cluster_rss_trends(articles)` | NEW: Extract trends from RSS using GPT-4o-mini |
-| `refresh_trends(rss_articles)` | Main refresh — RSS-first, Perplexity fallback |
-| `fetch_perplexity_trend(query, cat)` | Single Perplexity API call |
-| `cluster_and_score_trends(raw)` | Cluster Perplexity responses |
-| `get_cached_trends()` | Return in-memory cache |
-
-**In-Memory Cache**:
-```python
-_trends_cache = []           # List of trend objects
-_trends_last_updated = None  # ISO timestamp
-```
-
-### 5.2 scheduler.py
-
-**Scheduled Jobs**:
-
-| Job | Trigger | Function |
-|-----|---------|----------|
-| Daily Ingestion | 00:00 UTC | `scheduled_daily_ingest()` |
-| Daily Newsletter | 07:00 UTC | `scheduled_daily_newsletter()` |
-| **Daily Trends** | **08:00 UTC** | `scheduled_daily_trends()` |
+| Job | Time (UTC) | Function |
+|-----|------------|----------|
+| Daily Ingestion | 00:00 | `scheduled_daily_ingest()` |
+| Daily Newsletter | 07:00 | `scheduled_daily_newsletter()` |
+| **Daily Trends** | **08:00** | `scheduled_daily_trends()` |
 | Hourly Alerts | Every :00 | `scan_and_send_alerts()` |
 
-**Trends Job Flow**:
+### 5.1 Trends Job Flow
+
 ```python
 def scheduled_daily_trends():
-    # 1. Fetch RSS (FREE)
-    rss_articles = fetch_rss_articles()  # 10 sources, 50 articles
+    # 1. Fetch from all 5 free sources (~15-20 seconds)
+    all_items = fetch_all_free_sources()  # ~76 items
 
     # 2. Cluster with GPT-4o-mini (~$0.01)
-    trends = refresh_trends(rss_articles)  # RSS-first, Perplexity fallback
+    trends = cluster_free_sources(all_items)  # 15-20 trends
 
     # 3. Save to Supabase
     for t in trends:
-        supabase.table("trends").upsert({...}).execute()
+        supabase.table("trends").upsert({...})
 
-    # 4. Cleanup old (>30 days)
-    supabase.table("trends").delete().lt("created_at", cutoff).execute()
+    # 4. Cleanup old (> 30 days)
+    supabase.table("trends").delete().lt("created_at", cutoff)
 ```
 
 ---
@@ -373,179 +461,76 @@ def scheduled_daily_trends():
 ### 6.1 File Structure
 
 ```
-src/
+frontend/src/
 ├── pages/
-│   └── Trends.jsx              # Main trends page
+│   └── Trends.jsx              # Main page
 ├── components/
-│   ├── TrendsOnboarding.jsx    # Role/topic selection wizard
-│   └── CategoryCombobox.jsx    # Category filter dropdown
+│   ├── TrendsOnboarding.jsx    # Role/topic wizard
+│   └── CategoryCombobox.jsx    # Filter dropdown
 ├── services/
 │   └── api.js                  # API calls
 ├── hooks/
-│   └── useSaved.js             # Save/unsave functionality
+│   └── useSaved.js             # Save/unsave
 └── context/
-    └── AuthContext.jsx         # User state (role, topics)
+    └── AuthContext.jsx         # User state
 ```
 
-### 6.2 Main Page Component (`Trends.jsx`)
-
-**State Variables**:
-```javascript
-const [allTrends, setAllTrends] = useState([]);           // All trends from API
-const [personalizedTrends, setPersonalizedTrends] = useState([]); // Role-filtered
-const [loading, setLoading] = useState(true);
-const [category, setCategory] = useState("all");          // Filter selection
-const [diveModal, setDiveModal] = useState(null);         // Deep dive modal state
-const [loadingDive, setLoadingDive] = useState(null);     // Loading indicator
-const [showOnboarding, setShowOnboarding] = useState(false);
-const [lastUpdated, setLastUpdated] = useState(null);     // Last refresh time
-```
-
-**Key Functions**:
-
-| Function | Purpose |
-|----------|---------|
-| `loadTrends()` | Fetches trends from `/api/trends` on mount |
-| `loadPersonalizedTrends()` | Fetches role-specific trends if onboarded |
-| `handleDeepDive(trend)` | Opens modal and fetches deep dive content |
-| `handleSave(trend)` | Toggles watchlist via `useSaved` hook |
-| `handleOnboardingComplete()` | Closes onboarding and reloads |
-
-### 6.3 UI Components
+### 6.2 UI Components
 
 | Component | Description |
 |-----------|-------------|
-| `TopCard` | Large card for top 3 trends with full details |
+| `TopCard` | Large card for top 3 trends |
 | `RankedRow` | Compact row for trends 4+ |
-| `RankCircle` | Numbered circle (1-12) |
-| `CategoryPill` | Colored badge showing trend category |
-| `MomentumBadge` | Shows EXPLOSIVE/RISING/GROWING based on score |
-| `TagPill` | Small tag badge |
-| `DeepDiveModal` | Full-screen modal with structured analysis |
-| `SkeletonCard` | Loading placeholder |
+| `SignalBadge` | Channel badge (HN, RD, AX, GH, NL) |
+| `CategoryPill` | Category badge |
+| `MomentumBadge` | EXPLOSIVE / RISING / GROWING |
+| `DeepDiveModal` | Full analysis modal |
 
-### 6.4 Status Indicator
+### 6.3 SignalBadge Component
 
-Shows in page header:
 ```jsx
-<div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-  Updated daily at 8:00 AM UTC
-  {lastUpdated && (
-    <span>• Last refresh: {new Date(lastUpdated).toLocaleTimeString()}</span>
-  )}
-</div>
+const CHANNEL_CONFIG = {
+  NL: { label: "Newsletter", color: "#185EA5", emoji: "📰" },
+  HN: { label: "HackerNews", color: "#E35B1A", emoji: "🔶" },
+  RD: { label: "Reddit", color: "#FF4500", emoji: "👥" },
+  AX: { label: "arXiv", color: "#B31B1B", emoji: "🔬" },
+  GH: { label: "GitHub", color: "#238636", emoji: "⭐" },
+};
+
+// Usage:
+{(trend.channels || []).map(ch => (
+  <SignalBadge key={ch} channel={ch} />
+))}
 ```
 
 ---
 
-## 7. Onboarding Component (`TrendsOnboarding.jsx`)
+## 7. Onboarding Flow
 
 ### 7.1 Two-Step Wizard
 
-**Step 1 - Role Selection**:
-| Role ID | Title | Default Topics |
-|---------|-------|----------------|
-| `cto` | CTO / Tech Leader | llm_models, ai_infrastructure, enterprise_apps |
-| `innovation_manager` | Innovation Manager | ai_agents, llm_models, dev_tools |
-| `strategy_director` | Strategy Director | enterprise_apps, llm_models, ai_agents |
-| `other` | Other / General | llm_models, ai_agents |
+**Step 1 — Role Selection**:
+| Role | Default Topics |
+|------|----------------|
+| CTO | llm_models, ai_infrastructure, enterprise_apps |
+| Innovation Manager | ai_agents, llm_models, dev_tools |
+| Strategy Director | enterprise_apps, llm_models, ai_agents |
+| Other | llm_models, ai_agents |
 
-**Step 2 - Topic Selection**:
-User can customize which of the 6 categories to follow.
+**Step 2 — Topic Selection**:
+User customizes which categories to follow.
 
-### 7.2 Data Persistence
+### 7.2 Persistence
 
-1. Calls `POST /api/users/onboarding` to save to backend
-2. Falls back to localStorage if API fails:
-   - `trends_onboarding_{userId}`: "completed" or "skipped"
-   - `user_role_{userId}`: role ID
-   - `user_topics_{userId}`: JSON array of topic IDs
-
----
-
-## 8. API Service Layer (`api.js`)
-
-### 8.1 Trend-Related Functions
-
-```javascript
-// Fetch all trends (optionally filtered)
-export async function getTrends(category) {
-  const params = new URLSearchParams();
-  if (category && category !== "all") params.append("category", category);
-  return request(`/api/trends?${params}`);
-}
-
-// Fetch personalized trends
-export async function getPersonalizedTrends(role, topics = []) {
-  const params = new URLSearchParams();
-  if (role) params.append("role", role);
-  if (topics.length > 0) params.append("topics", topics.join(","));
-  return request(`/api/trends/personalized?${params}`);
-}
-
-// Generate deep dive (uses DB cache)
-export async function getDeepDive(trendId, role = null) {
-  const params = role ? `?role=${role}` : "";
-  return request(`/api/trends/${trendId}/deepdive${params}`, { method: "POST" });
-}
-
-// Save/unsave trend
-export async function saveTrend(trendId) {
-  return request(`/api/trends/${trendId}/save`, { method: "POST" });
-}
-
-export async function unsaveTrend(trendId) {
-  return request(`/api/trends/${trendId}/save`, { method: "DELETE" });
-}
-```
-
-### 8.2 Request Configuration
-
-- **Retries**: 2 attempts with 700ms delay
-- **Timeout**: 25 seconds default
-- **Auth**: Bearer token from `_token` variable
+1. `POST /api/users/onboarding` → save to backend
+2. Fallback to localStorage:
+   - `trends_onboarding_{userId}`
+   - `user_role_{userId}`
+   - `user_topics_{userId}`
 
 ---
 
-## 9. Caching Strategy
-
-### 9.1 Three-Layer Cache
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    FRONTEND                         │
-│  React State: allTrends, personalizedTrends        │
-│  Deep dives: trend.deep_dive object                │
-│  TTL: Session (until page refresh)                 │
-├─────────────────────────────────────────────────────┤
-│                    BACKEND                          │
-│  In-Memory: _trends_cache, _trends_last_updated    │
-│  TTL: Until next refresh or server restart         │
-├─────────────────────────────────────────────────────┤
-│                    DATABASE                         │
-│  Supabase: trends table, deepdive column           │
-│  Trends TTL: 6 hours (freshness check)             │
-│  Deep Dives TTL: Indefinite (role-specific)        │
-│  Cleanup: 30 days                                  │
-└─────────────────────────────────────────────────────┘
-```
-
-### 9.2 Deep Dive Caching
-
-**Key insight**: Deep dives are expensive (~$0.01 each). Cached indefinitely per role.
-
-```python
-# api.py - Deep dive cache check
-row = supabase.table("trends").select("deepdive,user_role").eq("id", trend_id).execute()
-if cached_dd and (not role or cached_role == user_role):
-    parsed = json.loads(cached_dd)
-    if "sources" in parsed:  # New JSON format with sources
-        return cached  # Hit! No API call needed
-```
-
----
-
-## 10. Categories Reference
+## 8. Categories Reference
 
 | ID | Label | Icon | Color |
 |----|-------|------|-------|
@@ -558,158 +543,173 @@ if cached_dd and (not role or cached_role == user_role):
 
 ---
 
-## 11. Scoring & Momentum
+## 9. Caching Strategy
 
-### 11.1 Score (1-10)
+### 9.1 Three-Layer Cache
 
-Generated by GPT-4o-mini based on:
-- Strategic importance for enterprise adoption
-- Market impact and urgency
-- Technical maturity
-
-### 11.2 Momentum Labels
-
-| Score | Label | Color |
-|-------|-------|-------|
-| 9-10 | EXPLOSIVE | Green |
-| 7-8 | RISING | Amber |
-| 1-6 | GROWING | Blue |
-
-### 11.3 Momentum Percentage
-
-Format: `+XX%` (e.g., "+45%")
-Generated by GPT-4o-mini to indicate growth velocity.
-
----
-
-## 12. Environment Variables
-
-```bash
-# Required for trends functionality
-OPENAI_API_KEY=sk-xxxxx          # GPT-4o-mini (clustering + deep dive)
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_KEY=eyJxxxxx
-
-# Optional (fallback + deep dive research)
-PERPLEXITY_API_KEY=pplx-xxxxx    # Only needed for deep dives
-
-# Feature flags
-PERPLEXITY_ENABLED=true          # Set to false to disable Perplexity entirely
+```
+┌─────────────────────────────────────────────────────┐
+│                    FRONTEND                         │
+│  React State: allTrends, personalizedTrends        │
+│  TTL: Session                                       │
+├─────────────────────────────────────────────────────┤
+│                    BACKEND                          │
+│  In-Memory: _trends_cache, _trends_last_updated    │
+│  TTL: Until restart or refresh                     │
+├─────────────────────────────────────────────────────┤
+│                    DATABASE                         │
+│  Supabase: trends table, deepdive column           │
+│  Trends: 6-hour freshness, 30-day cleanup          │
+│  Deep Dives: Indefinite (role-specific)            │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 13. Error Handling
+## 10. Cost Summary
 
-### 13.1 RSS Feed Errors
+### 10.1 Daily Operations
 
-- Timeout (15s) → Log warning, continue with other feeds
-- Parse error → Skip feed, continue with others
-- All feeds fail → Fall back to Perplexity
+| Operation | Cost |
+|-----------|------|
+| HackerNews Algolia | $0.00 |
+| Reddit Public JSON | $0.00 |
+| arXiv XML API | $0.00 |
+| GitHub Trending | $0.00 |
+| RSS Feeds (15+) | $0.00 |
+| GPT-4o-mini Clustering | ~$0.01 |
+| **Daily Total** | **~$0.01** |
 
-### 13.2 OpenAI Clustering Errors
+### 10.2 On-Demand (Deep Dive)
 
-- Missing API key → Return empty trends array
-- JSON parse error → Return empty array
-- Unexpected error → Log with stack trace
+| Operation | Cost |
+|-----------|------|
+| Perplexity Research | ~$0.005 |
+| GPT-4o-mini Structure | ~$0.005 |
+| **Per Deep Dive** | **~$0.01** |
+| Cached Deep Dive | $0.00 |
 
-### 13.3 Perplexity API Errors
+### 10.3 Monthly Estimate
 
-- Missing API key → Log error, skip (for deep dives: return "Analysis unavailable")
-- Timeout (30s) → Log warning
-- Non-200 response → Log full response body
+| Scenario | Cost |
+|----------|------|
+| Daily refresh only | ~$0.30 |
+| + 10 deep dives/day | ~$3.30 |
+| + 50 deep dives/day | ~$15.30 |
+| **Typical usage** | **~$0.50-2.00** |
 
-### 13.4 Frontend Error States
+---
 
-- Loading failed → Show error message
-- No trends → Show "No trends available" with "refreshed daily at 8:00 AM UTC"
-- Deep dive failed → Show "Analysis unavailable" in modal
+## 11. Environment Variables
+
+```bash
+# Required
+OPENAI_API_KEY=sk-xxxxx        # GPT-4o-mini
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_KEY=eyJxxxxx
+
+# Optional (for deep dives)
+PERPLEXITY_API_KEY=pplx-xxxxx
+
+# Feature flags
+PERPLEXITY_ENABLED=true
+```
+
+---
+
+## 12. Dependencies
+
+```txt
+# config/requirements.txt
+feedparser==6.0.11
+httpx>=0.24.0,<0.25.0
+openai>=1.0.0
+APScheduler>=3.10.4
+supabase>=2.0.0
+```
+
+---
+
+## 13. Testing
+
+### 13.1 Test All Sources
+
+```bash
+curl http://localhost:8000/api/trends/test-sources
+```
+
+Expected:
+```json
+{
+  "summary": "5/5 sources OK, 76 total items",
+  "sources": {
+    "hackernews": {"status": "ok", "count": 5},
+    "reddit": {"status": "ok", "count": 5},
+    "arxiv": {"status": "ok", "count": 24},
+    "github": {"status": "ok", "count": 18},
+    "extra_rss": {"status": "ok", "count": 24}
+  }
+}
+```
+
+### 13.2 Test Endpoints
+
+```bash
+# Get trends
+curl http://localhost:8000/api/trends
+
+# Get personalized
+curl "http://localhost:8000/api/trends/personalized?role=cto"
+
+# Get deep dive
+curl -X POST "http://localhost:8000/api/trends/{id}/deepdive?role=cto"
+
+# Save trend
+curl -X POST http://localhost:8000/api/trends/{id}/save
+
+# Get saved
+curl http://localhost:8000/api/trends/saved
+```
 
 ---
 
 ## 14. Troubleshooting
 
-### 14.1 No Trends Showing
+### 14.1 Sources Returning 0 Items
 
-1. Check backend logs for `[RSS]` and `[refresh_trends]` entries
-2. Verify `OPENAI_API_KEY` is set and valid
-3. Check Supabase connection
-4. Check if RSS feeds are accessible (network/firewall)
-5. Try manual refresh: `POST /api/trends/refresh`
+1. Check SSL: All httpx clients need `verify=False`
+2. Check rate limits: Reddit (1s delay), arXiv (3s delay)
+3. Check logs: `[HN]`, `[Reddit]`, `[arXiv]`, `[GitHub]` prefixes
 
-### 14.2 Deep Dive Not Loading
+### 14.2 Clustering Fails
 
-1. Check console for `[DeepDive]` logs
-2. Verify `PERPLEXITY_API_KEY` is set (required for deep dives)
-3. Verify trend ID exists in database
-4. Check if deep dive is cached (may be old markdown format)
-5. Force refresh by clicking Deep Dive again
+1. Verify `OPENAI_API_KEY` is set
+2. Check item count (need ≥20 items)
+3. Check logs: `[Clustering]` prefix
 
-### 14.3 Personalization Not Working
+### 14.3 Deep Dive Not Loading
 
-1. Verify user completed onboarding
-2. Check `user.role` and `user.trend_topics` in AuthContext
-3. Check localStorage for `user_role_{userId}`
-4. Verify `/api/trends/personalized` endpoint is working
+1. Verify `PERPLEXITY_API_KEY` is set
+2. Check if cached (old markdown format won't have sources)
+3. Check logs: `[DeepDive]` prefix
 
-### 14.4 High API Costs
+### 14.4 Personalization Not Working
 
-1. Verify RSS feeds are working (check `[RSS]` logs)
-2. Deep dives should be cached — check `deepdive` column in DB
-3. If Perplexity fallback is triggering often, add more RSS feeds
+1. Verify onboarding completed
+2. Check `user.role` in AuthContext
+3. Check localStorage: `user_role_{userId}`
 
 ---
 
-## 15. Testing Endpoints
-
-```bash
-# Get current trends
-GET /api/trends
-
-# Get personalized trends
-GET /api/trends/personalized?role=cto&topics=llm_models,ai_agents
-
-# Force refresh (will use RSS if available)
-POST /api/trends/refresh
-
-# Get deep dive (uses cache if available)
-POST /api/trends/trend_0_202604161030/deepdive?role=cto
-
-# Save trend
-POST /api/trends/trend_0_202604161030/save
-
-# Get saved trends
-GET /api/trends/saved
-
-# Test Perplexity connection (optional)
-GET /test-perplexity
-```
-
----
-
-## 16. Dependencies
-
-```txt
-# config/requirements.txt
-feedparser==6.0.11      # RSS parsing
-httpx==0.27.0           # Async HTTP client
-openai>=1.0.0           # GPT-4o-mini
-APScheduler>=3.10.4     # Scheduled jobs
-supabase>=2.0.0         # Database
-```
-
----
-
-## 17. File Reference
+## 15. File Reference
 
 | File | Purpose |
 |------|---------|
-| `backend/scheduler.py` | RSS feeds, scheduled jobs |
-| `backend/trends_service.py` | Clustering logic, Perplexity calls |
-| `backend/api.py` | API endpoints, deep dive generation |
-| `frontend/src/pages/Trends.jsx` | Main page component |
-| `frontend/src/components/TrendsOnboarding.jsx` | Role/topic wizard |
-| `frontend/src/components/CategoryCombobox.jsx` | Filter dropdown |
-| `frontend/src/services/api.js` | API client functions |
+| `backend/free_sources.py` | 5 free source fetchers |
+| `backend/trends_service.py` | Clustering logic |
+| `backend/scheduler.py` | Daily 8AM job, RSS feeds |
+| `backend/api.py` | API endpoints |
+| `frontend/src/pages/Trends.jsx` | Main page + components |
+| `frontend/src/components/TrendsOnboarding.jsx` | Role wizard |
+| `config/requirements.txt` | Dependencies |
 | `config/.env` | API keys |
-| `config/requirements.txt` | Python dependencies |
