@@ -14,6 +14,7 @@ Strategic AI technology intelligence platform for DXC Technology. Monitor trends
 | **Sprint 4** | Multi-source trends pipeline (HN, Reddit, arXiv, GitHub, RSS) + GPT-4o-mini clustering | ~$0.30/month vs ~$9/month with Perplexity |
 | **V4.2** | **Verified Sources Upgrade** — 26 tiered primary sources (OFFICIAL, RESEARCH, MEDIA, YOUTUBE) + trust-weighted scoring + role recommendations with AI insights | Higher signal quality, role-specific relevance |
 | **V4 UX** | Profile page redesign (hero banner, role card grid) · Newsletter 3-step composer wizard · Live email preview panel · PDF export · File-backed recipients · Synchronous SMTP with real error surfacing | End-to-end email delivery, polished UI |
+| **V4.3** | **DXC ONETEAM Newsletter Archive** — 94 newsletter articles (Dec 2024 – Mar 2026) with full-page images, month/category filters, searchable content, and detail view with original formatting | Internal news archive, visual newsletter browsing |
 
 ---
 
@@ -66,12 +67,19 @@ ai-watch-V4/
 │       │   ├── Trends.jsx             # Trend cards + deep-dive + bookmark
 │       │   ├── SavedPage.jsx          # Bookmarked articles & trends
 │       │   ├── Reports.jsx            # Saved intelligence reports + PDF export
-│       │   └── Newsletter.jsx         # 3-step composer wizard + live preview + PDF export
+│       │   ├── Newsletter.jsx         # 3-step composer wizard + live preview + PDF export
+│       │   ├── DxcNewsletterPage.jsx  # ONETEAM newsletter archive browse page
+│       │   └── DxcNewsletterDetail.jsx # Newsletter article detail with full-page image
 │       ├── services/api.js            # API client — token-aware, retry, 5-min cache
 │       └── setupProxy.js             # CRA dev proxy → localhost:8000
 ├── data/
 │   ├── recipients.json   # Newsletter recipient list (file-backed, persists across restarts)
 │   └── reports/          # Generated newsletter HTML files
+├── ONETEAM_Newsletter_Data/
+│   ├── images/           # 174 PNG images (newsletter pages)
+│   ├── newsletter_data.json  # 94 cleaned article records
+│   ├── supabase_migration.sql # Table creation + data insert
+│   └── upload_images.py  # Script to upload images to Supabase Storage
 └── config/
     ├── auth_migration.sql  # All DB table definitions (run in Supabase SQL editor)
     └── .env                # All secrets (not committed)
@@ -142,6 +150,15 @@ ai-watch-V4/
 - **Per-user saved reports** (max 30), PDF export via jsPDF
 - **AI-powered** — report content built from article summaries and solution matching
 
+### DXC ONETEAM Newsletter Archive (V4.3)
+- **94 newsletter articles** from December 2024 to March 2026 — deduplicated and cleaned
+- **Full-page images** — original newsletter pages with photos and formatted text stored in Supabase Storage
+- **Browse page** — 3-column card grid with month/category filters and search
+- **Year-based badges** — purple (2026), blue (2025), grey (2024)
+- **Category badges** — 10 categories: Business & Clients, Quality, Innovation & Tech, CSR & Community, DEI & Inclusion, Awards & Recognition, Wellbeing & Health, Events & Upcoming, Referral & Jobs, Newsletter Content
+- **Detail view** — two-column layout with full newsletter page image + article content
+- **Data source** — extracted from the 212-page ONETEAM PDF, email threads automatically removed
+
 ### Caching
 - **Server cache** — article summaries cached in-memory for 30 days (`_SUMMARY_CACHE`)
 - **Client cache** — all GET API responses cached in browser for 5 minutes (`REQUEST_CACHE`)
@@ -210,6 +227,7 @@ Run `config/auth_migration.sql` in the Supabase SQL editor. This creates all req
 | `alert_preferences` | Per-user keyword alerts config |
 | `reports` | Saved intelligence reports |
 | `newsletter_subscribers` | Legacy email opt-in list (Supabase) |
+| `dxc_newsletter_articles` | ONETEAM newsletter archive (94 articles, images in Supabase Storage) |
 
 > Recipients managed via the Newsletter wizard are stored locally in `data/recipients.json`.
 
@@ -342,6 +360,13 @@ Email verification
 | `GET` | `/api/reports` | Bearer | Paginated list of user's saved reports |
 | `POST` | `/api/reports` | Bearer | Save a report |
 | `DELETE` | `/api/reports/{id}` | Bearer | Delete own report |
+
+### DXC ONETEAM Newsletter
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/dxc-newsletters` | — | Paginated newsletter articles with filters (month, category, search) |
+| `GET` | `/api/dxc-newsletters/filters` | — | Available months and categories for filter dropdowns |
+| `GET` | `/api/dxc-newsletters/{id}` | — | Single newsletter article with full content and image URL |
 
 ### System
 | Method | Path | Auth | Description |

@@ -494,3 +494,24 @@ export async function updateAlertPreferences({ keywords, min_signal_score, enabl
   invalidateCache("/api/alerts/preferences");
   return result;
 }
+
+// ── DXC ONETEAM Newsletter API ─────────────────────────────────────────────────
+
+export async function getDxcNewsletters(options = {}) {
+  const { month, category, search, page = 1, limit = 20 } = options;
+  const params = new URLSearchParams();
+  if (month) params.append("month", month);
+  if (category) params.append("category", category);
+  if (search) params.append("search", search);
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  return request(`/api/dxc-newsletters?${params.toString()}`);
+}
+
+export async function getDxcNewsletterFilters() {
+  return request("/api/dxc-newsletters/filters");
+}
+
+export async function getDxcNewsletterById(id) {
+  return request(`/api/dxc-newsletters/${id}`);
+}

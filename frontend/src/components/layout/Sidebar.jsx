@@ -6,10 +6,11 @@ import { LogOut } from 'lucide-react';
 const NAV_ITEMS = [
   { icon: '◎', label: 'News Feed', path: '/feed' },
   { icon: '◈', label: 'AI Trends', path: '/trends' },
+  { icon: '📰', label: 'DXC Newsletter', path: '/dxc-newsletter' },
   { icon: '▦', label: 'Data Table', path: '/data' },
   { icon: '📄', label: 'My Reports', path: '/reports' },
   { icon: '🔖', label: 'Saved Items', path: '/saved' },
-  { icon: '✉', label: 'Newsletter', path: '/newsletter' },
+  { icon: '✉', label: 'Email Builder', path: '/newsletter' },
   { icon: '◉', label: 'My Profile', path: '/profile' },
 ];
 

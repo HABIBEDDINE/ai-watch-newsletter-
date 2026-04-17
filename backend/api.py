@@ -2260,6 +2260,114 @@ def get_sent_history():
     return {"history": list(reversed(_newsletter_sent_history))}
 
 
+# ────────────────────────────────────────────────────────────────────────────────
+# DXC ONETEAM Newsletter Articles API
+# ────────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/dxc-newsletters")
+def get_dxc_newsletters(
+    month: Optional[str] = None,
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Get paginated list of DXC newsletter articles with optional filters."""
+    try:
+        query = supabase.table("dxc_newsletter_articles").select("*")
+
+        if month:
+            query = query.eq("month", month)
+        if category:
+            query = query.eq("category", category)
+        if search:
+            # Search in title and content
+            query = query.ilike("content", f"%{search}%")
+
+        # Order by month_date descending, then page_number
+        query = query.order("month_date", desc=True).order("page_number", desc=False)
+
+        # Pagination
+        start = (page - 1) * limit
+        end = start + limit - 1
+        query = query.range(start, end)
+
+        result = query.execute()
+        items = result.data if result.data else []
+
+        # Get total count for pagination
+        count_query = supabase.table("dxc_newsletter_articles").select("id")
+        if month:
+            count_query = count_query.eq("month", month)
+        if category:
+            count_query = count_query.eq("category", category)
+        if search:
+            count_query = count_query.ilike("content", f"%{search}%")
+        count_result = count_query.execute()
+        total = len(count_result.data) if count_result.data else 0
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "pages": (total + limit - 1) // limit if total > 0 else 1,
+        }
+    except Exception as e:
+        print(f"[DXC Newsletter] Error fetching articles: {e}")
+        return {"items": [], "total": 0, "page": 1, "pages": 1}
+
+
+@app.get("/api/dxc-newsletters/filters")
+def get_dxc_newsletter_filters():
+    """Get available filter options for DXC newsletters."""
+    try:
+        # Get unique months with dates
+        months_result = supabase.table("dxc_newsletter_articles").select("month, month_date").execute()
+        months_data = months_result.data if months_result.data else []
+
+        # Deduplicate and sort by date descending
+        month_map = {}
+        for row in months_data:
+            m = row.get("month")
+            d = row.get("month_date")
+            if m and m not in month_map:
+                month_map[m] = d
+
+        sorted_months = sorted(
+            [{"label": m, "value": m, "date": d} for m, d in month_map.items()],
+            key=lambda x: x["date"] or "",
+            reverse=True
+        )
+
+        # Get unique categories
+        cats_result = supabase.table("dxc_newsletter_articles").select("category").execute()
+        cats_data = cats_result.data if cats_result.data else []
+        unique_cats = sorted(set(row.get("category") for row in cats_data if row.get("category")))
+
+        return {
+            "months": sorted_months,
+            "categories": unique_cats,
+        }
+    except Exception as e:
+        print(f"[DXC Newsletter] Error fetching filters: {e}")
+        return {"months": [], "categories": []}
+
+
+@app.get("/api/dxc-newsletters/{article_id}")
+def get_dxc_newsletter_article(article_id: str):
+    """Get a single DXC newsletter article by ID."""
+    try:
+        result = supabase.table("dxc_newsletter_articles").select("*").eq("id", article_id).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        raise HTTPException(status_code=404, detail="Article not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DXC Newsletter] Error fetching article {article_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch article")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

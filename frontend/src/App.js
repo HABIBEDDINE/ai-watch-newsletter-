@@ -18,6 +18,8 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ProfilePage from "./pages/ProfilePage";
 import SavedPage from "./pages/SavedPage";
+import DxcNewsletterPage from "./pages/DxcNewsletterPage";
+import DxcNewsletterDetail from "./pages/DxcNewsletterDetail";
 
 export default function AIWatchDXC() {
   return (
@@ -37,6 +39,8 @@ export default function AIWatchDXC() {
       <Route path="/feed" element={<DashboardLayout><Explore /></DashboardLayout>} />
       <Route path="/article/:id" element={<DashboardLayout><ArticleDetail /></DashboardLayout>} />
       <Route path="/trends" element={<ProtectedRoute><DashboardLayout><Trends /></DashboardLayout></ProtectedRoute>} />
+      <Route path="/dxc-newsletter" element={<ProtectedRoute><DashboardLayout><DxcNewsletterPage /></DashboardLayout></ProtectedRoute>} />
+      <Route path="/dxc-newsletter/:id" element={<ProtectedRoute><DashboardLayout><DxcNewsletterDetail /></DashboardLayout></ProtectedRoute>} />
       <Route path="/newsletter" element={<ProtectedRoute><DashboardLayout><Newsletter /></DashboardLayout></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><DashboardLayout><Reports /></DashboardLayout></ProtectedRoute>} />
       <Route path="/saved" element={<ProtectedRoute><DashboardLayout><SavedPage /></DashboardLayout></ProtectedRoute>} />
