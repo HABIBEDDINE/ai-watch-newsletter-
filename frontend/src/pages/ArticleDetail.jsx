@@ -139,7 +139,7 @@ export default function ArticleDetail() {
     return (
       <div style={{ padding: "60px 28px", textAlign: "center", fontFamily: "'Open Sans',sans-serif" }}>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <div style={{ width: 36, height: 36, margin: "0 auto 16px", border: "3px solid var(--border-color)", borderTop: "3px solid var(--blue)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <div style={{ width: 36, height: 36, margin: "0 auto 16px", border: "3px solid var(--border-color)", borderTop: "3px solid var(--accent)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
         <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>Loading article...</div>
       </div>
     );
@@ -151,7 +151,7 @@ export default function ArticleDetail() {
         <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>Article not found</div>
         <button
           onClick={() => navigate(-1)}
-          style={{ background: "var(--blue)", color: "#fff", border: "none", padding: "10px 24px", borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+          style={{ background: "var(--accent)", color: "#fff", border: "none", padding: "10px 24px", borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
         >
           Back
         </button>
@@ -197,7 +197,7 @@ export default function ArticleDetail() {
 
         {/* Badges */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 12px", borderRadius: 999, background: "var(--blue-light)", color: "var(--blue)", border: "1px solid var(--blue)" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 12px", borderRadius: 999, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent)" }}>
             {industry}
           </span>
           {article.market_segment && article.market_segment !== "General" && article.market_segment !== industry && (
@@ -231,7 +231,7 @@ export default function ArticleDetail() {
               padding: "7px 14px", borderRadius: 6, fontSize: 12, fontWeight: 700,
               cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
               ...(saved.has(String(article.id))
-                ? { background: "var(--blue-light)", color: "var(--blue)", border: "1px solid var(--blue)" }
+                ? { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent)" }
                 : { background: "var(--card-bg)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }),
             }}
           >
@@ -245,21 +245,21 @@ export default function ArticleDetail() {
         <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 28 }}>
           {article.source && <span>{article.source}</span>}
           {date && <span> · {date}</span>}
-          <span> · Relevance: <strong style={{ color: "var(--blue)" }}>{relevance}/10</strong></span>
+          <span> · Relevance: <strong style={{ color: "var(--accent)" }}>{relevance}/10</strong></span>
         </div>
 
         {/* ── SUMMARY SECTION ── */}
-        <div style={{ marginBottom: 32, padding: "24px", background: "var(--bg-active)", borderRadius: 8, border: "1px solid var(--border-color)", borderLeft: "4px solid var(--blue)" }}>
+        <div style={{ marginBottom: 32, padding: "24px", background: "var(--bg-active)", borderRadius: 8, border: "1px solid var(--border-color)", borderLeft: "4px solid var(--accent)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--blue)", letterSpacing: 1.2, textTransform: "uppercase" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: 1.2, textTransform: "uppercase" }}>
               Summary
             </div>
             {!summary && !aiLoading && (
               <button
                 onClick={handleGenerateSummary}
-                onMouseEnter={e => { e.currentTarget.style.background = "var(--blue)"; e.currentTarget.style.color = "#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--blue)"; }}
-                style={{ fontSize: 11, fontWeight: 700, padding: "5px 14px", border: "1.5px solid var(--blue)", borderRadius: 4, background: "transparent", color: "var(--blue)", cursor: "pointer", transition: "all 0.15s", letterSpacing: 0.3 }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.color = "#fff"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--accent)"; }}
+                style={{ fontSize: 11, fontWeight: 700, padding: "5px 14px", border: "1.5px solid var(--accent)", borderRadius: 4, background: "transparent", color: "var(--accent)", cursor: "pointer", transition: "all 0.15s", letterSpacing: 0.3 }}
               >
                 Generate Summary
               </button>
@@ -268,7 +268,7 @@ export default function ArticleDetail() {
 
           {aiLoading ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
-              <div style={{ width: 18, height: 18, border: "2px solid var(--border-color)", borderTop: "2px solid var(--blue)", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+              <div style={{ width: 18, height: 18, border: "2px solid var(--border-color)", borderTop: "2px solid var(--accent)", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
               <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Generating AI summary (OpenAI → Anthropic)...</span>
             </div>
           ) : summary ? (
@@ -316,7 +316,7 @@ export default function ArticleDetail() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", minWidth: 80, paddingTop: 3 }}>Keywords</span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {article.keywords.map(kw => (
-                    <span key={kw} style={{ background: "var(--blue-light)", color: "var(--blue)", fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, border: "1px solid var(--blue)" }}>
+                    <span key={kw} style={{ background: "var(--accent-dim)", color: "var(--accent)", fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, border: "1px solid var(--accent)" }}>
                       {kw}
                     </span>
                   ))}
@@ -357,7 +357,7 @@ export default function ArticleDetail() {
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: "inline-block", background: "var(--blue)", color: "#fff", padding: "13px 32px", borderRadius: 6, fontSize: 14, fontWeight: 700, textDecoration: "none", letterSpacing: 0.3 }}
+              style={{ display: "inline-block", background: "var(--accent)", color: "#fff", padding: "13px 32px", borderRadius: 6, fontSize: 14, fontWeight: 700, textDecoration: "none", letterSpacing: 0.3 }}
             >
               Read Full Article
             </a>

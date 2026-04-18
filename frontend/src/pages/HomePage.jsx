@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 import './HomePage.css';
 
-// ── Topic → thumbnail bg colour ──────────────────────────────────────────────
+// ── Topic → thumbnail bg colour (using CSS variables for theme support) ──────
 const TOPIC_COLORS = {
-  'ai & llms': '#0d1b2e',
-  'llm': '#0d1b2e',
-  'artificial intelligence': '#0d1b2e',
-  'infrastructure': '#1a1a1a',
-  'fintech': '#1a0d00',
-  'finance': '#1a0d00',
-  'healthtech': '#0d1a0d',
-  'health': '#0d1a0d',
-  'cybersecurity': '#0a0a1a',
-  'strategy': '#1a0a1a',
-  default: '#111',
+  'ai & llms': 'var(--bg-surface)',
+  'llm': 'var(--bg-surface)',
+  'artificial intelligence': 'var(--bg-surface)',
+  'infrastructure': 'var(--bg-surface)',
+  'fintech': 'var(--bg-surface)',
+  'finance': 'var(--bg-surface)',
+  'healthtech': 'var(--bg-surface)',
+  'health': 'var(--bg-surface)',
+  'cybersecurity': 'var(--bg-surface)',
+  'strategy': 'var(--bg-surface)',
+  default: 'var(--bg-surface)',
 };
 
 function topicColor(topic) {
@@ -165,7 +167,7 @@ function SignInModal({ context, isOpen, onClose, onSuccess }) {
         <div className="hp-modal-body">
           <div className="hp-modal-header">
             <div className="hp-modal-logo-row">
-              <span className="hp-ml-dxc">DXC</span>
+              <img src="/DXC-logo.png" alt="DXC" style={{ height: 20, width: 'auto' }} />
               <span className="hp-ml-name">AI Watch</span>
             </div>
             <button className="hp-m-close-btn" onClick={onClose} aria-label="Close">✕</button>
@@ -212,7 +214,7 @@ function SignInModal({ context, isOpen, onClose, onSuccess }) {
             />
             {mode === 'login' && (
               <div className="hp-m-forgot">
-                <button style={{ background:'none', border:'none', padding:0, color:'#185FA5', cursor:'pointer', fontSize:12, fontFamily:'inherit' }} onClick={handleForgotPassword}>Forgot password?</button>
+                <button style={{ background:'none', border:'none', padding:0, color:'var(--accent)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }} onClick={handleForgotPassword}>Forgot password?</button>
               </div>
             )}
             <button className="hp-m-sbtn" type="submit" disabled={busy}>
@@ -233,9 +235,9 @@ function SignInModal({ context, isOpen, onClose, onSuccess }) {
 
           <div className="hp-m-footer-note">
             {mode === 'login' ? (
-              <>Don't have an account? <button className="hp-m-footer-note" style={{ background:'none', border:'none', padding:0, color:'#E35B1A', fontWeight:500, cursor:'pointer', fontSize:13, fontFamily:'inherit' }} onClick={() => { setMode('register'); setError(''); }}>Create account</button></>
+              <>Don't have an account? <button className="hp-m-footer-note" style={{ background:'none', border:'none', padding:0, color:'var(--accent)', fontWeight:500, cursor:'pointer', fontSize:13, fontFamily:'inherit' }} onClick={() => { setMode('register'); setError(''); }}>Create account</button></>
             ) : (
-              <>Already have an account? <button className="hp-m-footer-note" style={{ background:'none', border:'none', padding:0, color:'#E35B1A', fontWeight:500, cursor:'pointer', fontSize:13, fontFamily:'inherit' }} onClick={() => { setMode('login'); setError(''); }}>Sign in</button></>
+              <>Already have an account? <button className="hp-m-footer-note" style={{ background:'none', border:'none', padding:0, color:'var(--accent)', fontWeight:500, cursor:'pointer', fontSize:13, fontFamily:'inherit' }} onClick={() => { setMode('login'); setError(''); }}>Sign in</button></>
             )}
           </div>
         </div>
@@ -247,7 +249,7 @@ function SignInModal({ context, isOpen, onClose, onSuccess }) {
 // ── Article card skeleton ─────────────────────────────────────────────────────
 function ArticleSkeleton() {
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #eee', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--dxc-surface)', borderRadius: 10, border: '1px solid var(--dxc-border)', overflow: 'hidden' }}>
       <div className="hp-skeleton" style={{ width: '100%', aspectRatio: '16/9' }} />
       <div style={{ padding: 18 }}>
         <div className="hp-skeleton" style={{ height: 10, width: '40%', marginBottom: 10 }} />
@@ -270,6 +272,7 @@ function fmtDate(d) {
 // ── HomePage ──────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -315,9 +318,12 @@ export default function HomePage() {
   const [tickerTitles, setTickerTitles] = useState(FALLBACK_TICKER);
   const [articleCount, setArticleCount] = useState('309');
   const [avgRelevance, setAvgRelevance] = useState('8.4/10');
+  const [sourceCount, setSourceCount] = useState('4');
   const [articleOffset, setArticleOffset] = useState(8);
   const [loadingArticles, setLoadingArticles] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreArticles, setHasMoreArticles] = useState(true);
   const [activeChip, setActiveChip] = useState('All');
   const [newsletterDate, setNewsletterDate] = useState('');
   const [usingCachedData, setUsingCachedData] = useState(false);
@@ -390,6 +396,18 @@ export default function HomePage() {
         }
       } catch { /* keep defaults */ }
 
+      // Try to get source/sector count
+      try {
+        const sectorsRes = await fetch('/api/sectors/top', { signal: AbortSignal.timeout(5000) });
+        if (sectorsRes.ok) {
+          const sectorsData = await sectorsRes.json();
+          const count = Array.isArray(sectorsData) ? sectorsData.length : (sectorsData.count || sectorsData.total);
+          if (count && !cancelled) setSourceCount(String(count));
+        }
+      } catch { /* keep default 4 */ }
+
+      if (!cancelled) setLoadingStats(false);
+
       // Newsletter status
       try {
         const nlRes = await fetch('/api/newsletter/status', { signal: AbortSignal.timeout(5000) });
@@ -414,6 +432,7 @@ export default function HomePage() {
     setActiveChip(chip);
     chipRef.current = chip;
     setLoadingArticles(true);
+    setHasMoreArticles(true);
     const arts = await fetchArticles(chip, 0);
     if (chipRef.current === chip) {
       setArticles(arts && arts.length > 0 ? arts : FALLBACK_ARTICLES.filter(a =>
@@ -421,6 +440,7 @@ export default function HomePage() {
       ));
       setArticleOffset(8);
       setLoadingArticles(false);
+      if (arts && arts.length < 8) setHasMoreArticles(false);
     }
   };
 
@@ -431,17 +451,15 @@ export default function HomePage() {
     if (arts && arts.length > 0) {
       setArticles(prev => [...prev, ...arts]);
       setArticleOffset(prev => prev + 8);
+      if (arts.length < 8) setHasMoreArticles(false);
+    } else {
+      setHasMoreArticles(false);
     }
     setLoadingMore(false);
   };
 
-  // ── Redirect logged-in users who land on "/" to /feed ──────────────────────
-  // (only if they came here without a modal context — e.g. direct navigation)
-  useEffect(() => {
-    if (user && !initialModal) {
-      navigate('/feed', { replace: true });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: Logged-in users can still view the landing page
+  // They see "Dashboard" button instead of "Sign In"
 
   const weekNum = Math.ceil((new Date().getDate() + new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay()) / 7);
   const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -461,7 +479,7 @@ export default function HomePage() {
       {/* ── NAV ────────────────────────────────────────────────────────── */}
       <nav className="hp-nav">
         <Link to="/" className="hp-nav-logo">
-          <span className="hp-logo-dxc">DXC</span>
+          <img src="/DXC-logo.png" alt="DXC" className="hp-logo-img" />
           <span className="hp-logo-sep" />
           <span className="hp-logo-txt">AI Watch</span>
           <div className="hp-live-badge">
@@ -492,16 +510,41 @@ export default function HomePage() {
         </div>
 
         <div className="hp-nav-right">
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--dxc-border)',
+              borderRadius: 8,
+              cursor: 'pointer',
+              padding: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--dxc-muted)',
+              transition: 'all 0.15s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.borderColor = 'var(--dxc-orange)';
+              e.currentTarget.style.color = 'var(--dxc-orange)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.borderColor = 'var(--dxc-border)';
+              e.currentTarget.style.color = 'var(--dxc-muted)';
+            }}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           {user ? (
             <>
-              <button className="hp-btn-login" onClick={() => navigate('/')}>Dashboard</button>
-              <button className="hp-btn-sub" onClick={() => navigate('/profile')}>
-                {user.full_name?.split(' ')[0] || 'Profile'}
-              </button>
+              <button className="hp-btn-sub" onClick={() => navigate('/feed')}>Dashboard</button>
             </>
           ) : (
             <>
-              <button className="hp-btn-login" onClick={() => openModal('login')}>Login</button>
+              <button className="hp-btn-login" onClick={() => openModal('login')}>Sign In</button>
               <button className="hp-btn-sub" onClick={() => openModal('register')}>Subscribe</button>
             </>
           )}
@@ -516,13 +559,10 @@ export default function HomePage() {
           <button className="hp-mm-link" onClick={() => { setMobileMenuOpen(false); user ? navigate('/newsletter') : openModal('Newsletter'); }}>Newsletter</button>
           <hr className="hp-mm-divider" />
           {user ? (
-            <>
-              <button className="hp-mm-link" onClick={() => { setMobileMenuOpen(false); navigate('/'); }}>Dashboard</button>
-              <button className="hp-mm-link" onClick={() => { setMobileMenuOpen(false); navigate('/profile'); }}>Profile</button>
-            </>
+            <button className="hp-mm-link hp-mm-accent" onClick={() => { setMobileMenuOpen(false); navigate('/feed'); }}>Dashboard</button>
           ) : (
             <>
-              <button className="hp-mm-link" onClick={() => { setMobileMenuOpen(false); openModal('login'); }}>Login</button>
+              <button className="hp-mm-link" onClick={() => { setMobileMenuOpen(false); openModal('login'); }}>Sign In</button>
               <button className="hp-mm-link hp-mm-accent" onClick={() => { setMobileMenuOpen(false); openModal('register'); }}>Subscribe</button>
             </>
           )}
@@ -539,11 +579,11 @@ export default function HomePage() {
       {/* ── HERO ───────────────────────────────────────────────────────── */}
       <section className="hp-hero">
         <h1>
-          Strategic AI intelligence<br />
-          in <span className="hp-accent">5 minutes</span> a day.
+          Your AI intelligence<br />
+          <span className="hp-accent">command centre.</span>
         </h1>
         <p className="hp-hero-sub">
-          Get the latest AI &amp; tech news, understand why it matters, and learn how to apply it in your strategy.
+          Monitor 26+ verified AI sources, discover what matters for DXC, and turn raw news into strategic decisions — automatically.
         </p>
 
         <form className="hp-hero-form" onSubmit={handleHeroSubscribe}>
@@ -575,15 +615,21 @@ export default function HomePage() {
 
         <div className="hp-hero-stats">
           <div className="hp-h-stat">
-            <div className="hp-h-stat-n">{articleCount}</div>
+            <div className="hp-h-stat-n">
+              {loadingStats ? <span className="hp-skeleton" style={{ display: 'inline-block', width: 60, height: 32, borderRadius: 6 }} /> : articleCount}
+            </div>
             <div className="hp-h-stat-l">Articles today</div>
           </div>
           <div className="hp-h-stat">
-            <div className="hp-h-stat-n">4</div>
+            <div className="hp-h-stat-n">
+              {loadingStats ? <span className="hp-skeleton" style={{ display: 'inline-block', width: 30, height: 32, borderRadius: 6 }} /> : sourceCount}
+            </div>
             <div className="hp-h-stat-l">Live data sources</div>
           </div>
           <div className="hp-h-stat">
-            <div className="hp-h-stat-n">{avgRelevance}</div>
+            <div className="hp-h-stat-n">
+              {loadingStats ? <span className="hp-skeleton" style={{ display: 'inline-block', width: 70, height: 32, borderRadius: 6 }} /> : avgRelevance}
+            </div>
             <div className="hp-h-stat-l">Avg relevance score</div>
           </div>
           <div className="hp-h-stat">
@@ -640,7 +686,7 @@ export default function HomePage() {
                     style={{ textDecoration: 'none' }}
                   >
                     <div className="hp-a-thumb" style={{ background: color }}>
-                      <div style={{ fontSize: 38, color: 'rgba(227,91,26,0.6)' }}>{icon}</div>
+                      <div style={{ fontSize: 38, color: 'var(--accent)', opacity: 0.6 }}>{icon}</div>
                     </div>
                     <div className="hp-a-body">
                       <div className="hp-a-topic">{topic || 'AI & LLMs'}</div>
@@ -659,11 +705,13 @@ export default function HomePage() {
           }
         </div>
 
-        <div className="hp-show-more-wrap">
-          <button className="hp-show-more" onClick={handleShowMore} disabled={loadingMore}>
-            {loadingMore ? 'Loading…' : 'Show more'}
-          </button>
-        </div>
+        {hasMoreArticles && (
+          <div className="hp-show-more-wrap">
+            <button className="hp-show-more" onClick={handleShowMore} disabled={loadingMore}>
+              {loadingMore ? 'Loading…' : 'Show more'}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* ── FEATURES ───────────────────────────────────────────────────── */}
@@ -713,6 +761,14 @@ export default function HomePage() {
               Set alerts →
             </button>
           </div>
+          <div className="hp-feat-item">
+            <div className="hp-feat-icon-wrap">🗂️</div>
+            <h3>DXC ONETEAM Archive</h3>
+            <p>Browse 94 internal newsletter pages (Dec 2024 – Mar 2026) with full-page images, month and category filters.</p>
+            <button className="hp-feat-link" onClick={() => user ? navigate('/dxc-newsletter') : openModal('DXC Newsletter')}>
+              Browse archive →
+            </button>
+          </div>
         </div>
       </section>
 
@@ -756,7 +812,7 @@ export default function HomePage() {
             </div>
             <div className="hp-ng-card-foot">
               <span>3 sectors · 9 strong signals</span>
-              <span style={{ color: '#E35B1A' }}>{avgRelevance} avg relevance</span>
+              <span style={{ color: 'var(--accent)' }}>{avgRelevance} avg relevance</span>
             </div>
           </div>
           <div className="hp-ng-locked" />
@@ -807,7 +863,7 @@ export default function HomePage() {
       {/* ── FOOTER ─────────────────────────────────────────────────────── */}
       <footer className="hp-footer">
         <div>
-          <div className="hp-footer-logo-dxc">DXC</div>
+          <img src="/DXC-logo.png" alt="DXC" style={{ height: 28, width: 'auto', marginBottom: 4 }} />
           <div className="hp-footer-watch">AI Watch</div>
           <div className="hp-footer-tagline">IMPOSSIBLE. DELIVERED.</div>
         </div>

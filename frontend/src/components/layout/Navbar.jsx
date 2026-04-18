@@ -1,6 +1,6 @@
 // src/components/layout/Navbar.jsx
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getArticles } from '../../services/api';
@@ -126,9 +126,9 @@ export default function Navbar({
           position: 'sticky',
           top: 0,
           zIndex: 50,
-          height: 60,
-          background: '#0e0e0e',
-          borderBottom: '1px solid #1d1d1d',
+          height: 64,
+          background: 'var(--dxc-darker)',
+          borderBottom: '1px solid var(--dxc-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -137,25 +137,25 @@ export default function Navbar({
         }}>
           {/* Left: Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobileView ? 8 : 12, flexShrink: 0 }}>
-            <span style={{
-              fontSize: isMobileView ? 18 : 22,
-              fontWeight: 600,
-              color: '#E35B1A',
-              letterSpacing: isMobileView ? 2 : 3,
-            }}>
-              DXC
-            </span>
+            <img
+              src="/DXC-logo.png"
+              alt="DXC"
+              style={{
+                height: isMobileView ? 24 : 28,
+                width: 'auto',
+              }}
+            />
             {!isMobileView && (
               <>
                 <span style={{
                   width: 1,
                   height: 20,
-                  background: '#2a2a2a',
+                  background: 'var(--dxc-border)',
                 }} />
                 <span style={{
                   fontSize: 14,
                   fontWeight: 500,
-                  color: '#cccccc',
+                  color: 'var(--dxc-muted)',
                 }}>
                   AI Watch
                 </span>
@@ -165,25 +165,25 @@ export default function Navbar({
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 4,
-              background: '#1a0a00',
-              border: '1px solid #3a1a00',
-              borderRadius: 4,
-              padding: isMobileView ? '3px 6px' : '4px 10px',
-              marginLeft: isMobileView ? 4 : 8,
+              gap: 5,
+              background: 'rgba(255, 180, 118, 0.1)',
+              border: '1px solid rgba(255, 180, 118, 0.2)',
+              borderRadius: 20,
+              padding: isMobileView ? '3px 8px' : '4px 12px',
+              marginLeft: isMobileView ? 4 : 10,
             }}>
               <span style={{
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                background: '#E35B1A',
+                background: 'var(--dxc-orange)',
                 animation: 'livePulse 2s ease-in-out infinite',
               }} />
               <span style={{
                 fontSize: isMobileView ? 9 : 10,
                 fontWeight: 600,
-                color: '#E35B1A',
-                letterSpacing: 1,
+                color: 'var(--dxc-orange)',
+                letterSpacing: 0.5,
               }}>
                 LIVE
               </span>
@@ -202,15 +202,15 @@ export default function Navbar({
                     style={{
                       background: 'none',
                       border: 'none',
-                      borderBottom: isActive ? '2px solid #E35B1A' : '2px solid transparent',
-                      padding: '18px 0',
+                      borderBottom: isActive ? '2px solid var(--dxc-orange)' : '2px solid transparent',
+                      padding: '20px 0',
                       fontSize: 14,
-                      color: isActive ? '#ffffff' : '#777777',
+                      color: isActive ? 'var(--dxc-white)' : 'var(--dxc-muted)',
                       cursor: 'pointer',
                       transition: 'color 0.15s',
                     }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#ffffff'; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = '#777777'; }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--dxc-white)'; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--dxc-muted)'; }}
                   >
                     {link.label}
                   </button>
@@ -224,15 +224,26 @@ export default function Navbar({
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               style={{
-                background: 'none',
-                border: 'none',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--dxc-border)',
+                borderRadius: 8,
                 cursor: 'pointer',
                 padding: 8,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#888888',
+                color: 'var(--dxc-muted)',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--dxc-orange)';
+                e.currentTarget.style.color = 'var(--dxc-orange)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--dxc-border)';
+                e.currentTarget.style.color = 'var(--dxc-muted)';
               }}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -243,22 +254,22 @@ export default function Navbar({
               onClick={onLoginClick}
               style={{
                 background: 'transparent',
-                border: '1.5px solid #ffffff',
-                borderRadius: 6,
-                padding: isMobileView ? '6px 12px' : '8px 18px',
+                border: '1px solid var(--dxc-border)',
+                borderRadius: 8,
+                padding: isMobileView ? '6px 12px' : '8px 20px',
                 fontSize: isMobileView ? 12 : 13,
                 fontWeight: 500,
-                color: '#ffffff',
+                color: 'var(--dxc-white)',
                 cursor: 'pointer',
                 transition: 'all 0.15s',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = '#ffffff';
-                e.currentTarget.style.color = '#0e0e0e';
+                e.currentTarget.style.borderColor = 'var(--dxc-orange)';
+                e.currentTarget.style.color = 'var(--dxc-orange)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.borderColor = 'var(--dxc-border)';
+                e.currentTarget.style.color = 'var(--dxc-white)';
               }}
             >
               Login
@@ -269,18 +280,24 @@ export default function Navbar({
               <button
                 onClick={onSubscribeClick}
                 style={{
-                  background: '#E35B1A',
+                  background: 'var(--gradient-brand)',
                   border: 'none',
-                  borderRadius: 6,
-                  padding: isMobileView ? '6px 12px' : '8px 18px',
+                  borderRadius: 8,
+                  padding: isMobileView ? '7px 14px' : '9px 20px',
                   fontSize: isMobileView ? 12 : 13,
-                  fontWeight: 500,
-                  color: '#ffffff',
+                  fontWeight: 600,
+                  color: '#FFFFFF',
                   cursor: 'pointer',
-                  transition: 'background 0.15s',
+                  transition: 'transform 0.15s, filter 0.15s',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#c94f16'}
-                onMouseLeave={e => e.currentTarget.style.background = '#E35B1A'}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.filter = 'brightness(1.1)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.filter = 'brightness(1)';
+                }}
               >
                 Subscribe
               </button>
@@ -294,18 +311,23 @@ export default function Navbar({
   // ════════════════════════════════════════════════════════════════════════════
   // DASHBOARD NAVBAR
   // ════════════════════════════════════════════════════════════════════════════
+  const sidebarWidth = isMobileView ? 0 : (isCollapsed ? 60 : 220);
+
   return (
     <nav style={{
-      position: 'sticky',
+      position: 'fixed',
       top: 0,
-      zIndex: 50,
+      left: sidebarWidth,
+      right: 0,
+      zIndex: 99,
       height: 60,
-      background: 'var(--nav-bg)',
-      borderBottom: '1px solid var(--border-color)',
+      background: 'var(--bg-primary)',
+      borderBottom: '1px solid var(--border)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: '0 20px',
+      transition: 'left 250ms ease',
     }}>
       {/* Left: Hamburger + Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -320,25 +342,30 @@ export default function Navbar({
             alignItems: 'center',
             justifyContent: 'center',
             color: 'var(--text-secondary)',
+            transition: 'color 0.15s',
           }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
         >
           {isCollapsed ? <Menu size={20} /> : <PanelLeftClose size={20} />}
         </button>
-        <span style={{
-          fontSize: 20,
-          fontWeight: 600,
-          color: '#E35B1A',
-          letterSpacing: 2,
-        }}>
-          DXC
-        </span>
-        <span style={{
-          fontSize: 14,
-          fontWeight: 500,
-          color: 'var(--text-primary)',
-        }}>
-          AI Watch
-        </span>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <img
+            src="/DXC-logo.png"
+            alt="DXC"
+            style={{
+              height: 24,
+              width: 'auto',
+            }}
+          />
+          <span style={{
+            fontSize: 14,
+            fontWeight: 500,
+            color: 'var(--text-primary)',
+          }}>
+            AI Watch
+          </span>
+        </Link>
       </div>
 
       {/* Right: Actions */}
@@ -346,6 +373,7 @@ export default function Navbar({
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           style={{
             background: 'none',
             border: 'none',
@@ -355,7 +383,10 @@ export default function Navbar({
             alignItems: 'center',
             justifyContent: 'center',
             color: 'var(--text-secondary)',
+            transition: 'color 0.15s',
           }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
@@ -374,7 +405,10 @@ export default function Navbar({
               justifyContent: 'center',
               color: 'var(--text-secondary)',
               position: 'relative',
+              transition: 'color 0.15s',
             }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
             <Bell size={18} />
             {notifications.filter(n => !n.read).length > 0 && (
@@ -382,8 +416,8 @@ export default function Navbar({
                 position: 'absolute',
                 top: 2,
                 right: 2,
-                background: '#E35B1A',
-                color: '#fff',
+                background: 'var(--gradient-brand)',
+                color: '#FFFFFF',
                 borderRadius: '50%',
                 width: 16,
                 height: 16,
@@ -405,16 +439,16 @@ export default function Navbar({
               top: 44,
               right: 0,
               width: 320,
-              background: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 10,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              boxShadow: 'var(--shadow)',
               zIndex: 200,
             }}>
               {/* Header */}
               <div style={{
                 padding: '14px 18px',
-                borderBottom: '1px solid var(--border-color)',
+                borderBottom: '1px solid var(--border)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -428,7 +462,7 @@ export default function Navbar({
                     background: 'none',
                     border: 'none',
                     fontSize: 12,
-                    color: '#185EA5',
+                    color: 'var(--accent-orange)',
                     cursor: 'pointer',
                   }}
                 >
@@ -438,7 +472,7 @@ export default function Navbar({
 
               {/* Notification list */}
               {notifications.length === 0 ? (
-                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
                   No new notifications
                 </div>
               ) : (
@@ -452,9 +486,9 @@ export default function Navbar({
                     }}
                     style={{
                       padding: '12px 18px',
-                      borderBottom: '1px solid var(--surface)',
+                      borderBottom: '1px solid var(--border)',
                       cursor: 'pointer',
-                      background: notif.read ? 'var(--card-bg)' : '#f8f9ff',
+                      background: notif.read ? 'var(--bg-card)' : 'var(--signal-strong-bg)',
                       transition: 'background 0.15s',
                     }}
                   >
@@ -463,7 +497,7 @@ export default function Navbar({
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        background: notif.read ? 'transparent' : '#E35B1A',
+                        background: notif.read ? 'transparent' : 'var(--accent-orange)',
                         flexShrink: 0,
                         marginTop: 5,
                       }} />
@@ -477,7 +511,7 @@ export default function Navbar({
                         }}>
                           {notif.title}
                         </p>
-                        <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                        <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>
                           {notif.source} · {formatNotifDate(notif.time)}
                         </p>
                       </div>
@@ -490,7 +524,7 @@ export default function Navbar({
               <div style={{
                 padding: '12px 18px',
                 textAlign: 'center',
-                borderTop: '1px solid var(--border-color)',
+                borderTop: '1px solid var(--border)',
               }}>
                 <button
                   onClick={() => {
@@ -501,7 +535,7 @@ export default function Navbar({
                     background: 'none',
                     border: 'none',
                     fontSize: 13,
-                    color: '#185EA5',
+                    color: 'var(--accent-orange)',
                     cursor: 'pointer',
                   }}
                 >
@@ -517,13 +551,13 @@ export default function Navbar({
           width: 34,
           height: 34,
           borderRadius: '50%',
-          background: '#E35B1A',
+          background: 'var(--gradient-brand)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 13,
-          fontWeight: 600,
-          color: '#ffffff',
+          fontWeight: 700,
+          color: '#FFFFFF',
           marginLeft: 4,
         }}>
           {getInitials(user?.full_name)}
@@ -540,8 +574,11 @@ export default function Navbar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--text-muted)',
+            color: 'var(--text-secondary)',
+            transition: 'color 0.15s',
           }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
         >
           <LogOut size={18} />
         </button>

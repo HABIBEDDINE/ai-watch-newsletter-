@@ -27,16 +27,18 @@ export default function Sidebar({ isCollapsed = false }) {
     <aside style={{
       width: isCollapsed ? 60 : 220,
       minWidth: isCollapsed ? 60 : 220,
-      height: 'calc(100vh - 60px)',
-      position: 'sticky',
+      height: '100vh',
+      position: 'fixed',
       top: 0,
-      alignSelf: 'flex-start',
+      left: 0,
       background: 'var(--sidebar-bg)',
-      borderRight: '1px solid var(--border-color)',
+      borderRight: '1px solid var(--border)',
       display: 'flex',
       flexDirection: 'column',
       transition: 'width 250ms ease, min-width 250ms ease',
-      overflow: 'hidden',
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      zIndex: 100,
     }}>
       {/* Nav items */}
       <nav style={{ flex: 1, padding: '16px 8px', overflowY: 'auto' }}>
@@ -48,14 +50,14 @@ export default function Sidebar({ isCollapsed = false }) {
               display: 'flex',
               alignItems: 'center',
               gap: isCollapsed ? 0 : 12,
-              padding: isCollapsed ? '12px 0' : '10px 14px',
+              padding: isCollapsed ? '12px 0' : '11px 14px',
               marginBottom: 4,
-              borderRadius: 6,
+              borderRadius: 8,
               textDecoration: 'none',
               justifyContent: isCollapsed ? 'center' : 'flex-start',
-              borderLeft: isActive ? '3px solid #185EA5' : '3px solid transparent',
-              background: isActive ? '#EEF2FF' : 'transparent',
-              color: isActive ? '#185EA5' : 'var(--text-secondary)',
+              borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+              background: isActive ? 'var(--accent-dim)' : 'transparent',
+              color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
               fontWeight: isActive ? 600 : 500,
               transition: 'all 0.15s ease',
             })}
@@ -82,25 +84,27 @@ export default function Sidebar({ isCollapsed = false }) {
 
       {/* Bottom: User info + logout */}
       <div style={{
-        padding: isCollapsed ? '12px 8px' : '16px',
-        borderTop: '1px solid var(--border-color)',
+        padding: 16,
+        borderTop: '1px solid var(--border)',
+        background: 'transparent',
+        marginTop: 'auto',
         display: 'flex',
         flexDirection: isCollapsed ? 'column' : 'row',
         alignItems: 'center',
-        gap: isCollapsed ? 8 : 12,
+        gap: isCollapsed ? 8 : 10,
       }}>
         {/* Avatar */}
         <div style={{
-          width: 32,
-          height: 32,
+          width: 34,
+          height: 34,
           borderRadius: '50%',
-          background: 'var(--orange)',
+          background: 'var(--accent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 12,
-          fontWeight: 600,
-          color: '#ffffff',
+          fontSize: 14,
+          fontWeight: 700,
+          color: '#fff',
           flexShrink: 0,
         }}>
           {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
@@ -112,7 +116,7 @@ export default function Sidebar({ isCollapsed = false }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
                 fontSize: 13,
-                fontWeight: 500,
+                fontWeight: 600,
                 color: 'var(--text-primary)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -122,7 +126,7 @@ export default function Sidebar({ isCollapsed = false }) {
               </div>
               <div style={{
                 fontSize: 11,
-                color: 'var(--text-muted)',
+                color: 'var(--text-secondary)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -143,7 +147,11 @@ export default function Sidebar({ isCollapsed = false }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--text-muted)',
+                marginLeft: 'auto',
+                transition: 'color 0.15s ease',
               }}
+              onMouseOver={(e) => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
             >
               <LogOut size={16} />
             </button>
@@ -162,7 +170,10 @@ export default function Sidebar({ isCollapsed = false }) {
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--text-muted)',
+              transition: 'color 0.15s ease',
             }}
+            onMouseOver={(e) => e.currentTarget.style.color = 'var(--accent)'}
+            onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
           >
             <LogOut size={16} />
           </button>

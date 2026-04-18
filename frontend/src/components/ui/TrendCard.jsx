@@ -28,7 +28,7 @@ export default function TrendCard({ trend, onClick, isBookmarked, onBookmark }) 
         transition: 'border-color 0.15s ease',
         position: 'relative',
       }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = '#185EA5'}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
     >
       {/* Bookmark button */}
@@ -60,7 +60,7 @@ export default function TrendCard({ trend, onClick, isBookmarked, onBookmark }) 
       <div style={{
         fontSize: 28,
         fontWeight: 500,
-        color: '#6B5CE7',
+        color: 'var(--accent)',
       }}>
         {trend_score ?? 0}
       </div>

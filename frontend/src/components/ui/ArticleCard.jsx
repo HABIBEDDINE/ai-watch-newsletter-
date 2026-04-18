@@ -57,7 +57,7 @@ export default function ArticleCard({
         cursor: onClick ? 'pointer' : 'default',
         transition: 'border-color 0.15s ease',
       }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = '#185EA5'}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
     >
       {/* Thumbnail - 16:9 ratio */}

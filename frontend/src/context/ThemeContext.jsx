@@ -7,16 +7,18 @@ const LS_KEY = 'aiwatch_theme';
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    // Initialize from localStorage or default to 'light'
+    // Initialize from localStorage or default to 'dark'
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(LS_KEY) || 'light';
+      return localStorage.getItem(LS_KEY) || 'dark';
     }
-    return 'light';
+    return 'dark';
   });
 
-  // Apply theme class to document.documentElement on mount and change
+  // Apply theme via data-theme attribute on document.documentElement
   useEffect(() => {
     const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    // Also keep the class for backward compatibility
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {

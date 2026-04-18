@@ -563,6 +563,54 @@ def get_saved_trends():
 @app.get("/api/trends")
 def get_trends(category: str = Query(None)):
     trends, last_updated = get_cached_trends()
+
+    # Fallback to DB if in-memory cache is empty
+    if not trends:
+        try:
+            rows = supabase.table("trends").select("*").order("created_at", desc=True).limit(50).execute()
+            if rows.data:
+                from trends_service import _trends_cache as _tc
+                loaded = []
+                for row in rows.data:
+                    # Start with data JSONB if it exists
+                    data_json = row.get("data")
+                    if isinstance(data_json, str):
+                        try:
+                            data_json = json.loads(data_json)
+                        except:
+                            data_json = {}
+                    t = dict(data_json or {})
+
+                    # Always overlay the direct columns (they're the source of truth)
+                    t["id"] = row.get("id") or t.get("id", "")
+                    t["topic"] = row.get("topic") or t.get("topic", "")
+                    t["category"] = row.get("category") or t.get("category", "")
+                    t["detected_at"] = row.get("detected_at") or t.get("detected_at", "")
+                    t["watchlisted"] = row.get("watchlisted", False)
+                    t["deepdive_status"] = row.get("deepdive_status", "pending")
+
+                    # Add deep dive if exists
+                    if row.get("deepdive"):
+                        t["deep_dive"] = row["deepdive"]
+
+                    # Ensure score exists (default to 5 if missing)
+                    if "score" not in t:
+                        t["score"] = t.get("trend_score", 5)
+
+                    # Skip rows with no topic
+                    if not t.get("topic"):
+                        continue
+
+                    loaded.append(t)
+
+                # Update in-memory cache for future requests
+                _tc.clear()
+                _tc.extend(loaded)
+                trends = loaded
+                last_updated = rows.data[0].get("created_at") if rows.data else None
+        except Exception as e:
+            print(f"[/api/trends] DB fallback failed: {e}")
+
     if category:
         trends = [t for t in trends if t.get("category") == category]
     categories = [{"id": q["category"], "label": q["label"], "icon": q["icon"]} for q in TREND_QUERIES]
@@ -817,7 +865,7 @@ async def get_trend_deepdive(trend_id: str, role: str = Query(None)):
         # Only ONE request can claim the lock (atomic update with condition)
         supabase.table("trends").update({
             "deepdive_status": "generating"
-        }).eq("id", trend_id).eq("deepdive_status", "pending").execute()
+        }).eq("id", trend_id).is_("deepdive_status", "null").execute()
         print(f"[DeepDive] Claimed generation lock for {trend_id}")
     except Exception as e:
         print(f"[DeepDive] Lock claim error (may already be generating): {e}")
@@ -833,7 +881,7 @@ async def get_trend_deepdive(trend_id: str, role: str = Query(None)):
     api_key = _os.getenv("OPENAI_API_KEY")
     if not api_key:
         # Release lock on error
-        supabase.table("trends").update({"deepdive_status": "pending"}).eq("id", trend_id).execute()
+        supabase.table("trends").update({"deepdive_status": None}).eq("id", trend_id).execute()
         raise HTTPException(status_code=503, detail="No OPENAI_API_KEY configured")
 
     # ── 4. Generate deepdive (wrapped in try/except to release lock on error) ──
@@ -856,32 +904,27 @@ Return ONLY valid JSON with this exact structure:
   "sources": [
     {{
       "number": 1,
-      "title": "Article or report title",
-      "publisher": "Publisher name",
-      "url": "https://example.com/article",
-      "snippet": "One sentence description of what this source covers"
+      "title": "Relevant article or publication title",
+      "publisher": "Publisher name (e.g. TechCrunch, MIT Technology Review, arXiv)",
+      "snippet": "1-2 sentence relevant quote or summary from this source"
     }},
     {{
       "number": 2,
       "title": "Second source title",
       "publisher": "Publisher name",
-      "url": "https://example.com/article2",
-      "snippet": "One sentence description"
+      "snippet": "Brief relevant summary"
     }},
     {{
       "number": 3,
       "title": "Third source title",
       "publisher": "Publisher name",
-      "url": "https://example.com/article3",
-      "snippet": "One sentence description"
+      "snippet": "Brief relevant summary"
     }}
   ]
 }}
 
-For sources, use REAL authoritative publishers like:
-IBM Research, McKinsey, Gartner, MIT Technology Review, Harvard Business Review,
-TechCrunch, VentureBeat, arXiv, The Verge, Wired, Forbes, NVIDIA Blog,
-Google AI Blog, OpenAI Blog, Anthropic, Microsoft Research.
+IMPORTANT: Do NOT include any "url" field in sources. URLs are handled separately.
+Use real authoritative publishers: MIT Technology Review, Harvard Business Review, TechCrunch, VentureBeat, arXiv, Wired, Forbes, etc.
 
 Write as a senior analyst. Be specific and actionable.
 Return ONLY the JSON object, no markdown, no extra text."""
@@ -903,30 +946,27 @@ Return ONLY the JSON object, no markdown, no extra text."""
         try:
             deep_dive_json = json.loads(deep_dive_raw)
 
-            # Ensure sources array exists with fallback
+            # Ensure sources array exists with fallback (no URLs)
             if "sources" not in deep_dive_json or not deep_dive_json["sources"]:
                 topic = trend.get('topic', 'AI Trends')
                 deep_dive_json["sources"] = [
                     {
                         "number": 1,
                         "title": f"Understanding {topic}",
-                        "publisher": "IBM Research",
-                        "url": "https://research.ibm.com/artificial-intelligence",
-                        "snippet": "IBM Research explores enterprise AI applications and emerging trends."
+                        "publisher": "Industry Analysis",
+                        "snippet": "Expert analysis of enterprise AI applications and emerging trends."
                     },
                     {
                         "number": 2,
-                        "title": f"The State of AI: {topic}",
-                        "publisher": "McKinsey & Company",
-                        "url": "https://www.mckinsey.com/capabilities/quantumblack/our-insights",
-                        "snippet": "McKinsey analysis of AI adoption and business impact across industries."
+                        "title": f"Enterprise Impact: {topic}",
+                        "publisher": "Business Review",
+                        "snippet": "Analysis of AI adoption and business impact across industries."
                     },
                     {
                         "number": 3,
-                        "title": "AI Trends Report 2026",
-                        "publisher": "MIT Technology Review",
-                        "url": "https://www.technologyreview.com/topic/artificial-intelligence/",
-                        "snippet": "MIT Technology Review covers the latest AI research and industry developments."
+                        "title": "Implementation Guide",
+                        "publisher": "Tech Guide",
+                        "snippet": "Practical steps and best practices for implementation."
                     }
                 ]
                 print(f"[DeepDive] Added fallback sources")
@@ -936,7 +976,7 @@ Return ONLY the JSON object, no markdown, no extra text."""
             trend["deep_dive"] = deep_dive_json
         except json.JSONDecodeError as e:
             print(f"[DeepDive] JSON parse error: {e}")
-            # Fallback structure with sources
+            # Fallback structure with sources (no URLs)
             trend["deep_dive"] = {
                 "what_it_is": deep_dive_raw,
                 "enterprise_impact": "",
@@ -945,23 +985,20 @@ Return ONLY the JSON object, no markdown, no extra text."""
                     {
                         "number": 1,
                         "title": f"Understanding {trend.get('topic', 'AI Trends')}",
-                        "publisher": "IBM Research",
-                        "url": "https://research.ibm.com/artificial-intelligence",
-                        "snippet": "IBM Research explores enterprise AI applications."
+                        "publisher": "Industry Analysis",
+                        "snippet": "Expert analysis of enterprise AI applications."
                     },
                     {
                         "number": 2,
-                        "title": "AI Trends and Enterprise Impact",
-                        "publisher": "McKinsey & Company",
-                        "url": "https://www.mckinsey.com/capabilities/quantumblack/our-insights",
-                        "snippet": "McKinsey analysis of AI adoption and business impact."
+                        "title": "Enterprise Impact Analysis",
+                        "publisher": "Business Review",
+                        "snippet": "Analysis of AI adoption and business impact."
                     },
                     {
                         "number": 3,
-                        "title": "Latest AI Research",
-                        "publisher": "MIT Technology Review",
-                        "url": "https://www.technologyreview.com/topic/artificial-intelligence/",
-                        "snippet": "MIT Technology Review covers the latest AI research."
+                        "title": "Implementation Guide",
+                        "publisher": "Tech Guide",
+                        "snippet": "Practical implementation steps and best practices."
                     }
                 ]
             }
@@ -970,20 +1007,17 @@ Return ONLY the JSON object, no markdown, no extra text."""
         try:
             # Save the JSON string (with sources) to DB
             deepdive_to_save = json.dumps(trend["deep_dive"]) if isinstance(trend["deep_dive"], dict) else str(trend["deep_dive"])
-            supabase.table("trends").upsert({
-                "id":              trend_id,
-                "category":        trend.get("category", ""),
-                "topic":           trend.get("topic", ""),
+            supabase.table("trends").update({
                 "deepdive":        deepdive_to_save,
-                "deepdive_status": "done",  # Mark as complete
+                "deepdive_status": "done",
                 "user_role":       user_role,
-                "data":            trend,
-            }).execute()
+                "generated_data":  datetime.utcnow().isoformat(),
+            }).eq("id", trend_id).execute()
             print(f"[DeepDive] Saved to DB with status=done, {len(trend['deep_dive'].get('sources', []))} sources")
         except Exception as e:
             print(f"[DB] deepdive save failed: {e}")
             # Release lock on save error
-            supabase.table("trends").update({"deepdive_status": "pending"}).eq("id", trend_id).execute()
+            supabase.table("trends").update({"deepdive_status": None}).eq("id", trend_id).execute()
 
         return trend
 
@@ -991,7 +1025,7 @@ Return ONLY the JSON object, no markdown, no extra text."""
         # ── Release lock on any generation error ──────────────────────────────
         print(f"[DeepDive] Generation failed, releasing lock: {e}")
         try:
-            supabase.table("trends").update({"deepdive_status": "pending"}).eq("id", trend_id).execute()
+            supabase.table("trends").update({"deepdive_status": "error"}).eq("id", trend_id).execute()
         except Exception:
             pass
         raise HTTPException(status_code=500, detail=f"Deep dive generation failed: {str(e)}")
@@ -1029,6 +1063,243 @@ def unsave_trend(trend_id: str):
         if t.get("id") == trend_id:
             t["saved"] = False
     return {"saved": False}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH DEEP DIVE GENERATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def batch_generate_deepdives(role: str = "cto", force: bool = False):
+    """Background task: Generate deep dives for trends.
+
+    Args:
+        role: User role for personalized content (cto, innovation_manager, etc.)
+        force: If True, re-generate ALL trends (including done ones with bad URLs)
+    """
+    import os as _os
+
+    api_key = _os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("[BatchDeepDive] No OPENAI_API_KEY configured, skipping")
+        return {"processed": 0, "succeeded": 0, "failed": 0, "error": "No API key"}
+
+    from openai import OpenAI as _OpenAI
+    client = _OpenAI(api_key=api_key)
+
+    role_context = ROLE_PROMPTS.get(role, ROLE_PROMPTS["other"])
+
+    # Fetch trends
+    try:
+        result = supabase.table("trends").select("id,topic,category,data,deepdive_status,deepdive").order("created_at", desc=True).limit(200).execute()
+        all_trends = result.data or []
+
+        if force:
+            # Re-generate ALL trends (cleanup mode)
+            trends_to_process = all_trends
+            print(f"[BatchDeepDive] FORCE MODE: Re-generating ALL {len(trends_to_process)} trends", flush=True)
+        else:
+            # Only process trends without deep dives
+            trends_to_process = [t for t in all_trends if t.get("deepdive_status") is None or t.get("deepdive_status") == "error"]
+            print(f"[BatchDeepDive] Found {len(trends_to_process)} trends needing deep dives (of {len(all_trends)} total)", flush=True)
+    except Exception as e:
+        print(f"[BatchDeepDive] DB query failed: {e}")
+        return {"processed": 0, "succeeded": 0, "failed": 0, "error": str(e)}
+
+    if not trends_to_process:
+        print("[BatchDeepDive] No trends need deep dives")
+        return {"processed": 0, "succeeded": 0, "failed": 0}
+
+    processed = 0
+    succeeded = 0
+    failed = 0
+
+    for row in trends_to_process:
+        trend_id = row.get("id")
+        topic = row.get("topic") or ""
+        data = row.get("data") or {}
+        summary = data.get("summary", "") if isinstance(data, dict) else ""
+
+        if not topic:
+            print(f"[BatchDeepDive] Skipping {trend_id} - no topic")
+            continue
+
+        processed += 1
+        print(f"[BatchDeepDive] Processing {processed}/{len(trends_to_process)}: {topic[:50]}...")
+
+        # Mark as generating
+        try:
+            supabase.table("trends").update({"deepdive_status": "generating"}).eq("id", trend_id).execute()
+        except Exception as e:
+            print(f"[BatchDeepDive] Failed to set generating status: {e}")
+
+        # Generate deep dive (NO URLs in sources - GPT cannot generate valid URLs)
+        try:
+            prompt = f"""You are a strategic enterprise technology analyst writing for a {role.replace('_', ' ')}.
+
+Topic: {topic}
+Summary: {summary}
+
+Role Focus: {role_context}
+
+Return ONLY valid JSON with this exact structure:
+{{
+  "what_it_is": "2-3 paragraph explanation of what this trend is and why it matters",
+  "enterprise_impact": "2-3 paragraphs on business and enterprise impact, tailored to the reader's role",
+  "action_plan": "3 concrete next steps the reader should take, as a numbered list",
+  "sources": [
+    {{"number": 1, "title": "Relevant article or publication title", "publisher": "Publisher name", "snippet": "1-2 sentence summary"}},
+    {{"number": 2, "title": "Second source title", "publisher": "Publisher name", "snippet": "Brief summary"}},
+    {{"number": 3, "title": "Third source title", "publisher": "Publisher name", "snippet": "Brief summary"}}
+  ]
+}}
+
+IMPORTANT: Do NOT include any "url" field in sources. URLs are handled separately.
+Use real authoritative publishers: MIT Technology Review, Harvard Business Review, TechCrunch, VentureBeat, arXiv, Wired, Forbes, etc.
+
+Write as a senior analyst. Be specific and actionable.
+Return ONLY the JSON object, no markdown."""
+
+            resp = await asyncio.to_thread(
+                client.chat.completions.create,
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a JSON API. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=1000,
+            )
+            deep_dive_raw = resp.choices[0].message.content.strip()
+            deep_dive_json = json.loads(deep_dive_raw)
+
+            # Ensure sources exist (no URLs)
+            if "sources" not in deep_dive_json or not deep_dive_json["sources"]:
+                deep_dive_json["sources"] = [
+                    {"number": 1, "title": f"Understanding {topic}", "publisher": "Industry Analysis", "snippet": "Expert analysis."},
+                    {"number": 2, "title": "Enterprise Impact", "publisher": "Business Review", "snippet": "Business implications."},
+                    {"number": 3, "title": "Implementation Guide", "publisher": "Tech Guide", "snippet": "Practical steps."}
+                ]
+
+            # Save to DB
+            supabase.table("trends").update({
+                "deepdive": json.dumps(deep_dive_json),
+                "deepdive_status": "done",
+                "user_role": role,
+                "generated_data": datetime.utcnow().isoformat(),
+            }).eq("id", trend_id).execute()
+
+            succeeded += 1
+            print(f"[BatchDeepDive] ✓ Saved deep dive for: {topic[:40]}")
+
+        except Exception as e:
+            failed += 1
+            print(f"[BatchDeepDive] ✗ Failed for {topic[:40]}: {e}")
+            try:
+                supabase.table("trends").update({"deepdive_status": "error"}).eq("id", trend_id).execute()
+            except:
+                pass
+
+        # Rate limit delay
+        await asyncio.sleep(2)
+
+    print(f"[BatchDeepDive] Complete: {processed} processed, {succeeded} succeeded, {failed} failed")
+    return {"processed": processed, "succeeded": succeeded, "failed": failed}
+
+
+@app.post("/api/trends/generate-all-deepdives")
+async def generate_all_deepdives_endpoint(role: str = Query("cto"), force: bool = Query(False)):
+    """Trigger batch deep dive generation.
+
+    Args:
+        role: User role for personalized content
+        force: If true, re-generate ALL trends (cleanup mode for bad URLs)
+    """
+    asyncio.create_task(batch_generate_deepdives(role, force))
+    return {
+        "message": f"Batch deep dive generation started in background{' (FORCE MODE)' if force else ''}",
+        "role": role,
+        "force": force,
+        "status": "started"
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROLE-BASED RECOMMENDATIONS
+# Supabase table migration (run once):
+# CREATE TABLE IF NOT EXISTS role_recommendations (
+#   role TEXT PRIMARY KEY,
+#   trends JSONB,
+#   updated_at TIMESTAMPTZ DEFAULT NOW()
+# );
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/recommendations")
+def get_recommendations(role: str = Query("other")):
+    """
+    Returns top 5 role-specific trend recommendations.
+    Cached per-role for 6 hours in role_recommendations table.
+    All users with same role see the same recommendations.
+    """
+    user_role = role if role in ROLE_CATEGORY_WEIGHTS else "other"
+
+    # ── 1. Check cache (< 6h old) ────────────────────────────────────────────
+    try:
+        cutoff_6h = (datetime.utcnow() - timedelta(hours=6)).isoformat()
+        cached = supabase.table("role_recommendations").select("*").eq("role", user_role).gte("updated_at", cutoff_6h).limit(1).execute()
+        if cached.data and cached.data[0].get("trends"):
+            cached_trends = cached.data[0]["trends"]
+            if isinstance(cached_trends, str):
+                cached_trends = json.loads(cached_trends)
+            print(f"[Recommendations] Cache hit for role={user_role}, {len(cached_trends)} trends")
+            return {"trends": cached_trends, "role": user_role, "cached": True}
+    except Exception as e:
+        print(f"[Recommendations] Cache check error: {e}")
+
+    # ── 2. Get all trends from DB or in-memory cache ─────────────────────────
+    all_trends, _ = get_cached_trends()
+    if not all_trends:
+        try:
+            rows = supabase.table("trends").select("*").order("created_at", desc=True).limit(50).execute()
+            if rows.data:
+                all_trends = [dict(row.get("data") or {}) for row in rows.data if row.get("data")]
+        except Exception as e:
+            print(f"[Recommendations] DB fallback error: {e}")
+
+    if not all_trends:
+        return {"trends": [], "role": user_role, "cached": False}
+
+    # ── 3. Apply role weights and score ──────────────────────────────────────
+    weights = ROLE_CATEGORY_WEIGHTS.get(user_role, ROLE_CATEGORY_WEIGHTS["other"])
+    scored_trends = []
+    for trend in all_trends:
+        category = trend.get("category", "llm_models")
+        role_weight = weights.get(category, 5)
+        base_score = trend.get("score", trend.get("trend_score", 5))
+        if isinstance(base_score, str):
+            try:
+                base_score = float(base_score)
+            except:
+                base_score = 5
+        # Combined score: base score × role relevance
+        role_score = round((base_score * 0.6) + (role_weight * 0.4), 1)
+        scored_trends.append({**trend, "role_score": role_score})
+
+    # ── 4. Sort and take top 5 ───────────────────────────────────────────────
+    scored_trends.sort(key=lambda x: x.get("role_score", 0), reverse=True)
+    top5 = scored_trends[:5]
+
+    # ── 5. Save to cache ─────────────────────────────────────────────────────
+    try:
+        supabase.table("role_recommendations").upsert({
+            "role": user_role,
+            "trends": top5,
+            "updated_at": datetime.utcnow().isoformat(),
+        }).execute()
+        print(f"[Recommendations] Cached {len(top5)} trends for role={user_role}")
+    except Exception as e:
+        print(f"[Recommendations] Cache save error: {e}")
+
+    return {"trends": top5, "role": user_role, "cached": False}
 
 
 @app.get("/test-perplexity")
@@ -2366,6 +2637,98 @@ def get_dxc_newsletter_article(article_id: str):
     except Exception as e:
         print(f"[DXC Newsletter] Error fetching article {article_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch article")
+
+
+# -- Run in Supabase SQL Editor:
+# ALTER TABLE dxc_newsletter_articles ADD COLUMN IF NOT EXISTS journal_card TEXT;
+# NOTIFY pgrst, 'reload schema';
+
+@app.post("/api/dxc-newsletters/{article_id}/journal-card")
+async def generate_dxc_journal_card(article_id: str):
+    """Generate or retrieve an AI-generated journal card for a DXC newsletter article."""
+    try:
+        # 1. Fetch the article
+        result = supabase.table("dxc_newsletter_articles").select("*").eq("id", article_id).execute()
+        if not result.data or len(result.data) == 0:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        article = result.data[0]
+
+        # 2. Check if journal_card already exists (cached)
+        existing_card = article.get("journal_card")
+        if existing_card:
+            try:
+                return json.loads(existing_card)
+            except json.JSONDecodeError:
+                pass  # Re-generate if invalid JSON
+
+        # 3. Generate with GPT-4o-mini
+        import openai
+
+        title = article.get("title", "Untitled")
+        category = article.get("category", "General")
+        month = article.get("month", "")
+        content = article.get("content", "")[:2000]  # Truncate to 2000 chars
+
+        prompt = f"""You are a DXC Technology internal communications analyst.
+Analyze this newsletter article and return ONLY valid JSON with this exact structure:
+{{
+  "headline": "One powerful sentence summarizing the key message (max 15 words)",
+  "context": "2-3 sentences of business context explaining why this matters",
+  "key_points": [
+    {{ "label": "Short label", "text": "1-2 sentence explanation" }},
+    {{ "label": "Short label", "text": "1-2 sentence explanation" }},
+    {{ "label": "Short label", "text": "1-2 sentence explanation" }}
+  ],
+  "stats": [],
+  "takeaway": "One actionable conclusion sentence"
+}}
+
+Rules:
+- stats: only include if real numbers/metrics exist in the content, format: {{"value": "37M MAD", "label": "Revenue"}}
+- key_points: 2 to 4 points maximum
+- All text in the SAME language as the article (French or English)
+- Professional DXC executive style — concise and factual
+
+Article title: {title}
+Category: {category}
+Month: {month}
+Content: {content}"""
+
+        keys = _openai_keys()
+        if not keys:
+            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+
+        client = openai.OpenAI(api_key=keys[0])
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=800,
+            response_format={"type": "json_object"},
+        )
+
+        raw_response = response.choices[0].message.content.strip()
+        journal_card = json.loads(raw_response)
+
+        # 4. Save to Supabase (non-fatal if column doesn't exist)
+        try:
+            supabase.table("dxc_newsletter_articles").update({
+                "journal_card": json.dumps(journal_card)
+            }).eq("id", article_id).execute()
+        except Exception:
+            pass  # Still return the generated card even if save fails
+
+        return journal_card
+
+    except HTTPException:
+        raise
+    except json.JSONDecodeError as e:
+        print(f"[DXC Journal Card] JSON parse error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse AI response")
+    except Exception as e:
+        print(f"[DXC Journal Card] Error generating card for {article_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate journal card: {str(e)}")
 
 
 if __name__ == "__main__":

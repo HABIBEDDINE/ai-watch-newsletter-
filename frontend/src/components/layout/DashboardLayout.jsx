@@ -28,6 +28,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {/* Fixed navbar */}
       <Navbar
         variant="dashboard"
         onToggleCollapse={handleToggleCollapse}
@@ -47,14 +48,14 @@ export default function DashboardLayout({ children }) {
               style={{
                 position: 'fixed',
                 inset: 0,
-                top: 60,
+                top: 0,
                 background: 'rgba(0,0,0,0.5)',
                 zIndex: 40,
               }}
             />
             <div style={{
               position: 'fixed',
-              top: 60,
+              top: 0,
               left: 0,
               bottom: 0,
               width: 220,
@@ -70,6 +71,9 @@ export default function DashboardLayout({ children }) {
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
+          marginLeft: isMobile ? 0 : (isCollapsed ? 60 : 220),
+          paddingTop: 60,
+          transition: 'margin-left 250ms ease',
         }}>
           <style>{`
             @keyframes slideIn {

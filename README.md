@@ -15,6 +15,8 @@ Strategic AI technology intelligence platform for DXC Technology. Monitor trends
 | **V4.2** | **Verified Sources Upgrade** — 26 tiered primary sources (OFFICIAL, RESEARCH, MEDIA, YOUTUBE) + trust-weighted scoring + role recommendations with AI insights | Higher signal quality, role-specific relevance |
 | **V4 UX** | Profile page redesign (hero banner, role card grid) · Newsletter 3-step composer wizard · Live email preview panel · PDF export · File-backed recipients · Synchronous SMTP with real error surfacing | End-to-end email delivery, polished UI |
 | **V4.3** | **DXC ONETEAM Newsletter Archive** — 94 newsletter articles (Dec 2024 – Mar 2026) with full-page images, month/category filters, searchable content, and detail view with original formatting | Internal news archive, visual newsletter browsing |
+| **V4.4** | **Unified Theme System** — Light/dark mode toggle, single DXC orange accent color, theme-aware sidebar & navbar, fixed header, CSS variable architecture | Brand-consistent UI, improved navigation, user preference persistence |
+| **V4.5** | **DXC Newsletter Detail Redesign** — 3-panel layout with AI-generated journal cards (GPT-4o-mini), full-screen article modal, zoomable page images with lightbox | Executive intelligence briefs, immersive reading experience |
 
 ---
 
@@ -26,7 +28,7 @@ Strategic AI technology intelligence platform for DXC Technology. Monitor trends
 | Backend | FastAPI (Python), Uvicorn |
 | Database | Supabase (PostgreSQL) |
 | Auth | JWT (HS256, 15 min) + HTTP-only rotating refresh cookies (7 days) + Google OAuth 2.0 |
-| AI | OpenAI GPT-4o-mini (summaries, solution matching, deep-dives, trend clustering) |
+| AI | OpenAI GPT-4o-mini (summaries, solution matching, deep-dives, trend clustering, newsletter journal cards) |
 | News | NewsAPI, NewsData.io |
 | Trends Sources | 26 verified RSS feeds (OpenAI, Anthropic, DeepMind, Meta AI, etc.) + HackerNews Algolia API + Reddit JSON + arXiv XML + GitHub Trending |
 | Email | SMTP (Gmail App Password) — verification, newsletter composer, alert digests |
@@ -50,28 +52,52 @@ ai-watch-V4/
 │   └── free_sources.py   # Multi-source fetchers (verified RSS, HN, Reddit, arXiv, GitHub)
 ├── frontend/
 │   └── src/
-│       ├── App.js
+│       ├── App.js                     # Router + theme provider wrapper
+│       ├── index.css                  # CSS variables for light/dark themes
 │       ├── context/
-│       │   └── AuthContext.jsx        # JWT + localStorage session + silent refresh
+│       │   ├── AuthContext.jsx        # JWT + localStorage session + silent refresh
+│       │   ├── ThemeContext.jsx       # Light/dark mode state + localStorage persistence
+│       │   └── ArticleContext.jsx     # Shared article state
 │       ├── hooks/
 │       │   └── useSaved.js            # Bookmark state — optimistic UI + rollback
+│       ├── components/
+│       │   ├── layout/
+│       │   │   ├── DashboardLayout.jsx # Main app shell with sidebar + navbar
+│       │   │   ├── Navbar.jsx          # Top bar with theme toggle (Sun/Moon)
+│       │   │   ├── Sidebar.jsx         # Navigation + user profile section
+│       │   │   └── Footer.jsx          # Public page footer
+│       │   ├── ui/
+│       │   │   ├── ArticleCard.jsx     # Reusable article card component
+│       │   │   ├── TrendCard.jsx       # Reusable trend card component
+│       │   │   ├── TrendSkeleton.jsx   # Loading skeleton for trends
+│       │   │   └── ...                 # Other UI primitives
+│       │   ├── CategoryCombobox.jsx   # Dropdown category selector
+│       │   ├── TrendsOnboarding.jsx   # First-time trends setup wizard
+│       │   └── ProtectedRoute.jsx     # Auth guard wrapper
 │       ├── pages/
-│       │   ├── LoginPage.jsx
-│       │   ├── RegisterPage.jsx
-│       │   ├── ForgotPasswordPage.jsx
-│       │   ├── ResetPasswordPage.jsx
-│       │   ├── VerifyEmailPage.jsx
+│       │   ├── HomePage.jsx           # Public landing page
+│       │   ├── LoginPage.jsx          # Email/password + Google OAuth
+│       │   ├── RegisterPage.jsx       # Account creation
+│       │   ├── ForgotPasswordPage.jsx # Password reset request
+│       │   ├── ResetPasswordPage.jsx  # Password reset confirmation
+│       │   ├── VerifyEmailPage.jsx    # Email verification handler
 │       │   ├── ProfilePage.jsx        # Hero banner, role card grid, personal info
-│       │   ├── Explore.jsx            # Article browse — role preset + bookmark button
+│       │   ├── FeedPage.jsx           # Main news feed with filters
+│       │   ├── Explore.jsx            # Article browse — role preset + bookmark
 │       │   ├── ArticleDetail.jsx      # Full article + AI summary + solution match
 │       │   ├── Trends.jsx             # Trend cards + deep-dive + bookmark
+│       │   ├── TrendsPage.jsx         # Trends with category filters
+│       │   ├── DataPreview.jsx        # Charts + data table view
 │       │   ├── SavedPage.jsx          # Bookmarked articles & trends
 │       │   ├── Reports.jsx            # Saved intelligence reports + PDF export
-│       │   ├── Newsletter.jsx         # 3-step composer wizard + live preview + PDF export
-│       │   ├── DxcNewsletterPage.jsx  # ONETEAM newsletter archive browse page
-│       │   └── DxcNewsletterDetail.jsx # Newsletter article detail with full-page image
+│       │   ├── Newsletter.jsx         # 3-step composer wizard + live preview
+│       │   ├── DxcNewsletterPage.jsx  # ONETEAM newsletter archive browse
+│       │   └── DxcNewsletterDetail.jsx # Newsletter article detail view
 │       ├── services/api.js            # API client — token-aware, retry, 5-min cache
-│       └── setupProxy.js             # CRA dev proxy → localhost:8000
+│       ├── utils/
+│       │   ├── cleanText.js           # Text sanitization utilities
+│       │   └── generatePDF.js         # jsPDF report generation
+│       └── setupProxy.js              # CRA dev proxy → localhost:8000
 ├── data/
 │   ├── recipients.json   # Newsletter recipient list (file-backed, persists across restarts)
 │   └── reports/          # Generated newsletter HTML files
@@ -150,18 +176,30 @@ ai-watch-V4/
 - **Per-user saved reports** (max 30), PDF export via jsPDF
 - **AI-powered** — report content built from article summaries and solution matching
 
-### DXC ONETEAM Newsletter Archive (V4.3)
+### DXC ONETEAM Newsletter Archive (V4.3 + V4.5)
 - **94 newsletter articles** from December 2024 to March 2026 — deduplicated and cleaned
 - **Full-page images** — original newsletter pages with photos and formatted text stored in Supabase Storage
 - **Browse page** — 3-column card grid with month/category filters and search
 - **Year-based badges** — purple (2026), blue (2025), grey (2024)
 - **Category badges** — 10 categories: Business & Clients, Quality, Innovation & Tech, CSR & Community, DEI & Inclusion, Awards & Recognition, Wellbeing & Health, Events & Upcoming, Referral & Jobs, Newsletter Content
-- **Detail view** — two-column layout with full newsletter page image + article content
+- **Detail view (V4.5)** — 3-panel layout:
+  - **Panel 1 (left)** — AI-generated journal card with headline, context, key points, stats, and takeaway (GPT-4o-mini, cached in DB)
+  - **Panel 2 (center)** — Full article text with "Read Full Article" button opening a full-screen modal
+  - **Panel 3 (right)** — Zoomable newsletter page image with click-to-expand lightbox (scroll to zoom, keyboard navigation)
 - **Data source** — extracted from the 212-page ONETEAM PDF, email threads automatically removed
 
 ### Caching
 - **Server cache** — article summaries cached in-memory for 30 days (`_SUMMARY_CACHE`)
 - **Client cache** — all GET API responses cached in browser for 5 minutes (`REQUEST_CACHE`)
+
+### Theme System (V4.4)
+- **Dark mode** — default, dark navy (#0E1020) background with orange (#FFB476) accents
+- **Light mode** — white background, DXC red-orange (#E84E0F) accents matching dxc.com
+- **Persistent** — preference saved to `localStorage` key `aiwatch_theme`
+- **Sidebar** — theme-aware, adapts to light/dark mode via `var(--sidebar-bg)`
+- **Fixed header** — navbar stays fixed at top when scrolling, uses `var(--bg-primary)` for theme support
+- **Single accent color** — all interactive elements use one unified DXC orange variable
+- **Toggle** — Sun/Moon button in top bar (and landing page), switches instantly via CSS variables on `<html data-theme>`
 
 ---
 
@@ -227,7 +265,7 @@ Run `config/auth_migration.sql` in the Supabase SQL editor. This creates all req
 | `alert_preferences` | Per-user keyword alerts config |
 | `reports` | Saved intelligence reports |
 | `newsletter_subscribers` | Legacy email opt-in list (Supabase) |
-| `dxc_newsletter_articles` | ONETEAM newsletter archive (94 articles, images in Supabase Storage) |
+| `dxc_newsletter_articles` | ONETEAM newsletter archive (94 articles, images in Supabase Storage, `journal_card` JSON cache) |
 
 > Recipients managed via the Newsletter wizard are stored locally in `data/recipients.json`.
 
@@ -367,6 +405,7 @@ Email verification
 | `GET` | `/api/dxc-newsletters` | — | Paginated newsletter articles with filters (month, category, search) |
 | `GET` | `/api/dxc-newsletters/filters` | — | Available months and categories for filter dropdowns |
 | `GET` | `/api/dxc-newsletters/{id}` | — | Single newsletter article with full content and image URL |
+| `POST` | `/api/dxc-newsletters/{id}/journal-card` | — | Generate AI journal card (headline, context, key_points, stats, takeaway) — cached in DB |
 
 ### System
 | Method | Path | Auth | Description |

@@ -68,10 +68,10 @@ export default function CategoryCombobox({
           gap: 8,
           padding: isMobile ? "12px 14px" : "10px 14px",
           minHeight: isMobile ? 44 : 40,
-          border: open ? "1.5px solid var(--blue)" : "1.5px solid var(--border-color)",
+          border: open ? "1.5px solid var(--accent)" : "1.5px solid var(--border-color)",
           borderRadius: 8,
-          background: !isDefault ? "var(--blue-light)" : "var(--card-bg)",
-          color: !isDefault ? "var(--blue)" : "var(--text-primary)",
+          background: !isDefault ? "var(--accent-dim)" : "var(--card-bg)",
+          color: !isDefault ? "var(--accent)" : "var(--text-primary)",
           fontSize: 13,
           fontWeight: !isDefault ? 700 : 500,
           cursor: "pointer",
@@ -79,7 +79,7 @@ export default function CategoryCombobox({
           width: fullWidth ? "100%" : "auto",
           justifyContent: "space-between",
           transition: "border-color 0.15s, box-shadow 0.15s",
-          boxShadow: open ? "0 0 0 3px rgba(24,94,165,0.15)" : "none",
+          boxShadow: open ? "0 0 0 3px rgba(255, 180, 118, 0.15)" : "none",
           outline: "none",
           boxSizing: "border-box",
         }}
@@ -105,14 +105,14 @@ export default function CategoryCombobox({
           ...(dropdownAlign === "right" ? { right: 0 } : { left: 0 }),
           minWidth: "100%",
           maxWidth: isMobile ? "calc(100vw - 32px)" : 300,
-          maxHeight: 280,
+          maxHeight: 320,
           overflowY: "auto",
           background: "var(--card-bg)",
           border: "1.5px solid var(--border-color)",
           borderRadius: 8,
           boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
           zIndex: 200,
-          overflow: "hidden",
+          paddingBottom: 8,
         }}>
           {normalizedCategories.map(cat => {
             const active = cat.id === selected;
@@ -127,8 +127,8 @@ export default function CategoryCombobox({
                   minHeight: isMobile ? 44 : 36,
                   fontSize: 13,
                   fontWeight: active ? 700 : 400,
-                  color: active ? "var(--blue)" : "var(--text-primary)",
-                  background: active ? "var(--blue-light)" : "transparent",
+                  color: active ? "var(--accent)" : "var(--text-primary)",
+                  background: active ? "var(--accent-dim)" : "transparent",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -138,7 +138,7 @@ export default function CategoryCombobox({
               >
                 {active && (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6l3 3 5-5" stroke="var(--blue)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 6l3 3 5-5" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
                 {!active && <span style={{ width: 12, display: "inline-block" }} />}

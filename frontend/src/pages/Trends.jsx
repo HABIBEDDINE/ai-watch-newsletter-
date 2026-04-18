@@ -1,13 +1,20 @@
 import { useState, useEffect, useCallback, useContext } from "react";
-import { getTrends, getDeepDive, getPersonalizedTrends } from "../services/api";
+import { getTrends, getDeepDive, getPersonalizedTrends, getRecommendations } from "../services/api";
 import { useSaved } from "../hooks/useSaved";
 import { AuthContext } from "../context/AuthContext";
 import TrendsOnboarding from "../components/TrendsOnboarding";
 import CategoryCombobox from "../components/CategoryCombobox";
-import { Bookmark } from "lucide-react";
+import { Bookmark, LayoutGrid, List } from "lucide-react";
 
-const ACCENT = "var(--blue)";
-const ACCENT_BG = "var(--blue-light)";
+const ACCENT = "var(--accent)";
+const ACCENT_BG = "var(--accent-dim)";
+
+const ROLE_LABELS = {
+  cto: "CTO / Technical Lead",
+  innovation_manager: "Innovation Manager",
+  strategy_director: "Strategy Director",
+  other: "General",
+};
 
 const CATEGORY_LABELS = {
   llm_models:       "LLM Models",
@@ -20,7 +27,7 @@ const CATEGORY_LABELS = {
 
 const CATEGORY_COLORS = {
   llm_models:        [ACCENT,   ACCENT_BG],
-  dev_tools:         ["#0369a1","var(--blue-light)"],
+  dev_tools:         ["var(--accent-hover)","var(--accent-dim)"],
   ai_agents:         ["#7c3aed","var(--purple-light)"],
   open_source:       ["#047857","var(--delta-bg)"],
   ai_infrastructure: ["#b45309","var(--amber-light)"],
@@ -30,7 +37,7 @@ const CATEGORY_COLORS = {
 function getMomentumStyle(score) {
   if (score >= 9) return { label: "EXPLOSIVE", bg: "var(--delta-bg)",  color: "var(--delta-color)" };
   if (score >= 7) return { label: "RISING",    bg: "var(--amber-light)",  color: "var(--amber)" };
-  return             { label: "GROWING",    bg: "var(--blue-light)",   color: "var(--blue)"  };
+  return             { label: "GROWING",    bg: "var(--accent-dim)",   color: "var(--accent)"  };
 }
 
 function formatDate(isoString) {
@@ -71,7 +78,7 @@ function RankCircle({ rank }) {
       width: 28,
       height: 28,
       borderRadius: "50%",
-      background: isTop3 ? "var(--blue)" : "var(--surface)",
+      background: isTop3 ? "var(--accent)" : "var(--surface)",
       color: isTop3 ? "#fff" : "var(--text-muted)",
       display: "flex",
       alignItems: "center",
@@ -122,12 +129,12 @@ function MomentumBadge({ score }) {
 
 // Channel badges for multi-source signals
 const CHANNEL_CONFIG = {
-  NL: { label: "Newsletter", color: "#185EA5", bg: "#EEF2FF", emoji: "📰" },
+  NL: { label: "Newsletter", color: "var(--accent)", bg: "var(--accent-dim)", emoji: "📰" },
   HN: { label: "HackerNews", color: "#E35B1A", bg: "#fff3ee", emoji: "🔶" },
   RD: { label: "Reddit", color: "#FF4500", bg: "#fff0ec", emoji: "👥" },
   AX: { label: "arXiv", color: "#B31B1B", bg: "#fef0f0", emoji: "🔬" },
   GH: { label: "GitHub", color: "#238636", bg: "#e6f4ea", emoji: "⭐" },
-  OFFICIAL: { label: "Official", color: "#185EA5", bg: "#EEF2FF", emoji: "✓" },
+  OFFICIAL: { label: "Official", color: "var(--accent)", bg: "var(--accent-dim)", emoji: "✓" },
   RESEARCH: { label: "Research", color: "#B31B1B", bg: "#fef0f0", emoji: "📚" },
   MEDIA: { label: "Media", color: "#7c3aed", bg: "#ede9fe", emoji: "📰" },
   YOUTUBE: { label: "YouTube", color: "#FF0000", bg: "#fee2e2", emoji: "▶️" },
@@ -135,8 +142,8 @@ const CHANNEL_CONFIG = {
 
 // Trend trigger badges
 const TRIGGER_CONFIG = {
-  NEW_RELEASE:  { icon: '🚀', label: 'New Release',  color: '#185EA5', bg: '#EEF2FF' },
-  BENCHMARK:    { icon: '📊', label: 'Benchmark',    color: '#6B5CE7', bg: '#ede9fe' },
+  NEW_RELEASE:  { icon: '🚀', label: 'New Release',  color: 'var(--accent)', bg: 'var(--accent-dim)' },
+  BENCHMARK:    { icon: '📊', label: 'Benchmark',    color: 'var(--accent)', bg: '#ede9fe' },
   FUNDING:      { icon: '💰', label: 'Funding',      color: '#059669', bg: '#d1fae5' },
   REGULATION:   { icon: '⚖️', label: 'Regulation',   color: '#d97706', bg: '#fef3c7' },
   RESEARCH:     { icon: '🔬', label: 'Research',     color: '#B31B1B', bg: '#fef0f0' },
@@ -183,14 +190,14 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
   return (
     <div className="trend-card" style={{
       background: "var(--card-bg)",
-      border: rank === 1 ? "1.5px solid var(--blue)" : "1.5px solid var(--border-color)",
+      border: rank === 1 ? "1.5px solid var(--accent)" : "1.5px solid var(--border-color)",
       borderRadius: 12,
       padding: 16,
       display: "flex",
       flexDirection: "column",
       gap: 10,
       position: "relative",
-      boxShadow: rank === 1 ? "0 4px 20px rgba(24,94,165,0.15)" : "none",
+      boxShadow: rank === 1 ? "0 4px 20px rgba(255, 180, 118,0.15)" : "none",
       transition: "box-shadow 0.2s",
       width: "100%",
       minWidth: 0,
@@ -215,8 +222,8 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
             gap: '3px',
             fontSize: '10px',
             fontWeight: '600',
-            color: '#185EA5',
-            background: '#EEF2FF',
+            color: 'var(--accent)',
+            background: 'var(--accent-dim)',
             padding: '2px 7px',
             borderRadius: '10px',
             border: '1px solid #bfdbfe',
@@ -272,8 +279,8 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
       {/* Role insight (if personalized) */}
       {trend.role_insight && (
         <div style={{
-          fontSize: 11, color: "var(--blue)", fontStyle: "italic",
-          background: "var(--blue-light)", padding: "6px 10px", borderRadius: 6,
+          fontSize: 11, color: "var(--accent)", fontStyle: "italic",
+          background: "var(--accent-dim)", padding: "6px 10px", borderRadius: 6,
         }}>
           {trend.role_insight}
         </div>
@@ -334,8 +341,8 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
                 fontSize: '10px',
                 fontWeight: '600',
                 textDecoration: 'none',
-                background: src.is_verified ? '#EEF2FF' : 'var(--bg-hover)',
-                color: src.is_verified ? '#185EA5' : 'var(--text-muted)',
+                background: src.is_verified ? 'var(--accent-dim)' : 'var(--bg-hover)',
+                color: src.is_verified ? 'var(--accent)' : 'var(--text-muted)',
                 border: `1px solid ${src.is_verified ? '#bfdbfe' : 'var(--border-color)'}`,
               }}
               onClick={e => e.stopPropagation()}
@@ -370,8 +377,8 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
           onClick={() => onDeepDive(trend)}
           disabled={loadingDive === trend.id}
           style={{
-            flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid var(--blue)`,
-            background: "var(--blue)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
+            flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid var(--accent)`,
+            background: "var(--accent)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
             opacity: loadingDive === trend.id ? 0.7 : 1,
             minWidth: 0, minHeight: 44, boxSizing: "border-box",
           }}
@@ -382,15 +389,15 @@ function TopCard({ trend, rank, onDeepDive, onSave, loadingDive, isSaved, userRo
           onClick={() => onSave(trend)}
           style={{
             width: 44, height: 44, borderRadius: 8, flexShrink: 0,
-            border: isSaved ? "1.5px solid var(--blue)" : "1.5px solid var(--border-color)",
-            background: isSaved ? "var(--blue-light)" : "var(--card-bg)",
-            color: isSaved ? "var(--blue)" : "var(--text-muted)",
+            border: isSaved ? "1.5px solid var(--accent)" : "1.5px solid var(--border-color)",
+            background: isSaved ? "var(--accent-dim)" : "var(--card-bg)",
+            color: isSaved ? "var(--accent)" : "var(--text-muted)",
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             boxSizing: "border-box",
           }}
           title={isSaved ? "Remove from saved" : "Save trend"}
         >
-          <Bookmark size={16} strokeWidth={2} fill={isSaved ? "var(--blue)" : "none"} />
+          <Bookmark size={16} strokeWidth={2} fill={isSaved ? "var(--accent)" : "none"} />
         </button>
       </div>
     </div>
@@ -439,8 +446,8 @@ function RankedRow({ trend, rank, onDeepDive, onSave, loadingDive, isSaved }) {
               gap: '2px',
               fontSize: '9px',
               fontWeight: '600',
-              color: '#185EA5',
-              background: '#EEF2FF',
+              color: 'var(--accent)',
+              background: 'var(--accent-dim)',
               padding: '1px 5px',
               borderRadius: '8px',
             }}>
@@ -483,13 +490,13 @@ function RankedRow({ trend, rank, onDeepDive, onSave, loadingDive, isSaved }) {
         onClick={e => { e.stopPropagation(); onSave(trend); }}
         style={{
           width: isNarrow ? 36 : 28, height: isNarrow ? 36 : 28, borderRadius: 6, border: "none",
-          background: "transparent", color: isSaved ? "var(--blue)" : "var(--text-muted)",
+          background: "transparent", color: isSaved ? "var(--accent)" : "var(--text-muted)",
           cursor: "pointer", flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}
         title={isSaved ? "Remove" : "Save"}
       >
-        <Bookmark size={14} strokeWidth={2} fill={isSaved ? "var(--blue)" : "none"} />
+        <Bookmark size={14} strokeWidth={2} fill={isSaved ? "var(--accent)" : "none"} />
       </button>
     </div>
   );
@@ -534,7 +541,7 @@ function SectionHeader({ title }) {
     <div style={{
       fontSize: 11,
       fontWeight: 700,
-      color: "var(--blue)",
+      color: "var(--accent)",
       letterSpacing: 1.5,
       textTransform: "uppercase",
       marginBottom: 10,
@@ -603,8 +610,8 @@ function SourcesSection({ sources }) {
               transition: "all 0.15s",
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = "var(--blue)";
-              e.currentTarget.style.background = "var(--blue-light)";
+              e.currentTarget.style.borderColor = "var(--accent)";
+              e.currentTarget.style.background = "var(--accent-dim)";
             }}
             onMouseLeave={e => {
               e.currentTarget.style.borderColor = "var(--border)";
@@ -613,7 +620,7 @@ function SourcesSection({ sources }) {
           >
             <div style={{
               width: 16, height: 16, borderRadius: "50%",
-              background: "var(--blue)",
+              background: "var(--accent)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0,
             }}>
@@ -643,12 +650,12 @@ function SourcesSection({ sources }) {
               background: "var(--card-bg)", border: "1px solid var(--border)",
               borderRadius: 8, textDecoration: "none", transition: "border-color 0.15s",
             }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "var(--blue)"}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "var(--accent)"}
             onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
           >
             <div style={{
               width: 22, height: 22, borderRadius: 6,
-              background: "var(--blue)",
+              background: "var(--accent)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0, marginTop: 1,
             }}>
@@ -669,7 +676,7 @@ function SourcesSection({ sources }) {
                   {source.snippet}
                 </div>
               )}
-              <div style={{ fontSize: 11, color: "var(--blue)", fontWeight: 500 }}>
+              <div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 500 }}>
                 {source.publisher}
               </div>
             </div>
@@ -755,54 +762,23 @@ function DeepDiveContent({ deepDive }) {
         </div>
 
         {sources && sources.length > 0 ? (
-          <>
-            {/* Chips row */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              {sources.map((src, i) => (
-                <a
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 16 }}>
+            {sources.map((src, i) => {
+              const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${src.title || ''} ${src.publisher || ''}`)}`;
+              return (
+                <div
                   key={i}
-                  href={src.url || '#'}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "4px 12px 4px 5px",
-                    background: "var(--hover-bg)", border: "1px solid var(--border)",
-                    borderRadius: 20, textDecoration: "none",
-                    fontSize: 12, fontWeight: 500, color: "var(--text-secondary)",
-                  }}
-                >
-                  <span style={{
-                    width: 18, height: 18, borderRadius: "50%",
-                    background: "#185EA5", color: "#fff",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 10, fontWeight: 700, flexShrink: 0,
-                  }}>
-                    {src.number || i + 1}
-                  </span>
-                  {src.publisher || 'Source'}
-                </a>
-              ))}
-            </div>
-
-            {/* Full cards */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 16 }}>
-              {sources.map((src, i) => (
-                <a
-                  key={i}
-                  href={src.url || '#'}
-                  target="_blank"
-                  rel="noreferrer"
                   style={{
                     display: "flex", alignItems: "flex-start", gap: 12,
                     padding: "12px 16px",
                     background: "var(--card-bg)", border: "1px solid var(--border)",
-                    borderRadius: 8, textDecoration: "none",
+                    borderRadius: 8,
                   }}
                 >
                   <div style={{
                     width: 26, height: 26, borderRadius: 6,
-                    background: "#185EA5", color: "#fff",
+                    background: "var(--surface)",
+                    color: "var(--text-muted)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 12, fontWeight: 700, flexShrink: 0,
                   }}>
@@ -811,27 +787,40 @@ function DeepDiveContent({ deepDive }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: 13, fontWeight: 600, color: "var(--text-primary)",
-                      marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      marginBottom: 4,
                     }}>
-                      {src.title || 'View source'}
+                      {src.title || 'Source'}
                     </div>
                     {src.snippet && (
                       <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 4 }}>
                         {src.snippet}
                       </div>
                     )}
-                    <div style={{ fontSize: 11, color: "#185EA5", fontWeight: 500 }}>
-                      {src.publisher || 'Publisher'}
-                    </div>
+                    <a
+                      href={searchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Search for this article on Google"
+                      style={{
+                        fontSize: 11,
+                        color: "var(--accent)",
+                        fontWeight: 500,
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      {src.publisher || 'Publisher'} ↗
+                    </a>
                   </div>
-                  <span style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 2 }}>→</span>
-                </a>
-              ))}
-            </div>
-          </>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>
-            No sources available. Check console for debug info.
+            No sources available.
           </p>
         )}
       </div>
@@ -904,7 +893,7 @@ function DeepDiveModal({ trend, onClose, onSave, loading, isSaved }) {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 0" }}>
               <div style={{
                 width: 36, height: 36, borderRadius: "50%",
-                border: "3px solid var(--blue)", borderTopColor: "transparent",
+                border: "3px solid var(--accent)", borderTopColor: "transparent",
                 animation: "spin 0.8s linear infinite",
               }} />
               <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
@@ -932,15 +921,15 @@ function DeepDiveModal({ trend, onClose, onSave, loading, isSaved }) {
             onClick={() => onSave(trend)}
             style={{
               padding: isNarrow ? "10px 16px" : "9px 20px", borderRadius: 8,
-              border: "1.5px solid var(--blue)",
-              background: "var(--blue-light)",
-              color: "var(--blue)",
+              border: "1.5px solid var(--accent)",
+              background: "var(--accent-dim)",
+              color: "var(--accent)",
               fontSize: 13, fontWeight: 700, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               width: isNarrow ? "100%" : "auto",
             }}
           >
-            <Bookmark size={14} strokeWidth={2} fill={isSaved ? "var(--blue)" : "none"} />
+            <Bookmark size={14} strokeWidth={2} fill={isSaved ? "var(--accent)" : "none"} />
             {isSaved ? "Saved" : "Save"}
           </button>
           <div style={{ display: "flex", gap: 10, width: isNarrow ? "100%" : "auto" }}>
@@ -1001,6 +990,11 @@ export default function Trends() {
   const [loadingDive,       setLoadingDive]       = useState(null);
   const [showOnboarding,    setShowOnboarding]    = useState(false);
   const [isMobile,          setIsMobile]          = useState(window.innerWidth < 768);
+  const [recommendations,   setRecommendations]   = useState([]);
+  const [loadingRecs,       setLoadingRecs]       = useState(false);
+  const [trendsViewMode, setTrendsViewMode] = useState(() => {
+    return localStorage.getItem("aiwatch_trends_view") || "list";
+  });
 
   // Track window resize
   useEffect(() => {
@@ -1055,36 +1049,66 @@ export default function Trends() {
     }
   }, [loadPersonalizedTrends, user?.role, user?.onboarding_completed]);
 
+  // Fetch role-based recommendations
+  useEffect(() => {
+    if (!user?.role) return;
+    const fetchRecs = async () => {
+      setLoadingRecs(true);
+      try {
+        const data = await getRecommendations(user.role);
+        setRecommendations(data.trends || []);
+      } catch (err) {
+        console.warn("Failed to load recommendations:", err);
+      } finally {
+        setLoadingRecs(false);
+      }
+    };
+    fetchRecs();
+  }, [user?.role]);
+
   const handleDeepDive = async (trend, isRetry = false) => {
-    // Check if we have valid cached data with sources (new JSON format)
-    if (!isRetry && trend.deep_dive) {
-      let cached = trend.deep_dive;
-      if (typeof cached === 'string') {
-        try {
-          cached = JSON.parse(cached);
-        } catch (e) {
-          // Old markdown format - force refresh
-          console.log('[DeepDive] Cached data is old markdown, fetching fresh...');
-          cached = null;
+    // Check if we have valid cached data (from deep_dive or deepdive column)
+    if (!isRetry) {
+      // Try trend.deep_dive first, then trend.deepdive (raw DB column name)
+      let cached = trend.deep_dive || trend.deepdive;
+
+      if (cached) {
+        // Parse if string
+        if (typeof cached === 'string') {
+          try {
+            cached = JSON.parse(cached);
+          } catch (e) {
+            cached = null;
+          }
+        }
+        // Use cache if it has valid structure with sources
+        if (cached && typeof cached === 'object' && cached.sources && cached.sources.length > 0) {
+          setDiveModal({ ...trend, deep_dive: cached });
+          return;
         }
       }
-      // Only use cache if it has sources array
-      if (cached && cached.sources && cached.sources.length > 0) {
-        console.log('[DeepDive] Using cached JSON with sources:', cached.sources.length);
-        setDiveModal({ ...trend, deep_dive: cached });
-        return;
+
+      // Also check deepdive_status - if 'done', the API will return cached data instantly
+      if (trend.deepdive_status === 'done' && trend.deepdive) {
+        try {
+          const parsed = typeof trend.deepdive === 'string' ? JSON.parse(trend.deepdive) : trend.deepdive;
+          if (parsed && parsed.sources) {
+            setDiveModal({ ...trend, deep_dive: parsed });
+            return;
+          }
+        } catch (e) {
+          // Fall through to API call
+        }
       }
-      console.log('[DeepDive] Cached data has no sources, fetching fresh...');
     }
+
     setDiveModal({ ...trend, deep_dive: null });
     setLoadingDive(trend.id);
     try {
       const data = await getDeepDive(trend.id, user?.role);
-      console.log('[DeepDive] API response:', JSON.stringify(data, null, 2));
 
       // Handle "generating" status - poll until complete
       if (data.status === "generating") {
-        console.log('[DeepDive] Generation in progress, polling in', data.retry_in || 15, 'seconds...');
         setDiveModal({ ...trend, deep_dive: null, _generating: true });
         setTimeout(() => {
           handleDeepDive(trend, true);  // Retry with isRetry flag
@@ -1092,14 +1116,12 @@ export default function Trends() {
         return;
       }
 
-      console.log('[DeepDive] deep_dive field:', data.deep_dive);
-      console.log('[DeepDive] sources:', data.deep_dive?.sources);
-      const updated = { ...trend, deep_dive: data.deep_dive };
+      const updated = { ...trend, deep_dive: data.deep_dive, deepdive_status: 'done' };
       setAllTrends(prev => prev.map(t => t.id === trend.id ? updated : t));
       setPersonalizedTrends(prev => prev.map(t => t.id === trend.id ? updated : t));
+      setRecommendations(prev => prev.map(t => t.id === trend.id ? updated : t));
       setDiveModal(updated);
     } catch (err) {
-      console.error('[DeepDive] Error:', err);
       setDiveModal(prev => prev ? { ...prev, deep_dive: `Analysis unavailable: ${err.message}` } : null);
     } finally {
       setLoadingDive(null);
@@ -1177,9 +1199,9 @@ export default function Trends() {
             onClick={() => setShowOnboarding(true)}
             style={{
               padding: isMobile ? "12px 16px" : "9px 20px", borderRadius: 8,
-              border: "1.5px solid var(--blue)",
-              background: "var(--blue-light)",
-              color: "var(--blue)",
+              border: "1.5px solid var(--accent)",
+              background: "var(--accent-dim)",
+              color: "var(--accent)",
               fontSize: 13, fontWeight: 700, cursor: "pointer",
               width: isMobile ? "100%" : "auto",
               textAlign: "center",
@@ -1191,6 +1213,145 @@ export default function Trends() {
           </button>
         )}
       </div>
+
+      {/* Recommended for your role */}
+      {user && recommendations.length > 0 && (
+        <div style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 16,
+          padding: "20px 24px",
+          marginBottom: 24,
+        }}>
+          {/* Section header */}
+          <div style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            marginBottom: 16,
+          }}>
+            Recommended for {ROLE_LABELS[user?.role] || "You"}
+          </div>
+
+          {/* Horizontal scroll container */}
+          <div
+            className="recommendations-scroll"
+            style={{
+              display: "flex",
+              gap: 14,
+              overflowX: "auto",
+              paddingBottom: 4,
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
+          >
+            <style>{`
+              .recommendations-scroll::-webkit-scrollbar { display: none; }
+            `}</style>
+            {loadingRecs ? (
+              // Skeleton cards
+              [1, 2, 3, 4, 5].map(i => (
+                <div key={i} style={{
+                  width: 240,
+                  minWidth: 240,
+                  height: 160,
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  animation: "pulse 1.5s ease-in-out infinite",
+                }} />
+              ))
+            ) : (
+              recommendations.slice(0, 5).map((rec, i) => {
+                const momentum = getMomentumStyle(rec.score);
+                return (
+                  <div
+                    key={rec.id || i}
+                    onClick={() => handleDeepDive(rec)}
+                    style={{
+                      width: 240,
+                      minWidth: 240,
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      padding: 16,
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                      transition: "box-shadow 0.2s",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  >
+                    {/* Top row: Category pill + Score badge */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <CategoryPill category={rec.category} />
+                      <span style={{
+                        fontSize: 14,
+                        fontWeight: 800,
+                        color: "var(--accent)",
+                      }}>
+                        {rec.role_score || rec.score}
+                      </span>
+                    </div>
+
+                    {/* Title with role badge */}
+                    <div style={{ flex: 1, minHeight: 0 }}>
+                      <div style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "var(--text-primary)",
+                        lineHeight: 1.35,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}>
+                        {rec.topic}
+                      </div>
+                    </div>
+
+                    {/* Bottom row: Momentum + Deep Dive button */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontWeight: 800,
+                        padding: "3px 8px",
+                        borderRadius: 999,
+                        background: momentum.bg,
+                        color: momentum.color,
+                        letterSpacing: 0.8,
+                      }}>
+                        {momentum.label}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeepDive(rec); }}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "var(--accent)",
+                          background: "transparent",
+                          border: "1px solid var(--accent)",
+                          borderRadius: 6,
+                          padding: "4px 10px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Deep Dive →
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Category filter dropdown */}
       <div style={{ marginBottom: 24 }}>
@@ -1252,7 +1413,7 @@ export default function Trends() {
             </div>
             <span style={{
               fontSize: 9, padding: "2px 6px", borderRadius: 4,
-              background: "var(--blue-light)", color: "var(--blue)", fontWeight: 600
+              background: "var(--accent-dim)", color: "var(--accent)", fontWeight: 600
             }}>
               {user?.role?.replace('_', ' ').toUpperCase()}
             </span>
@@ -1317,25 +1478,181 @@ export default function Trends() {
         </>
       )}
 
-      {/* Ranked list */}
+      {/* Ranked list / Grid */}
       {!loading && ranked.length > 0 && (
         <>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8 }}>
-            All Trends
+          {/* Header with view toggle */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.5, textTransform: "uppercase" }}>
+              All Trends
+            </div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[
+                { mode: "list", Icon: List },
+                { mode: "grid", Icon: LayoutGrid },
+              ].map(({ mode, Icon }) => (
+                <button
+                  key={mode}
+                  onClick={() => {
+                    setTrendsViewMode(mode);
+                    localStorage.setItem("aiwatch_trends_view", mode);
+                  }}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 6,
+                    border: trendsViewMode === mode ? "1.5px solid var(--accent)" : "1px solid var(--border-color)",
+                    background: trendsViewMode === mode ? "var(--accent-dim)" : "var(--card-bg)",
+                    color: trendsViewMode === mode ? "var(--accent)" : "var(--text-muted)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Icon size={16} />
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ background: "var(--card-bg)", border: "1.5px solid var(--border-color)", borderRadius: 12, overflow: "hidden", marginBottom: 32 }}>
-            {ranked.map((t, i) => (
-              <RankedRow
-                key={t.id}
-                trend={t}
-                rank={i + 4}
-                onDeepDive={handleDeepDive}
-                onSave={handleSave}
-                loadingDive={loadingDive}
-                isSaved={saved.has(String(t.id))}
-              />
-            ))}
-          </div>
+
+          {/* List view */}
+          {trendsViewMode === "list" && (
+            <div style={{ background: "var(--card-bg)", border: "1.5px solid var(--border-color)", borderRadius: 12, overflow: "hidden", marginBottom: 32 }}>
+              {ranked.map((t, i) => (
+                <RankedRow
+                  key={t.id}
+                  trend={t}
+                  rank={i + 4}
+                  onDeepDive={handleDeepDive}
+                  onSave={handleSave}
+                  loadingDive={loadingDive}
+                  isSaved={saved.has(String(t.id))}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Grid view */}
+          {trendsViewMode === "grid" && (
+            <div
+              className="trends-grid-view"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 16,
+                marginBottom: 32,
+              }}
+            >
+              <style>{`
+                @media (max-width: 1024px) {
+                  .trends-grid-view { grid-template-columns: repeat(2, 1fr) !important; }
+                }
+                @media (max-width: 640px) {
+                  .trends-grid-view { grid-template-columns: 1fr !important; }
+                }
+              `}</style>
+              {ranked.map((t, i) => {
+                const momentum = getMomentumStyle(t.score);
+                const isTrendSaved = saved.has(String(t.id));
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => handleDeepDive(t)}
+                    style={{
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      padding: 16,
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                      transition: "box-shadow 0.2s",
+                      position: "relative",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}
+                  >
+                    {/* Rank + Score row */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <RankCircle rank={i + 4} />
+                        <CategoryPill category={t.category} />
+                      </div>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: "var(--accent)" }}>
+                        {t.score}
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <div style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                      lineHeight: 1.35,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      flex: 1,
+                    }}>
+                      {t.topic}
+                    </div>
+
+                    {/* Bottom row: Momentum + Deep Dive + Bookmark */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontWeight: 800,
+                        padding: "3px 8px",
+                        borderRadius: 999,
+                        background: momentum.bg,
+                        color: momentum.color,
+                        letterSpacing: 0.8,
+                      }}>
+                        {momentum.label}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeepDive(t); }}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "var(--accent)",
+                            background: "transparent",
+                            border: "1px solid var(--accent)",
+                            borderRadius: 6,
+                            padding: "4px 10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Deep Dive
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleSave(t); }}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            border: "none",
+                            background: "transparent",
+                            color: isTrendSaved ? "var(--accent)" : "var(--text-muted)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Bookmark size={14} fill={isTrendSaved ? "var(--accent)" : "none"} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
 
@@ -1457,13 +1774,13 @@ export default function Trends() {
                 {trend.role_insight && (
                   <div style={{
                     fontSize: '12px',
-                    color: '#185EA5',
-                    background: '#EEF2FF',
+                    color: 'var(--accent)',
+                    background: 'var(--accent-dim)',
                     padding: '8px 12px',
                     borderRadius: '6px',
                     marginTop: '10px',
                     fontStyle: 'italic',
-                    borderLeft: '3px solid #185EA5',
+                    borderLeft: '3px solid var(--accent)',
                   }}>
                     💡 {trend.role_insight}
                   </div>

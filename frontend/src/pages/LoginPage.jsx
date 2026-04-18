@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+// DXC Brand Colors (Dark Theme)
 const C = {
-  navy: "#1A1A2E", orange: "#FF6200", purple: "#1A4A9E",
-  purpleDeep: "#102d6a", white: "#ffffff",
-  gray100: "#f4f4f4", gray200: "#e8e8e8", gray400: "#999",
-  gray600: "#444", gray900: "#111",
-  red: "#c0392b", redLight: "#fdf0ef",
+  dark: "#0E1020", darker: "#080A14", surface: "#141728",
+  border: "#1E2340", orange: "#FFB476", coral: "#F2805E",
+  accent: "#FFB476", white: "#F0F2FF", muted: "#8B91B5",
+  red: "#F87171", redLight: "rgba(248, 113, 113, 0.1)",
+  gradient: "linear-gradient(135deg, #FFB476, #F2805E)",
 };
 
 /* ── breakpoints ─────────────────────────────────────────────────────────── */
@@ -35,7 +36,7 @@ function Input({ label, type = "text", value, onChange, error, placeholder }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <label style={{
-        display:"block", fontSize:12, fontWeight:700, color:C.gray600,
+        display:"block", fontSize:11, fontWeight:600, color:C.muted,
         letterSpacing:0.5, textTransform:"uppercase", marginBottom:6,
       }}>{label}</label>
       <div style={{ position:"relative" }}>
@@ -48,14 +49,14 @@ function Input({ label, type = "text", value, onChange, error, placeholder }) {
           style={{
             width:"100%", height:50,
             padding: isPassword ? "0 56px 0 14px" : "0 14px",
-            border:`1.5px solid ${error ? C.red : C.gray200}`,
-            borderRadius:8, fontSize:15, color:C.gray900,
-            background:C.white, outline:"none", boxSizing:"border-box",
+            border:`1.5px solid ${error ? C.red : C.border}`,
+            borderRadius:8, fontSize:15, color:C.white,
+            background:C.surface, outline:"none", boxSizing:"border-box",
             transition:"border-color 0.15s",
             WebkitAppearance:"none",   // remove iOS inner shadow
           }}
-          onFocus={e => { e.target.style.borderColor = error ? C.red : C.purple; }}
-          onBlur={e  => { e.target.style.borderColor = error ? C.red : C.gray200; }}
+          onFocus={e => { e.target.style.borderColor = error ? C.red : C.orange; }}
+          onBlur={e  => { e.target.style.borderColor = error ? C.red : C.border; }}
         />
         {isPassword && (
           <button
@@ -65,7 +66,7 @@ function Input({ label, type = "text", value, onChange, error, placeholder }) {
               position:"absolute", right:14, top:"50%",
               transform:"translateY(-50%)",
               background:"none", border:"none", cursor:"pointer",
-              color:C.gray400, fontSize:12, fontWeight:600,
+              color:C.muted, fontSize:12, fontWeight:600,
               padding:"6px 8px", touchAction:"manipulation",
               WebkitTapHighlightColor:"transparent",
             }}
@@ -95,14 +96,14 @@ function Feature({ text, small }) {
     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
       <div style={{
         width: small ? 18 : 20, height: small ? 18 : 20, borderRadius:"50%",
-        background:`${C.orange}20`, border:`1.5px solid ${C.orange}`,
+        background:"rgba(255, 180, 118, 0.15)", border:"1.5px solid rgba(255, 180, 118, 0.3)",
         display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
       }}>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M2 5L4 7L8 3" stroke={C.orange} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
-      <span style={{ color:"rgba(255,255,255,0.75)", fontSize: small ? 12 : 13 }}>{text}</span>
+      <span style={{ color:C.muted, fontSize: small ? 12 : 13 }}>{text}</span>
     </div>
   );
 }
@@ -166,8 +167,8 @@ export default function LoginPage() {
     width:"100%", padding:"0 20px", boxSizing:"border-box",
   } : isTablet ? {
     width:"100%", maxWidth:380, padding:"40px 36px",
-    background:C.white, borderRadius:16,
-    boxShadow:"0 4px 32px rgba(0,0,0,0.08)",
+    background:C.surface, borderRadius:16, border:`1px solid ${C.border}`,
+    boxShadow:"0 8px 40px rgba(0,0,0,0.3)",
     boxSizing:"border-box",
   } : {
     width:"100%", maxWidth:400, padding:"0",
@@ -178,8 +179,8 @@ export default function LoginPage() {
     <div style={{
       minHeight:"100vh",
       display:"flex",
-      background: isMobile ? C.white : `linear-gradient(135deg, #f0f4ff 0%, ${C.gray100} 100%)`,
-      fontFamily:"'Open Sans','Segoe UI',Arial,sans-serif",
+      background: C.dark,
+      fontFamily:"'Inter','Open Sans','Segoe UI',sans-serif",
       overflowX:"hidden",
     }}>
 
@@ -187,7 +188,8 @@ export default function LoginPage() {
       {!isMobile && (
         <div style={{
           flex:`0 0 ${leftWidth}px`,
-          background:`linear-gradient(160deg, ${C.navy} 0%, #16213E 100%)`,
+          background: C.darker,
+          borderRight:`1px solid ${C.border}`,
           display:"flex", flexDirection:"column", justifyContent:"center",
           padding: isTablet ? "48px 32px" : "60px 48px",
           position:"relative", overflow:"hidden",
@@ -196,25 +198,33 @@ export default function LoginPage() {
           <div style={{
             position:"absolute", bottom:-80, right:-80,
             width:260, height:260, borderRadius:"50%",
-            background:"rgba(255,98,0,0.06)", pointerEvents:"none",
+            background:"rgba(255, 180, 118, 0.05)", pointerEvents:"none",
+          }} />
+          <div style={{
+            position:"absolute", top:-100, left:-100,
+            width:300, height:300, borderRadius:"50%",
+            background:"rgba(99, 153, 240, 0.03)", pointerEvents:"none",
           }} />
 
           <div style={{ marginBottom: isTablet ? 24 : 32 }}>
-            <img src="/solutions/DXC.png" alt="DXC"
-              style={{ height: isTablet ? 30 : 36, objectFit:"contain" }} />
+            <img
+              src="/DXC-logo.png"
+              alt="DXC"
+              style={{ height: isTablet ? 32 : 40, width: 'auto' }}
+            />
           </div>
 
           <h1 style={{
             color:C.white,
             fontSize: isTablet ? 26 : 32,
-            fontWeight:800, letterSpacing:-1, lineHeight:1.2,
+            fontWeight:700, letterSpacing:-1, lineHeight:1.2,
             margin:`0 0 ${isTablet ? 12 : 16}px`,
           }}>
             AI Watch
           </h1>
 
           <p style={{
-            color:"rgba(255,255,255,0.6)",
+            color:C.muted,
             fontSize: isTablet ? 13 : 15,
             lineHeight:1.7,
             margin:`0 0 ${isTablet ? 28 : 40}px`,
@@ -239,24 +249,29 @@ export default function LoginPage() {
         padding: isMobile ? "0" : isTablet ? "32px 24px" : "32px",
         minHeight:"100vh",
         overflowY:"auto",
+        background: C.dark,
       }}>
 
         {/* Mobile top brand header */}
         {isMobile && (
           <div style={{
             width:"100%",
-            background:`linear-gradient(160deg, ${C.navy} 0%, #16213E 100%)`,
+            background: C.darker,
+            borderBottom:`1px solid ${C.border}`,
             padding: bp === "xs" ? "36px 20px 28px" : "44px 24px 36px",
             textAlign:"center",
             marginBottom:28,
           }}>
-            <img src="/solutions/DXC.png" alt="DXC"
-              style={{ height:30, objectFit:"contain", marginBottom:12 }} />
+            <img
+              src="/DXC-logo.png"
+              alt="DXC"
+              style={{ height: 32, width: 'auto', display: 'block', margin: '0 auto 12px' }}
+            />
             <h1 style={{
-              color:C.white, fontWeight:800, margin:"0 0 6px",
+              color:C.white, fontWeight:700, margin:"0 0 6px",
               fontSize: bp === "xs" ? 22 : 26, letterSpacing:-0.5,
             }}>AI Watch</h1>
-            <p style={{ color:"rgba(255,255,255,0.55)", fontSize:13, margin:0, lineHeight:1.5 }}>
+            <p style={{ color:C.muted, fontSize:13, margin:0, lineHeight:1.5 }}>
               Strategic technology intelligence
             </p>
           </div>
@@ -268,17 +283,17 @@ export default function LoginPage() {
           <div style={{ marginBottom:24 }}>
             <h2 style={{
               fontSize: isMobile ? (bp === "xs" ? 20 : 22) : 24,
-              fontWeight:800, color:C.gray900, letterSpacing:-0.5, margin:"0 0 6px",
+              fontWeight:700, color:C.white, letterSpacing:-0.5, margin:"0 0 6px",
             }}>Welcome back</h2>
-            <p style={{ fontSize:14, color:C.gray400, margin:0 }}>
+            <p style={{ fontSize:14, color:C.muted, margin:0 }}>
               Sign in to your AI Watch account
             </p>
           </div>
 
           {serverError && (
             <div style={{
-              background:C.redLight, border:`1px solid ${C.red}30`,
-              borderLeft:`3px solid ${C.red}`, borderRadius:6,
+              background:C.redLight, border:`1px solid rgba(248, 113, 113, 0.3)`,
+              borderLeft:`3px solid ${C.red}`, borderRadius:8,
               padding:"10px 14px", fontSize:13, color:C.red, marginBottom:18,
             }}>
               {serverError}
@@ -299,7 +314,7 @@ export default function LoginPage() {
 
             <div style={{ display:"flex", justifyContent:"flex-end", marginTop:-10, marginBottom:20 }}>
               <Link to="/forgot-password" style={{
-                fontSize:13, color:C.purple, textDecoration:"none",
+                fontSize:13, color:C.orange, textDecoration:"none",
                 fontWeight:600, padding:"4px 0",
               }}>
                 Forgot password?
@@ -311,39 +326,39 @@ export default function LoginPage() {
               disabled={submitting}
               style={{
                 width:"100%", height:50,
-                background: submitting ? C.gray400 : C.purple,
-                color:C.white, border:"none", borderRadius:8,
+                background: submitting ? C.muted : C.gradient,
+                color: C.darker, border:"none", borderRadius:8,
                 fontSize:15, fontWeight:700,
                 cursor: submitting ? "default" : "pointer",
-                letterSpacing:0.3, transition:"background 0.2s",
+                letterSpacing:0.3, transition:"all 0.2s",
                 touchAction:"manipulation", WebkitTapHighlightColor:"transparent",
               }}
-              onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = C.purpleDeep; }}
-              onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = C.purple; }}
+              onMouseEnter={e => { if (!submitting) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.filter = "brightness(1.1)"; }}}
+              onMouseLeave={e => { if (!submitting) { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.filter = "brightness(1)"; }}}
             >
               {submitting ? "Signing in…" : "Sign In"}
             </button>
 
             {/* Divider */}
             <div style={{ display:"flex", alignItems:"center", gap:12, margin:"20px 0" }}>
-              <div style={{ flex:1, height:1, background:C.gray200 }} />
-              <span style={{ fontSize:12, color:C.gray400, fontWeight:500 }}>or</span>
-              <div style={{ flex:1, height:1, background:C.gray200 }} />
+              <div style={{ flex:1, height:1, background:C.border }} />
+              <span style={{ fontSize:12, color:C.muted, fontWeight:500 }}>or</span>
+              <div style={{ flex:1, height:1, background:C.border }} />
             </div>
 
             {/* Google */}
             <button
               type="button"
               onClick={handleGoogleLogin}
-              onMouseEnter={e => { e.currentTarget.style.background = C.gray100; }}
-              onMouseLeave={e => { e.currentTarget.style.background = C.white; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = C.muted; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}
               style={{
-                width:"100%", height:50, background:C.white,
-                border:`1.5px solid ${C.gray200}`, borderRadius:8,
-                fontSize:15, fontWeight:600, color:C.gray900,
+                width:"100%", height:50, background:C.surface,
+                border:`1.5px solid ${C.border}`, borderRadius:8,
+                fontSize:15, fontWeight:600, color:C.white,
                 cursor:"pointer", display:"flex", alignItems:"center",
                 justifyContent:"center", gap:10,
-                transition:"background 0.15s",
+                transition:"all 0.15s",
                 touchAction:"manipulation", WebkitTapHighlightColor:"transparent",
               }}
             >
@@ -354,10 +369,10 @@ export default function LoginPage() {
             <p style={{
               textAlign:"center",
               margin: isMobile ? "24px 0 40px" : "24px 0 0",
-              fontSize:14, color:C.gray400,
+              fontSize:14, color:C.muted,
             }}>
               Don't have an account?{" "}
-              <Link to="/register" style={{ color:C.purple, fontWeight:700, textDecoration:"none" }}>
+              <Link to="/register" style={{ color:C.orange, fontWeight:700, textDecoration:"none" }}>
                 Create account
               </Link>
             </p>

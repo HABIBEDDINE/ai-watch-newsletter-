@@ -9,12 +9,12 @@ import {
 // Colors now use CSS variables for dark mode support
 // Sector colors are kept as explicit values for badges
 const SECTOR_COLORS = {
-  AI:            { bg: "var(--blue-light)", color: "var(--blue)" },
+  AI:            { bg: "var(--accent-dim)", color: "var(--accent)" },
   Fintech:       { bg: "var(--orange-light)", color: "var(--orange)" },
   HealthTech:    { bg: "var(--red-light)", color: "var(--red)" },
   Cybersecurity: { bg: "var(--amber-light)", color: "var(--amber)" },
   CleanTech:     { bg: "var(--delta-bg)", color: "var(--delta-color)" },
-  Robotics:      { bg: "var(--blue-light)", color: "var(--blue)" },
+  Robotics:      { bg: "var(--accent-dim)", color: "var(--accent)" },
   General:       { bg: "var(--surface)", color: "var(--text-secondary)" },
 };
 

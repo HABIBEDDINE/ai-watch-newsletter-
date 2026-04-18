@@ -127,7 +127,7 @@ export default function TrendsOnboarding({ onComplete, onSkip }) {
         {/* Step indicator */}
         <div style={styles.stepIndicator}>
           <div style={{ ...styles.stepDot, ...(step >= 1 ? styles.stepDotActive : {}), width: isMobile ? 28 : 32, height: isMobile ? 28 : 32, fontSize: isMobile ? 12 : 14 }}>1</div>
-          <div style={{ ...styles.stepLine, background: step > 1 ? "var(--blue)" : "var(--border)", width: isMobile ? 40 : 60 }} />
+          <div style={{ ...styles.stepLine, background: step > 1 ? "var(--accent)" : "var(--border)", width: isMobile ? 40 : 60 }} />
           <div style={{ ...styles.stepDot, ...(step >= 2 ? styles.stepDotActive : {}), width: isMobile ? 28 : 32, height: isMobile ? 28 : 32, fontSize: isMobile ? 12 : 14 }}>2</div>
         </div>
 
@@ -142,14 +142,14 @@ export default function TrendsOnboarding({ onComplete, onSkip }) {
                   onClick={() => handleRoleSelect(role.id)}
                   style={{
                     ...styles.card,
-                    border: isSelected ? "2px solid var(--blue)" : "1px solid var(--border)",
-                    background: isSelected ? "var(--blue-light)" : "var(--card-bg)",
+                    border: isSelected ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    background: isSelected ? "var(--accent-dim)" : "var(--card-bg)",
                   }}
                 >
                   <span style={styles.cardIcon}>{role.icon}</span>
                   <div style={{
                     ...styles.cardTitle,
-                    color: isSelected ? "var(--blue)" : "var(--text-primary)",
+                    color: isSelected ? "var(--accent)" : "var(--text-primary)",
                   }}>
                     {role.title}
                   </div>
@@ -171,15 +171,15 @@ export default function TrendsOnboarding({ onComplete, onSkip }) {
                   onClick={() => handleTopicToggle(topic.id)}
                   style={{
                     ...styles.topicCard,
-                    border: isSelected ? "2px solid var(--blue)" : "1px solid var(--border)",
-                    background: isSelected ? "var(--blue-light)" : "var(--card-bg)",
+                    border: isSelected ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    background: isSelected ? "var(--accent-dim)" : "var(--card-bg)",
                     padding: isMobile ? "10px 14px" : "12px 16px",
                   }}
                 >
                   <span style={styles.topicIcon}>{topic.icon}</span>
                   <span style={{
                     ...styles.topicLabel,
-                    color: isSelected ? "var(--blue)" : "var(--text-primary)",
+                    color: isSelected ? "var(--accent)" : "var(--text-primary)",
                     fontWeight: isSelected ? 600 : 400,
                   }}>
                     {topic.label}
@@ -205,7 +205,7 @@ export default function TrendsOnboarding({ onComplete, onSkip }) {
                   style={{
                     ...styles.nextBtn,
                     width: "100%",
-                    background: selectedRole ? "var(--blue)" : "var(--border)",
+                    background: selectedRole ? "var(--accent)" : "var(--border)",
                     color: selectedRole ? "#fff" : "var(--text-muted)",
                     cursor: selectedRole ? "pointer" : "not-allowed",
                   }}
@@ -254,7 +254,7 @@ export default function TrendsOnboarding({ onComplete, onSkip }) {
                   disabled={!selectedRole}
                   style={{
                     ...styles.nextBtn,
-                    background: selectedRole ? "var(--blue)" : "var(--border)",
+                    background: selectedRole ? "var(--accent)" : "var(--border)",
                     color: selectedRole ? "#fff" : "var(--text-muted)",
                     cursor: selectedRole ? "pointer" : "not-allowed",
                   }}
@@ -342,7 +342,7 @@ const styles = {
     fontWeight: 600,
   },
   stepDotActive: {
-    background: "var(--blue)",
+    background: "var(--accent)",
     color: "#fff",
   },
   stepLine: {

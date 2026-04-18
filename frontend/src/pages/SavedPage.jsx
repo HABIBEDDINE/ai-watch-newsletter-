@@ -88,8 +88,8 @@ export default function SavedPage() {
             style={{
               padding: isMobile ? "6px 14px" : "8px 18px",
               borderRadius: 999,
-              border: `1.5px solid ${filter === f.id ? "var(--blue)" : "var(--border-color)"}`,
-              background: filter === f.id ? "var(--blue)" : "var(--card-bg)",
+              border: `1.5px solid ${filter === f.id ? "var(--accent)" : "var(--border-color)"}`,
+              background: filter === f.id ? "var(--accent)" : "var(--card-bg)",
               color: filter === f.id ? "#fff" : "var(--text-muted)",
               fontSize: isMobile ? 12 : 13,
               fontWeight: 600,
@@ -181,7 +181,7 @@ export default function SavedPage() {
                     overflow: "hidden",
                     minWidth: 0,
                   }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = "var(--blue)"}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = "var(--accent)"}
                   onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border-color)"}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10, minWidth: 0 }}>
@@ -247,7 +247,7 @@ export default function SavedPage() {
                         target="_blank"
                         rel="noreferrer"
                         onClick={e => e.stopPropagation()}
-                        style={{ color: "#185EA5", fontSize: 12, fontWeight: 500, flexShrink: 0 }}
+                        style={{ color: "var(--accent)", fontSize: 12, fontWeight: 500, flexShrink: 0 }}
                       >
                         Read →
                       </a>
@@ -271,11 +271,11 @@ export default function SavedPage() {
                     overflow: "hidden",
                     minWidth: 0,
                   }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = "var(--blue)"}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = "var(--accent)"}
                   onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border-color)"}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
-                    <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 500, color: "#6B5CE7" }}>
+                    <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 500, color: "var(--accent)" }}>
                       {d.trend_score || 7}
                     </div>
                     <button

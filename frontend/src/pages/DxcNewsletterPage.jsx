@@ -3,26 +3,26 @@ import { useNavigate } from "react-router-dom";
 import { getDxcNewsletters, getDxcNewsletterFilters } from "../services/api";
 import { Search, ChevronRight, Newspaper } from "lucide-react";
 
-// Year-based badge colors
+// Year-based badge colors (theme-aware)
 const getYearColor = (month) => {
-  if (!month) return { bg: "var(--surface)", color: "var(--text-muted)" };
-  if (month.includes("2026")) return { bg: "#EDE9FE", color: "#7C3AED" }; // Purple
-  if (month.includes("2025")) return { bg: "var(--blue-light)", color: "var(--blue)" }; // Blue
-  return { bg: "var(--surface)", color: "var(--text-secondary)" }; // Grey for 2024
+  if (!month) return { bg: "var(--signal-weak-bg)", color: "var(--text-secondary)" };
+  if (month.includes("2026")) return { bg: "var(--topic-robotics-bg)", color: "var(--purple)" }; // Purple
+  if (month.includes("2025")) return { bg: "var(--topic-ai-bg)", color: "var(--accent)" }; // Blue
+  return { bg: "var(--signal-weak-bg)", color: "var(--text-secondary)" }; // Grey for 2024
 };
 
-// Category badge colors
+// Category badge colors (theme-aware)
 const CATEGORY_COLORS = {
-  "Business & Clients": { bg: "var(--blue-light)", color: "var(--blue)" },
-  "Quality": { bg: "#DCFCE7", color: "#15803D" },
-  "Innovation & Tech": { bg: "#FEF3C7", color: "#B45309" },
-  "CSR & Community": { bg: "#FCE7F3", color: "#BE185D" },
-  "DEI & Inclusion": { bg: "#E0E7FF", color: "#4338CA" },
-  "Awards & Recognition": { bg: "#FEF9C3", color: "#A16207" },
-  "Wellbeing & Health": { bg: "#D1FAE5", color: "#047857" },
-  "Events & Upcoming": { bg: "#DBEAFE", color: "#1D4ED8" },
-  "Referral & Jobs": { bg: "#F3E8FF", color: "#7E22CE" },
-  "Newsletter Content": { bg: "var(--surface)", color: "var(--text-secondary)" },
+  "Business & Clients": { bg: "var(--topic-ai-bg)", color: "var(--accent)" },
+  "Quality": { bg: "var(--topic-healthtech-bg)", color: "var(--green)" },
+  "Innovation & Tech": { bg: "var(--signal-strong-bg)", color: "var(--accent-orange)" },
+  "CSR & Community": { bg: "var(--topic-robotics-bg)", color: "var(--purple)" },
+  "DEI & Inclusion": { bg: "var(--topic-ai-bg)", color: "var(--accent)" },
+  "Awards & Recognition": { bg: "var(--amber-light)", color: "var(--amber)" },
+  "Wellbeing & Health": { bg: "var(--topic-healthtech-bg)", color: "var(--green)" },
+  "Events & Upcoming": { bg: "var(--topic-ai-bg)", color: "var(--accent)" },
+  "Referral & Jobs": { bg: "var(--topic-robotics-bg)", color: "var(--purple)" },
+  "Newsletter Content": { bg: "var(--signal-weak-bg)", color: "var(--text-secondary)" },
 };
 
 function NewsletterCard({ article, onClick, isMobile }) {
@@ -33,27 +33,29 @@ function NewsletterCard({ article, onClick, isMobile }) {
   const category = article.category || "";
   const imageUrl = article.image_url;
   const yearColor = getYearColor(month);
-  const catColor = CATEGORY_COLORS[category] || { bg: "var(--surface)", color: "var(--text-secondary)" };
+  const catColor = CATEGORY_COLORS[category] || { bg: "var(--signal-weak-bg)", color: "var(--text-secondary)" };
 
   return (
     <div
       className="newsletter-card"
       onClick={onClick}
       onMouseEnter={e => {
-        e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
-        e.currentTarget.style.borderColor = "var(--blue)";
+        e.currentTarget.style.boxShadow = "var(--shadow)";
+        e.currentTarget.style.borderColor = "var(--accent-orange)";
+        e.currentTarget.style.transform = "translateY(-2px)";
       }}
       onMouseLeave={e => {
         e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = "var(--border-color)";
+        e.currentTarget.style.borderColor = "var(--border)";
+        e.currentTarget.style.transform = "translateY(0)";
       }}
       style={{
-        background: "var(--card-bg)",
-        border: "1px solid var(--border-color)",
-        borderRadius: 8,
+        background: "var(--bg-card)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
         overflow: "hidden",
         cursor: "pointer",
-        transition: "box-shadow 0.2s, border-color 0.2s",
+        transition: "all 0.2s ease",
       }}
     >
       {/* Image */}
@@ -61,7 +63,7 @@ function NewsletterCard({ article, onClick, isMobile }) {
         position: "relative",
         width: "100%",
         height: isMobile ? 160 : 200,
-        background: "var(--surface)",
+        background: "var(--bg-surface)",
         overflow: "hidden",
       }}>
         {imageUrl ? (
@@ -85,8 +87,8 @@ function NewsletterCard({ article, onClick, isMobile }) {
           height: "100%",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%)",
-          color: "var(--text-muted)",
+          background: "var(--topic-ai-bg)",
+          color: "var(--text-secondary)",
           position: "absolute",
           top: 0,
           left: 0,
@@ -101,11 +103,12 @@ function NewsletterCard({ article, onClick, isMobile }) {
           left: 12,
           fontSize: 10,
           fontWeight: 700,
-          padding: "4px 10px",
+          padding: "5px 12px",
           borderRadius: 999,
           background: yearColor.bg,
           color: yearColor.color,
           letterSpacing: 0.3,
+          backdropFilter: "blur(4px)",
         }}>
           {month}
         </span>
@@ -151,14 +154,14 @@ function NewsletterCard({ article, onClick, isMobile }) {
           <span style={{
             fontSize: 10,
             fontWeight: 600,
-            padding: "4px 10px",
+            padding: "5px 12px",
             borderRadius: 999,
             background: catColor.bg,
             color: catColor.color,
           }}>
             {category}
           </span>
-          <ChevronRight size={16} color="var(--text-muted)" />
+          <ChevronRight size={16} color="var(--accent-orange)" />
         </div>
       </div>
     </div>
@@ -243,8 +246,8 @@ export default function DxcNewsletterPage() {
   };
 
   return (
-    <div className="page-container" style={{
-      background: "var(--card-bg)",
+    <div className="page-container newsletter-page" style={{
+      background: "var(--bg-primary)",
       padding: isMobile ? "16px" : "24px 28px",
       minHeight: "100%",
       maxWidth: "100vw",
@@ -270,12 +273,23 @@ export default function DxcNewsletterPage() {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-          <Newspaper size={isMobile ? 20 : 24} color="var(--purple)" strokeWidth={2} />
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: "var(--signal-strong-bg)",
+            border: "1px solid var(--signal-strong-border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}>
+            <Newspaper size={20} color="var(--accent-orange)" strokeWidth={2} />
+          </div>
           <h1 style={{
-            fontSize: isMobile ? 20 : 24,
-            fontWeight: 800,
+            fontSize: isMobile ? 20 : 26,
+            fontWeight: 700,
             color: "var(--text-primary)",
-            letterSpacing: -0.3,
+            letterSpacing: -0.5,
             margin: 0,
           }}>
             DXC Newsletter
@@ -285,6 +299,7 @@ export default function DxcNewsletterPage() {
           fontSize: isMobile ? 13 : 14,
           color: "var(--text-secondary)",
           margin: 0,
+          marginLeft: 52,
         }}>
           Internal news and updates from DXC Technology Morocco — ONETEAM Newsletter archive
         </p>
@@ -308,7 +323,7 @@ export default function DxcNewsletterPage() {
               left: 12,
               top: "50%",
               transform: "translateY(-50%)",
-              color: "var(--text-muted)",
+              color: "var(--text-secondary)",
               pointerEvents: "none",
             }}
           />
@@ -319,9 +334,9 @@ export default function DxcNewsletterPage() {
             onChange={(e) => handleSearch(e.target.value)}
             style={{
               width: "100%",
-              padding: "9px 12px 9px 36px",
-              border: "1px solid var(--border-color)",
-              borderRadius: 6,
+              padding: "10px 12px 10px 36px",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
               fontSize: 13,
               outline: "none",
               background: "var(--input-bg)",
@@ -335,9 +350,9 @@ export default function DxcNewsletterPage() {
           value={selectedMonth}
           onChange={(e) => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
           style={{
-            padding: "9px 12px",
-            border: "1px solid var(--border-color)",
-            borderRadius: 6,
+            padding: "10px 12px",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
             fontSize: 13,
             background: "var(--input-bg)",
             color: "var(--text-primary)",
@@ -356,9 +371,9 @@ export default function DxcNewsletterPage() {
           value={selectedCategory}
           onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
           style={{
-            padding: "9px 12px",
-            border: "1px solid var(--border-color)",
-            borderRadius: 6,
+            padding: "10px 12px",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
             fontSize: 13,
             background: "var(--input-bg)",
             color: "var(--text-primary)",
@@ -385,12 +400,12 @@ export default function DxcNewsletterPage() {
       {/* Error */}
       {error && (
         <div style={{
-          background: "var(--amber-light)",
-          border: "1px solid var(--amber)",
-          color: "var(--amber)",
+          background: "rgba(248, 113, 113, 0.1)",
+          border: "1px solid rgba(248, 113, 113, 0.3)",
+          color: "#F87171",
           padding: "12px 16px",
           marginBottom: 16,
-          borderRadius: 6,
+          borderRadius: 8,
           fontSize: 12,
         }}>
           {error}
@@ -404,8 +419,8 @@ export default function DxcNewsletterPage() {
             width: 36,
             height: 36,
             margin: "0 auto 16px",
-            border: "3px solid var(--border-color)",
-            borderTop: "3px solid var(--blue)",
+            border: "3px solid var(--border)",
+            borderTop: "3px solid var(--accent-orange)",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }} />
@@ -420,11 +435,11 @@ export default function DxcNewsletterPage() {
         <div style={{
           textAlign: "center",
           padding: "60px 40px",
-          background: "var(--surface)",
-          border: "1px solid var(--border-color)",
-          borderRadius: 8,
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
+          borderRadius: 12,
         }}>
-          <Newspaper size={48} color="var(--text-muted)" strokeWidth={1} style={{ marginBottom: 16 }} />
+          <Newspaper size={48} color="var(--text-secondary)" strokeWidth={1} style={{ marginBottom: 16 }} />
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
             No newsletters found
           </div>
@@ -454,10 +469,10 @@ export default function DxcNewsletterPage() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          border: "1px solid var(--border-color)",
-          borderRadius: 6,
+          border: "1px solid var(--border)",
+          borderRadius: 10,
           padding: isMobile ? "12px 16px" : "14px 20px",
-          background: "var(--card-bg)",
+          background: "var(--bg-surface)",
         }}>
           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
             Page {currentPage} of {totalPages}
@@ -467,14 +482,15 @@ export default function DxcNewsletterPage() {
               onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
               style={{
-                padding: "6px 14px",
-                border: "1px solid var(--border-color)",
-                background: "var(--card-bg)",
-                borderRadius: 4,
+                padding: "7px 16px",
+                border: "1px solid var(--border)",
+                background: "var(--bg-surface)",
+                borderRadius: 6,
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 opacity: currentPage === 1 ? 0.4 : 1,
                 fontSize: 12,
-                color: "var(--text-secondary)",
+                color: "var(--text-primary)",
+                transition: "all 0.15s",
               }}
             >
               Prev
@@ -483,14 +499,15 @@ export default function DxcNewsletterPage() {
               onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               style={{
-                padding: "6px 14px",
-                border: "1px solid var(--border-color)",
-                background: "var(--card-bg)",
-                borderRadius: 4,
+                padding: "7px 16px",
+                border: "1px solid var(--border)",
+                background: "var(--bg-surface)",
+                borderRadius: 6,
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 opacity: currentPage === totalPages ? 0.4 : 1,
                 fontSize: 12,
-                color: "var(--text-secondary)",
+                color: "var(--text-primary)",
+                transition: "all 0.15s",
               }}
             >
               Next

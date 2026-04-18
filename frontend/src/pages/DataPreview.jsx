@@ -10,9 +10,9 @@ import CategoryCombobox from "../components/CategoryCombobox";
 
 // Colors using CSS variables for dark mode support
 const B = {
-  purple: "var(--blue)",
-  purpleDeep: "var(--blue)",
-  purplePale: "var(--blue-light)",
+  purple: "var(--accent)",
+  purpleDeep: "var(--accent)",
+  purplePale: "var(--accent-dim)",
   white: "var(--card-bg)",
   gray50: "var(--surface)",
   gray100: "var(--border)",
@@ -28,7 +28,7 @@ const B = {
   amber: "var(--amber)",
   amberLight: "var(--amber-light)",
   red: "var(--red)",
-  blue: "var(--blue)",
+  blue: "var(--accent)",
   darkBg: "var(--page-bg)",
 };
 
@@ -115,7 +115,7 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
     <div>
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", marginBottom: 20, gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, background: "var(--blue-light)", color: "var(--blue)", padding: "4px 10px", borderRadius: 2 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, background: "var(--accent-dim)", color: "var(--accent)", padding: "4px 10px", borderRadius: 2 }}>
             {articles.length} Articles
           </span>
         </div>
@@ -143,7 +143,7 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
             style={{
               padding: isMobile ? "10px 16px" : "6px 12px",
               minHeight: isMobile ? 40 : "auto",
-              background: "var(--blue)",
+              background: "var(--accent)",
               color: "#fff",
               border: "none",
               borderRadius: 4,
@@ -192,8 +192,8 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
                   textAlign: "left",
                   fontWeight: 700,
                   cursor: "pointer",
-                  background: sortBy === "title" ? "var(--blue-light)" : "transparent",
-                  color: sortBy === "title" ? "var(--blue)" : "var(--text-primary)",
+                  background: sortBy === "title" ? "var(--accent-dim)" : "transparent",
+                  color: sortBy === "title" ? "var(--accent)" : "var(--text-primary)",
                   userSelect: "none"
                 }}
               >
@@ -207,8 +207,8 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
                   textAlign: "center",
                   fontWeight: 700,
                   cursor: "pointer",
-                  background: sortBy === "signal" ? "var(--blue-light)" : "transparent",
-                  color: sortBy === "signal" ? "var(--blue)" : "var(--text-primary)",
+                  background: sortBy === "signal" ? "var(--accent-dim)" : "transparent",
+                  color: sortBy === "signal" ? "var(--accent)" : "var(--text-primary)",
                   userSelect: "none"
                 }}
               >
@@ -221,8 +221,8 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
                   textAlign: "center",
                   fontWeight: 700,
                   cursor: "pointer",
-                  background: sortBy === "relevance" ? "var(--blue-light)" : "transparent",
-                  color: sortBy === "relevance" ? "var(--blue)" : "var(--text-primary)",
+                  background: sortBy === "relevance" ? "var(--accent-dim)" : "transparent",
+                  color: sortBy === "relevance" ? "var(--accent)" : "var(--text-primary)",
                   userSelect: "none"
                 }}
               >
@@ -259,7 +259,7 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
                   }}>
                     {article.signal_strength}
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700, color: "var(--blue)" }}>
+                  <td style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700, color: "var(--accent)" }}>
                     {article.relevance || 5}/10
                   </td>
                   <td style={{ padding: "12px 16px", color: "var(--text-secondary)", fontSize: 10 }}>{article.topic}</td>
@@ -268,7 +268,7 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
                   </td>
                   <td style={{ padding: "12px 16px", textAlign: "center" }}>
                     {article.url ? (
-                      <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--blue)", textDecoration: "none", fontWeight: 600, fontSize: 10 }}>🔗</a>
+                      <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600, fontSize: 10 }}>🔗</a>
                     ) : (
                       <span style={{ color: "var(--text-hint)", fontSize: 10 }}>-</span>
                     )}
@@ -283,8 +283,8 @@ function DataTable({ articles, loading, error, searchQuery, setSearchQuery, isMo
   );
 }
 
-const P = "var(--blue)";
-const P_PALE = "var(--blue-light)";
+const P = "var(--accent)";
+const P_PALE = "var(--accent-dim)";
 const P_LIGHT = "var(--purple)";
 const GRAY_BORDER = "var(--border-color)";
 const GRAY_TEXT = "var(--text-muted)";
@@ -306,7 +306,7 @@ function KpiCard({ label, value, sub, isMobile }) {
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-color)", borderRadius: 6, padding: isMobile ? "14px 16px" : "18px 20px" }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: "var(--blue)", lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: "var(--accent)", lineHeight: 1, marginBottom: 6 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{sub}</div>}
     </div>
   );
@@ -630,7 +630,7 @@ function FilterBar({ articles, onFilterChange, isMobile }) {
                   minHeight: isMobile ? 40 : "auto",
                   border: "none",
                   borderLeft: i > 0 ? "1px solid var(--border-color)" : "none",
-                  background: active ? "var(--blue)" : "var(--card-bg)",
+                  background: active ? "var(--accent)" : "var(--card-bg)",
                   color: active ? "#fff" : "var(--text-secondary)",
                   fontSize: 12,
                   fontWeight: active ? 700 : 400,
@@ -657,7 +657,7 @@ function FilterBar({ articles, onFilterChange, isMobile }) {
               style={{
                 background: "none",
                 border: "none",
-                color: "var(--blue)",
+                color: "var(--accent)",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -754,7 +754,7 @@ export default function DataPreview() {
       {error && (
         <div style={{ background: "var(--red-light)", border: "1px solid var(--red)", borderRadius: 6, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: "var(--red)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <span>Error loading articles: {error}</span>
-          <button onClick={loadArticles} style={{ padding: isMobile ? "10px 16px" : "6px 14px", minHeight: isMobile ? 40 : "auto", background: "var(--blue)", color: "#fff", border: "none", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Retry</button>
+          <button onClick={loadArticles} style={{ padding: isMobile ? "10px 16px" : "6px 14px", minHeight: isMobile ? 40 : "auto", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Retry</button>
         </div>
       )}
 
@@ -781,8 +781,8 @@ export default function DataPreview() {
               padding: isMobile ? "12px 10px" : "14px 16px",
               minHeight: 44,
               border: "none",
-              background: activeTab === tab.id ? "var(--blue-light)" : "var(--card-bg)",
-              color: activeTab === tab.id ? "var(--blue)" : "var(--text-secondary)",
+              background: activeTab === tab.id ? "var(--accent-dim)" : "var(--card-bg)",
+              color: activeTab === tab.id ? "var(--accent)" : "var(--text-secondary)",
               fontSize: isMobile ? 11 : 12,
               fontWeight: activeTab === tab.id ? 700 : 500,
               cursor: "pointer",

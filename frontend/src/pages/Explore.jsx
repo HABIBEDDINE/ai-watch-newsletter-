@@ -25,23 +25,30 @@ const ROLE_LABELS = {
 
 const LS_TOPIC_KEY = "aiwatch_explore_topic";
 
-// Colors now use CSS variables for dark mode support
-// Kept as fallbacks for JS-based conditional styling only
-const ACCENT   = "var(--blue)";
-const ACCENT_BG = "var(--blue-light)";
+// Colors use DXC brand CSS variables
+const ACCENT   = "var(--dxc-orange)";
+const ACCENT_BG = "rgba(255, 180, 118, 0.1)";
 
 const SIGNALS = ["All", "Strong", "Weak"];
 
 function StatCard({ label, value, isMobile }) {
   return (
     <div style={{
-      background: "var(--card-bg)",
-      border: "1px solid var(--border-color)",
-      borderRadius: 6,
+      background: "var(--dxc-surface)",
+      border: "1px solid var(--dxc-border)",
+      borderRadius: 10,
       padding: isMobile ? "14px 16px" : "18px 20px",
     }}>
-      <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: "var(--purple)", marginBottom: 4, letterSpacing: -0.5 }}>{value}</div>
-      <div style={{ fontSize: isMobile ? 12 : 13, color: "var(--text-secondary)", fontWeight: 500 }}>{label}</div>
+      <div style={{
+        fontSize: isMobile ? 22 : 26,
+        fontWeight: 700,
+        background: "linear-gradient(135deg, #FFB476, #F2805E)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        marginBottom: 4,
+        letterSpacing: -0.5
+      }}>{value}</div>
+      <div style={{ fontSize: isMobile ? 12 : 13, color: "var(--dxc-muted)", fontWeight: 500 }}>{label}</div>
     </div>
   );
 }
@@ -61,20 +68,22 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave, isMobile }) {
     <div
       className="article-card"
       onMouseEnter={e => {
-        e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
-        e.currentTarget.style.borderColor = "var(--blue)";
+        e.currentTarget.style.boxShadow = "0 0 30px rgba(255, 180, 118, 0.1)";
+        e.currentTarget.style.borderColor = "var(--dxc-orange)";
+        e.currentTarget.style.transform = "translateY(-2px)";
       }}
       onMouseLeave={e => {
         e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = "var(--border-color)";
+        e.currentTarget.style.borderColor = "var(--dxc-border)";
+        e.currentTarget.style.transform = "translateY(0)";
       }}
       style={{
-        background: "var(--card-bg)",
-        border: "1px solid var(--border-color)",
-        borderRadius: 6,
+        background: "var(--dxc-surface)",
+        border: "1px solid var(--dxc-border)",
+        borderRadius: 12,
         padding: isMobile ? "16px" : "20px",
         cursor: "pointer",
-        transition: "box-shadow 0.2s, border-color 0.2s",
+        transition: "all 0.2s ease",
         position: "relative",
         overflow: "hidden",
         minWidth: 0,
@@ -88,11 +97,12 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave, isMobile }) {
           style={{
             position: "absolute", top: isMobile ? 12 : 14, right: isMobile ? 12 : 14,
             background: "none", border: "none", cursor: "pointer", padding: 4,
-            color: isSaved ? "var(--blue)" : "var(--text-muted)",
+            color: isSaved ? "var(--dxc-orange)" : "var(--dxc-muted)",
             display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "color 0.15s",
           }}
         >
-          <Bookmark size={16} strokeWidth={2} fill={isSaved ? "var(--blue)" : "none"} />
+          <Bookmark size={16} strokeWidth={2} fill={isSaved ? "var(--dxc-orange)" : "none"} />
         </button>
       )}
 
@@ -111,7 +121,7 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave, isMobile }) {
           <div style={{
             fontSize: isMobile ? 15 : 18,
             fontWeight: 700,
-            color: "var(--text-primary)",
+            color: "var(--dxc-white)",
             lineHeight: 1.4,
             flex: 1,
             minWidth: 0,
@@ -128,13 +138,13 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave, isMobile }) {
             flexShrink: 0,
             fontSize: isMobile ? 9 : 10,
             fontWeight: 700,
-            padding: isMobile ? "3px 8px" : "4px 10px",
+            padding: isMobile ? "4px 10px" : "5px 12px",
             borderRadius: 999,
             letterSpacing: 0.5,
             marginTop: 2,
             ...(isStrong
-              ? { background: "var(--orange)", color: "#fff" }
-              : { background: "var(--bg-hover)", color: "var(--text-muted)", border: "1px solid var(--border-color)" }),
+              ? { background: "linear-gradient(135deg, #FFB476, #F2805E)", color: "var(--dxc-darker)" }
+              : { background: "rgba(139, 145, 181, 0.15)", color: "var(--dxc-muted)", border: "1px solid var(--dxc-border)" }),
           }}>
             {isStrong ? "STRONG" : "WEAK"}
           </span>
@@ -488,7 +498,7 @@ export default function Explore() {
             placeholder="Search articles..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
-            onFocus={e => { e.target.style.borderColor = "var(--blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(24,94,165,0.2)"; }}
+            onFocus={e => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 3px rgba(255, 180, 118,0.2)"; }}
             onBlur={e => { e.target.style.borderColor = "var(--border-color)"; e.target.style.boxShadow = "none"; }}
             style={{
               width: "100%",
@@ -522,9 +532,9 @@ export default function Explore() {
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: 34, height: 34, borderRadius: 6, border: "1.5px solid",
-                borderColor: viewMode === mode ? "var(--blue)" : "var(--border-color)",
-                background:  viewMode === mode ? "var(--blue-light)" : "var(--card-bg)",
-                color:       viewMode === mode ? "var(--blue)" : "var(--text-muted)",
+                borderColor: viewMode === mode ? "var(--accent)" : "var(--border-color)",
+                background:  viewMode === mode ? "var(--accent-dim)" : "var(--card-bg)",
+                color:       viewMode === mode ? "var(--accent)" : "var(--text-muted)",
                 cursor: "pointer", transition: "all 0.15s",
               }}
             >
@@ -553,8 +563,8 @@ export default function Explore() {
               padding: isMobile ? "5px 12px" : "6px 16px",
               borderRadius: 20,
               border: "1px solid",
-              borderColor: dateFilter === period ? "var(--blue)" : "var(--border-color)",
-              background: dateFilter === period ? "var(--blue)" : "var(--card-bg)",
+              borderColor: dateFilter === period ? "var(--accent)" : "var(--border-color)",
+              background: dateFilter === period ? "var(--accent)" : "var(--card-bg)",
               color: dateFilter === period ? "#fff" : "var(--text-secondary)",
               cursor: "pointer",
               transition: "all 0.15s",
@@ -590,7 +600,7 @@ export default function Explore() {
             width: 36, height: 36,
             margin: "0 auto 16px",
             border: "3px solid var(--border-color)",
-            borderTop: "3px solid var(--blue)",
+            borderTop: "3px solid var(--accent)",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }} />
@@ -623,7 +633,7 @@ export default function Explore() {
             onClick={handleIngest}
             disabled={loading}
             style={{
-              background: "var(--blue)",
+              background: "var(--accent)",
               color: "#fff",
               border: "none",
               padding: "10px 24px",
@@ -698,9 +708,9 @@ export default function Explore() {
                   onClick={() => { setItemsPerPage(count); handlePageChange(1); }}
                   style={{
                     padding: "4px 10px",
-                    border: itemsPerPage === count ? "2px solid var(--blue)" : "1px solid var(--border-color)",
-                    background: itemsPerPage === count ? "var(--blue-light)" : "var(--card-bg)",
-                    color: itemsPerPage === count ? "var(--blue)" : "var(--text-secondary)",
+                    border: itemsPerPage === count ? "2px solid var(--accent)" : "1px solid var(--border-color)",
+                    background: itemsPerPage === count ? "var(--accent-dim)" : "var(--card-bg)",
+                    color: itemsPerPage === count ? "var(--accent)" : "var(--text-secondary)",
                     fontSize: 11,
                     fontWeight: itemsPerPage === count ? 700 : 500,
                     cursor: "pointer",
@@ -779,23 +789,23 @@ export default function Explore() {
           padding: loading ? (isMobile ? "12px 16px" : "14px 20px") : (isMobile ? "12px 18px" : "14px 22px"),
           borderRadius: 999,
           border: "none",
-          background: loading ? "var(--blue-light)" : "var(--blue)",
-          color: loading ? "var(--blue)" : "#fff",
+          background: loading ? "var(--accent-dim)" : "var(--accent)",
+          color: loading ? "var(--accent)" : "#fff",
           fontSize: isMobile ? 12 : 13,
           fontWeight: 700,
           cursor: loading ? "not-allowed" : "pointer",
-          boxShadow: "0 4px 20px rgba(24,94,165,0.35)",
+          boxShadow: "0 4px 20px rgba(255, 180, 118,0.35)",
           transition: "background 0.15s, box-shadow 0.15s",
           letterSpacing: 0.2,
         }}
-        onMouseEnter={e => { if (!loading) e.currentTarget.style.boxShadow = "0 6px 28px rgba(24,94,165,0.5)"; }}
-        onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(24,94,165,0.35)"; }}
+        onMouseEnter={e => { if (!loading) e.currentTarget.style.boxShadow = "0 6px 28px rgba(255, 180, 118,0.5)"; }}
+        onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(255, 180, 118,0.35)"; }}
       >
         {loading ? (
           <span style={{
             width: 14, height: 14,
-            border: "2px solid rgba(24,94,165,0.4)",
-            borderTop: "2px solid var(--blue)",
+            border: "2px solid rgba(255, 180, 118,0.4)",
+            borderTop: "2px solid var(--accent)",
             borderRadius: "50%",
             display: "inline-block",
             animation: "spin 0.8s linear infinite",
@@ -853,9 +863,9 @@ export default function Explore() {
                     onClick={() => setReportFormat(fmt)}
                     style={{
                       padding: "8px 20px",
-                      border: reportFormat === fmt ? "2px solid var(--blue)" : "1px solid var(--border-color)",
-                      background: reportFormat === fmt ? "var(--blue-light)" : "var(--card-bg)",
-                      color: reportFormat === fmt ? "var(--blue)" : "var(--text-secondary)",
+                      border: reportFormat === fmt ? "2px solid var(--accent)" : "1px solid var(--border-color)",
+                      background: reportFormat === fmt ? "var(--accent-dim)" : "var(--card-bg)",
+                      color: reportFormat === fmt ? "var(--accent)" : "var(--text-secondary)",
                       fontWeight: reportFormat === fmt ? 700 : 400,
                       fontSize: 12, cursor: "pointer", borderRadius: 4,
                     }}
@@ -868,7 +878,7 @@ export default function Explore() {
                 <button
                   onClick={handleGenerateReport}
                   style={{
-                    background: "var(--blue)", color: "#fff", border: "none",
+                    background: "var(--accent)", color: "#fff", border: "none",
                     padding: "10px 20px", borderRadius: 4, fontSize: 13,
                     fontWeight: 700, cursor: "pointer", flex: 1,
                   }}
@@ -878,8 +888,8 @@ export default function Explore() {
                 <button
                   onClick={handleDownloadReport}
                   style={{
-                    background: "var(--card-bg)", color: "var(--blue)",
-                    border: "1.5px solid var(--blue)",
+                    background: "var(--card-bg)", color: "var(--accent)",
+                    border: "1.5px solid var(--accent)",
                     padding: "10px 20px", borderRadius: 4, fontSize: 13,
                     fontWeight: 700, cursor: "pointer", flex: 1,
                   }}

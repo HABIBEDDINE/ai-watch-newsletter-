@@ -147,6 +147,10 @@ export async function getSavedTrends() {
   return request("/api/trends/saved");
 }
 
+export async function getRecommendations(role = "other") {
+  return request(`/api/recommendations?role=${role}`);
+}
+
 export async function getJourney(persona = "cto", maxArticles = 6) {
   const params = new URLSearchParams({
     persona,
@@ -514,4 +518,10 @@ export async function getDxcNewsletterFilters() {
 
 export async function getDxcNewsletterById(id) {
   return request(`/api/dxc-newsletters/${id}`);
+}
+
+export async function generateDxcJournalCard(articleId) {
+  return request(`/api/dxc-newsletters/${articleId}/journal-card`, {
+    method: "POST",
+  });
 }

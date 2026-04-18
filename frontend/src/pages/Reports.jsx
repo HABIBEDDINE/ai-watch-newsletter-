@@ -168,7 +168,7 @@ function GenerateReportModal({ onClose, onSaved }) {
                   type="checkbox"
                   checked={selected.size === articles.length && articles.length > 0}
                   onChange={toggleAll}
-                  style={{ cursor: "pointer", accentColor: "var(--blue)", width: 15, height: 15 }}
+                  style={{ cursor: "pointer", accentColor: "var(--accent)", width: 15, height: 15 }}
                 />
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                   {selected.size > 0
@@ -189,7 +189,7 @@ function GenerateReportModal({ onClose, onSaved }) {
                       display: "flex", alignItems: "flex-start", gap: 12,
                       padding: "14px 0", borderBottom: "1px solid var(--border-color)",
                       cursor: "pointer",
-                      background: isChecked ? "var(--blue-light)" : "transparent",
+                      background: isChecked ? "var(--accent-dim)" : "transparent",
                       margin: "0 -24px", padding: "14px 24px",
                       transition: "background 0.1s",
                     }}
@@ -199,7 +199,7 @@ function GenerateReportModal({ onClose, onSaved }) {
                       checked={isChecked}
                       onChange={() => toggle(article.id)}
                       onClick={e => e.stopPropagation()}
-                      style={{ cursor: "pointer", accentColor: "var(--blue)", width: 15, height: 15, marginTop: 3, flexShrink: 0 }}
+                      style={{ cursor: "pointer", accentColor: "var(--accent)", width: 15, height: 15, marginTop: 3, flexShrink: 0 }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
@@ -242,8 +242,8 @@ function GenerateReportModal({ onClose, onSaved }) {
               disabled={selected.size === 0}
               style={{
                 padding: "9px 20px", borderRadius: 6,
-                border: "1.5px solid var(--blue)",
-                background: "transparent", color: "var(--blue)",
+                border: "1.5px solid var(--accent)",
+                background: "transparent", color: "var(--accent)",
                 fontSize: 13, fontWeight: 700,
                 cursor: selected.size === 0 ? "not-allowed" : "pointer",
                 opacity: selected.size === 0 ? 0.4 : 1,
@@ -256,7 +256,7 @@ function GenerateReportModal({ onClose, onSaved }) {
               disabled={saving || selected.size === 0}
               style={{
                 padding: "9px 20px", borderRadius: 6,
-                border: "none", background: "var(--blue)", color: "#fff",
+                border: "none", background: "var(--accent)", color: "#fff",
                 fontSize: 13, fontWeight: 700,
                 cursor: saving || selected.size === 0 ? "not-allowed" : "pointer",
                 opacity: saving || selected.size === 0 ? 0.5 : 1,
@@ -343,7 +343,7 @@ function DailyReportModal({ onClose, onSaved }) {
       <div style={{ background: "var(--card-bg)", borderRadius: 10, width: "min(640px, 95vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
 
         {/* Header */}
-        <div style={{ background: "var(--blue)", color: "#fff", padding: "20px 24px", flexShrink: 0 }}>
+        <div style={{ background: "var(--accent)", color: "#fff", padding: "20px 24px", flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 4px" }}>Daily Brief</h2>
@@ -385,7 +385,7 @@ function DailyReportModal({ onClose, onSaved }) {
               <div key={topic} style={{ marginBottom: 20 }}>
                 {/* Topic label */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue)", background: "var(--blue-light)", padding: "3px 10px", borderRadius: 999 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", background: "var(--accent-dim)", padding: "3px 10px", borderRadius: 999 }}>
                     {topic}
                   </span>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{arts.length} article{arts.length > 1 ? "s" : ""}</span>
@@ -425,7 +425,7 @@ function DailyReportModal({ onClose, onSaved }) {
             disabled={loading || articles.length === 0}
             style={{
               padding: "9px 20px", borderRadius: 6,
-              border: "1.5px solid var(--blue)", background: "transparent", color: "var(--blue)",
+              border: "1.5px solid var(--accent)", background: "transparent", color: "var(--accent)",
               fontSize: 13, fontWeight: 700,
               cursor: loading || articles.length === 0 ? "not-allowed" : "pointer",
               opacity: loading || articles.length === 0 ? 0.4 : 1,
@@ -438,7 +438,7 @@ function DailyReportModal({ onClose, onSaved }) {
             disabled={saving || loading || articles.length === 0}
             style={{
               padding: "9px 20px", borderRadius: 6,
-              border: "none", background: "var(--blue)", color: "#fff",
+              border: "none", background: "var(--accent)", color: "#fff",
               fontSize: 13, fontWeight: 700,
               cursor: saving || loading || articles.length === 0 ? "not-allowed" : "pointer",
               opacity: saving || loading || articles.length === 0 ? 0.5 : 1,
@@ -512,7 +512,7 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
             <div
               key={report.id}
               onClick={() => onSelectReport(report.id)}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--blue)"; e.currentTarget.style.boxShadow = "0 2px 12px rgba(108,71,255,0.1)"; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 2px 12px rgba(255, 180, 118,0.1)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.boxShadow = "none"; }}
               style={{
                 background: "var(--card-bg)", border: "1px solid var(--border-color)", borderRadius: 6,
@@ -529,7 +529,7 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
                   {report.summary || "No summary"}
                 </div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <span style={{ fontSize: 11, background: "var(--blue-light)", color: "var(--blue)", padding: "3px 8px", borderRadius: 4, fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, background: "var(--accent-dim)", color: "var(--accent)", padding: "3px 8px", borderRadius: 4, fontWeight: 600 }}>
                     {report.article_count || 0} articles
                   </span>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -541,12 +541,12 @@ function ReportsList({ onSelectReport, refreshKey, onCountChange }) {
               <button
                 onClick={(e) => handleDownloadPDF(e, report.id)}
                 disabled={downloading === report.id}
-                onMouseEnter={e => { e.currentTarget.style.background = "var(--blue)"; e.currentTarget.style.color = "#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "var(--blue-light)"; e.currentTarget.style.color = "var(--blue)"; }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.color = "#fff"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "var(--accent-dim)"; e.currentTarget.style.color = "var(--accent)"; }}
                 style={{
                   flexShrink: 0, padding: "8px 16px",
-                  background: "var(--blue-light)", color: "var(--blue)",
-                  border: "1.5px solid var(--blue)", borderRadius: 6,
+                  background: "var(--accent-dim)", color: "var(--accent)",
+                  border: "1.5px solid var(--accent)", borderRadius: 6,
                   fontSize: 12, fontWeight: 700,
                   cursor: downloading === report.id ? "not-allowed" : "pointer",
                   opacity: downloading === report.id ? 0.6 : 1,
@@ -601,7 +601,7 @@ function ReportDetail({ reportId, onClose, onDelete }) {
   if (error || !report) return (
     <div style={{ padding: 24, border: "1px solid var(--border-color)", borderRadius: 6 }}>
       <div style={{ color: "var(--amber)", fontSize: 13, marginBottom: 16 }}>{error || "Report not found."}</div>
-      <button onClick={onClose} style={{ padding: "8px 16px", background: "var(--blue)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+      <button onClick={onClose} style={{ padding: "8px 16px", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
         Back
       </button>
     </div>
@@ -610,7 +610,7 @@ function ReportDetail({ reportId, onClose, onDelete }) {
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-color)", borderRadius: 6, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ background: "var(--blue)", color: "#fff", padding: "20px 24px" }}>
+      <div style={{ background: "var(--accent)", color: "#fff", padding: "20px 24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
             Back
@@ -618,7 +618,7 @@ function ReportDetail({ reportId, onClose, onDelete }) {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => generatePDF(report)}
-              style={{ background: "#fff", color: "var(--blue)", border: "none", padding: "7px 16px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+              style={{ background: "#fff", color: "var(--accent)", border: "none", padding: "7px 16px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 700 }}
             >
               Download PDF
             </button>
@@ -662,12 +662,12 @@ function ReportDetail({ reportId, onClose, onDelete }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {report.articles.map((a, i) => (
                 <div key={i}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--blue)"; }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-color)"; }}
                   style={{ background: "var(--surface)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "14px 16px", transition: "border-color 0.2s" }}
                 >
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue)", background: "var(--blue-light)", padding: "3px 8px", borderRadius: 4 }}>#{a.number || i + 1}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", background: "var(--accent-dim)", padding: "3px 8px", borderRadius: 4 }}>#{a.number || i + 1}</span>
                     <span style={{ fontSize: 10, background: a.signal === "strong" ? "var(--orange-light)" : "var(--amber-light)", color: a.signal === "strong" ? "var(--orange)" : "var(--amber)", padding: "3px 8px", borderRadius: 4, fontWeight: 600 }}>
                       {a.signal?.toUpperCase() || "SIGNAL"}
                     </span>
@@ -677,7 +677,7 @@ function ReportDetail({ reportId, onClose, onDelete }) {
                   {a.summary && <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.6 }}>{a.summary}</p>}
                   {a.url && (
                     <a href={a.url} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 12, color: "var(--blue)", fontWeight: 600, textDecoration: "none" }}
+                      style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}
                       onMouseEnter={e => e.target.style.textDecoration = "underline"}
                       onMouseLeave={e => e.target.style.textDecoration = "none"}
                     >
@@ -756,12 +756,12 @@ export default function Reports() {
               onClick={() => !atLimit && setShowDailyModal(true)}
               disabled={atLimit}
               title={atLimit ? "Delete a report to make room" : ""}
-              onMouseEnter={e => { if (!atLimit) { e.currentTarget.style.background = "var(--blue-light)"; e.currentTarget.style.color = "var(--blue)"; } }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = atLimit ? "var(--text-muted)" : "var(--blue)"; }}
+              onMouseEnter={e => { if (!atLimit) { e.currentTarget.style.background = "var(--accent-dim)"; e.currentTarget.style.color = "var(--accent)"; } }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = atLimit ? "var(--text-muted)" : "var(--accent)"; }}
               style={{
                 padding: "10px 20px", background: "transparent",
-                color: atLimit ? "var(--text-muted)" : "var(--blue)",
-                border: `1.5px solid ${atLimit ? "var(--border-color)" : "var(--blue)"}`, borderRadius: 6, fontSize: 13, fontWeight: 700,
+                color: atLimit ? "var(--text-muted)" : "var(--accent)",
+                border: `1.5px solid ${atLimit ? "var(--border-color)" : "var(--accent)"}`, borderRadius: 6, fontSize: 13, fontWeight: 700,
                 cursor: atLimit ? "not-allowed" : "pointer", transition: "background 0.15s",
                 opacity: atLimit ? 0.6 : 1,
               }}
@@ -773,9 +773,9 @@ export default function Reports() {
               disabled={atLimit}
               title={atLimit ? "Delete a report to make room" : ""}
               onMouseEnter={e => { if (!atLimit) e.currentTarget.style.background = "#5535e0"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = atLimit ? "var(--border-color)" : "var(--blue)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = atLimit ? "var(--border-color)" : "var(--accent)"; }}
               style={{
-                padding: "10px 20px", background: atLimit ? "var(--border-color)" : "var(--blue)", color: "#fff",
+                padding: "10px 20px", background: atLimit ? "var(--border-color)" : "var(--accent)", color: "#fff",
                 border: "none", borderRadius: 6, fontSize: 13, fontWeight: 700,
                 cursor: atLimit ? "not-allowed" : "pointer", transition: "background 0.15s",
               }}

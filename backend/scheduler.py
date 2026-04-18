@@ -282,12 +282,13 @@ def scan_and_send_alerts():
 
 # ── V4 Sprint 4: Daily trends refresh at 8AM UTC ─────────────────────────────
 
-async def pre_generate_all_deepdives():
+async def pre_generate_all_deepdives(role: str = "cto"):
     """
-    Pre-generate deep dives for all today's trends.
+    Pre-generate deep dives for all trends that don't have one.
     Called after trend refresh to avoid race conditions and improve UX.
     """
     import os as _os
+    import json as _json
     from openai import OpenAI as _OpenAI
 
     api_key = _os.getenv("OPENAI_API_KEY")
@@ -296,31 +297,36 @@ async def pre_generate_all_deepdives():
         return
 
     client = _OpenAI(api_key=api_key)
-    today = datetime.utcnow().date().isoformat()
 
-    # Fetch today's trends that need deep dives
+    # Fetch trends that need deep dives (NULL or error status)
     try:
-        resp = supabase.table("trends").select("id,topic,summary,category,data,deepdive_status").eq("generated_date", today).execute()
+        resp = supabase.table("trends").select("id,topic,category,data,deepdive_status").or_("deepdive_status.is.null,deepdive_status.eq.error").limit(50).execute()
         trends = resp.data or []
     except Exception as e:
         logger.error(f"[PreGen] Failed to fetch trends: {e}")
         return
 
-    pending = [t for t in trends if t.get("deepdive_status") != "done"]
-    logger.info(f"[PreGen] Generating deep dives for {len(pending)}/{len(trends)} trends")
+    logger.info(f"[PreGen] Found {len(trends)} trends needing deep dives")
 
-    for t in pending:
+    succeeded = 0
+    failed = 0
+
+    for t in trends:
         trend_id = t.get("id")
         topic = t.get("topic", "")
-        summary = t.get("data", {}).get("summary", "") or t.get("summary", "")
+        data = t.get("data") or {}
+        summary = data.get("summary", "") if isinstance(data, dict) else ""
+
+        if not topic:
+            continue
 
         # Claim lock
         try:
-            supabase.table("trends").update({"deepdive_status": "generating"}).eq("id", trend_id).eq("deepdive_status", "pending").execute()
+            supabase.table("trends").update({"deepdive_status": "generating"}).eq("id", trend_id).execute()
         except Exception:
             continue
 
-        prompt = f"""You are a strategic enterprise technology analyst.
+        prompt = f"""You are a strategic enterprise technology analyst writing for a {role.replace('_', ' ')}.
 
 Topic: {topic}
 Summary: {summary}
@@ -352,7 +358,7 @@ Return ONLY the JSON object."""
                 max_tokens=1000,
             )
             deep_dive_raw = resp.choices[0].message.content.strip()
-            deep_dive_json = __import__("json").loads(deep_dive_raw)
+            deep_dive_json = _json.loads(deep_dive_raw)
 
             # Ensure sources exist
             if "sources" not in deep_dive_json or not deep_dive_json["sources"]:
@@ -364,20 +370,34 @@ Return ONLY the JSON object."""
 
             # Save with status=done
             supabase.table("trends").update({
-                "deepdive": __import__("json").dumps(deep_dive_json),
-                "deepdive_status": "done"
+                "deepdive": _json.dumps(deep_dive_json),
+                "deepdive_status": "done",
+                "user_role": role,
+                "generated_data": datetime.utcnow().isoformat(),
             }).eq("id", trend_id).execute()
             logger.info(f"[PreGen] ✓ {topic[:40]}")
+            succeeded += 1
 
         except Exception as e:
             logger.error(f"[PreGen] ✗ {topic[:40]}: {e}")
-            # Release lock
-            supabase.table("trends").update({"deepdive_status": "pending"}).eq("id", trend_id).execute()
+            # Mark as error
+            supabase.table("trends").update({"deepdive_status": "error"}).eq("id", trend_id).execute()
+            failed += 1
 
-        # Small delay to avoid rate limits
-        await asyncio.sleep(1)
+        # Rate limit delay
+        await asyncio.sleep(2)
 
-    logger.info(f"[PreGen] Deep dive pre-generation complete")
+    logger.info(f"[PreGen] Deep dive pre-generation complete: {succeeded} succeeded, {failed} failed")
+
+
+def scheduled_batch_deepdives():
+    """Runs every day at 09:00 UTC (after 8AM trends refresh). Generates deep dives for all trends."""
+    logger.info("🔬 Scheduled batch deep dive generation starting — 09:00 UTC")
+    try:
+        asyncio.run(pre_generate_all_deepdives("cto"))
+        logger.info("✅ Batch deep dive generation complete")
+    except Exception as e:
+        logger.error(f"❌ Batch deep dive job failed: {e}")
 
 
 def scheduled_daily_trends():
@@ -486,8 +506,14 @@ def start():
             id="hourly_alerts",
             replace_existing=True,
         )
+        scheduler.add_job(
+            scheduled_batch_deepdives,
+            trigger=CronTrigger(hour=9, minute=0),  # 9 AM UTC (after 8 AM trends refresh)
+            id="batch_deepdives",
+            replace_existing=True,
+        )
         scheduler.start()
-        logger.info("📅 Scheduler started — ingestion 00:00, newsletter 07:00, trends 08:00, alerts hourly (all UTC)")
+        logger.info("📅 Scheduler started — ingestion 00:00, newsletter 07:00, trends 08:00, deepdives 09:00, alerts hourly (all UTC)")
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}")
 

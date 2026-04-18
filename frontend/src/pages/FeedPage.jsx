@@ -38,7 +38,7 @@ function truncate(str, len) {
   return str.length > len ? str.slice(0, len) + "..." : str;
 }
 
-function StatCard({ label, value, color = "#6B5CE7", isMobile }) {
+function StatCard({ label, value, color = "var(--accent)", isMobile }) {
   return (
     <div className="stats-card" style={{
       background: "var(--card-bg)",
