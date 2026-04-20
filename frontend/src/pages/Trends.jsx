@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useContext } from "react";
-import { getTrends, getDeepDive, getPersonalizedTrends, getRecommendations } from "../services/api";
+import { getTrends, getDeepDive, getPersonalizedTrends, getRecommendations, getMonthlySummary } from "../services/api";
 import { useSaved } from "../hooks/useSaved";
 import { AuthContext } from "../context/AuthContext";
 import TrendsOnboarding from "../components/TrendsOnboarding";
@@ -976,6 +976,13 @@ const ALL_CATEGORIES = [
   { id: "enterprise_apps",   label: "Enterprise AI Apps" },
 ];
 
+const PERIOD_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "all", label: "All Time" },
+];
+
 export default function Trends() {
   const { user } = useContext(AuthContext);
   const { saved, toggleSave } = useSaved();
@@ -992,6 +999,11 @@ export default function Trends() {
   const [isMobile,          setIsMobile]          = useState(window.innerWidth < 768);
   const [recommendations,   setRecommendations]   = useState([]);
   const [loadingRecs,       setLoadingRecs]       = useState(false);
+  const [period,            setPeriod]            = useState("month");
+  const [monthlySummary,    setMonthlySummary]    = useState(null);
+  const [summaryCollapsed,  setSummaryCollapsed]  = useState(() => {
+    return localStorage.getItem("aiwatch_trends_summary_collapsed") === "true";
+  });
   const [trendsViewMode, setTrendsViewMode] = useState(() => {
     return localStorage.getItem("aiwatch_trends_view") || "list";
   });
@@ -1019,7 +1031,7 @@ export default function Trends() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getTrends();
+      const data = await getTrends(null, period);
       setAllTrends(data.trends || []);
       setLastUpdated(data.last_updated);
     } catch (err) {
@@ -1027,6 +1039,13 @@ export default function Trends() {
     } finally {
       setLoading(false);
     }
+  }, [period]);
+
+  // Fetch monthly summary on mount
+  useEffect(() => {
+    getMonthlySummary()
+      .then(setMonthlySummary)
+      .catch(() => setMonthlySummary(null));
   }, []);
 
   const loadPersonalizedTrends = useCallback(async () => {
@@ -1353,8 +1372,118 @@ export default function Trends() {
         </div>
       )}
 
-      {/* Category filter dropdown */}
-      <div style={{ marginBottom: 24 }}>
+      {/* Monthly Summary Card */}
+      {monthlySummary && (
+        <div style={{
+          background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-primary) 100%)",
+          borderLeft: "4px solid var(--accent)",
+          borderRadius: 12,
+          padding: summaryCollapsed ? "16px 24px" : "20px 24px",
+          marginBottom: 24,
+          border: "1px solid var(--border-color)",
+        }}>
+          {/* Header */}
+          <div
+            onClick={() => {
+              const newState = !summaryCollapsed;
+              setSummaryCollapsed(newState);
+              localStorage.setItem("aiwatch_trends_summary_collapsed", String(newState));
+            }}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              cursor: "pointer",
+            }}
+          >
+            <div style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--text-primary)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 18 }}>🔥</span>
+              What's trending in AI this month
+            </div>
+            <button style={{
+              background: "none",
+              border: "none",
+              fontSize: 18,
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              padding: "4px 8px",
+            }}>
+              {summaryCollapsed ? "+" : "−"}
+            </button>
+          </div>
+
+          {/* Content (collapsible) */}
+          {!summaryCollapsed && (
+            <>
+              <div style={{
+                height: 1,
+                background: "var(--border-color)",
+                margin: "12px 0 16px",
+              }} />
+
+              {/* Summary text */}
+              <p style={{
+                fontSize: 14,
+                color: "var(--text-secondary)",
+                lineHeight: 1.7,
+                margin: "0 0 16px",
+              }}>
+                {monthlySummary.summary}
+              </p>
+
+              {/* Top themes pills */}
+              {monthlySummary.top_themes && monthlySummary.top_themes.length > 0 && (
+                <div style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  marginBottom: 16,
+                }}>
+                  {monthlySummary.top_themes.map((theme, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: "4px 12px",
+                        borderRadius: 20,
+                        border: "1px solid var(--accent)",
+                        color: "var(--accent)",
+                        background: "transparent",
+                      }}
+                    >
+                      {theme}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div style={{
+                fontSize: 11,
+                color: "var(--text-muted)",
+              }}>
+                Updated daily · Powered by AI Watch Intelligence
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Filter row: Category + Period dropdowns */}
+      <div style={{
+        display: "flex",
+        gap: 12,
+        marginBottom: 24,
+        flexWrap: isMobile ? "wrap" : "nowrap",
+      }}>
         <CategoryCombobox
           selected={category}
           onSelect={setCategory}
@@ -1363,6 +1492,26 @@ export default function Trends() {
           fullWidth={isMobile}
           placeholder="All Categories"
         />
+        <select
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          style={{
+            padding: "10px 14px",
+            fontSize: 13,
+            fontWeight: 500,
+            border: "1px solid var(--border-color)",
+            borderRadius: 8,
+            background: "var(--card-bg)",
+            color: "var(--text-primary)",
+            cursor: "pointer",
+            minWidth: isMobile ? "100%" : 140,
+            outline: "none",
+          }}
+        >
+          {PERIOD_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Error */}

@@ -73,14 +73,14 @@ _BOILERPLATE_PHRASES = (
 def scrape_summary(url: str, timeout: int = 5) -> str:
     """
     Scrape the first 2-3 meaningful sentences from <p> tags at `url`.
-    Returns 'Summary not available.' on any failure, timeout, or
-    when the URL is a Google News redirect (which hits consent.google.com).
+    Returns empty string on any failure, timeout, or when the URL is
+    a Google News redirect (which hits consent.google.com).
     """
     if not url:
-        return "Summary not available."
+        return ""
     # Google News redirect URLs always land on consent.google.com — skip them
     if "news.google.com" in url:
-        return "Summary not available."
+        return ""
     try:
         from bs4 import BeautifulSoup
         headers = {
@@ -108,9 +108,9 @@ def scrape_summary(url: str, timeout: int = 5) -> str:
                 break
         if sentences:
             return " ".join(sentences)[:500]
-        return "Summary not available."
+        return ""
     except Exception:
-        return "Summary not available."
+        return ""
 
 
 def get_api_key():

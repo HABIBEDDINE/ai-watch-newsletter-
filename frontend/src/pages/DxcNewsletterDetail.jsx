@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getDxcNewsletterById, getDxcNewsletters, generateDxcJournalCard } from "../services/api";
 import { ArrowLeft, Calendar, Tag, FileText, ChevronLeft, ChevronRight, X, ZoomIn, Newspaper, Lightbulb, BookOpen } from "lucide-react";
@@ -39,64 +39,157 @@ const CATEGORY_HEADER_COLORS = {
   "Newsletter Content": "var(--text-secondary)",
 };
 
-// Lightbox component for full-screen image viewing
+// Lightbox component for full-screen image viewing with drag-to-pan
 function ImageLightbox({ imageUrl, title, onClose, onPrev, onNext, hasPrev, hasNext }) {
   const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [lastTouchDist, setLastTouchDist] = useState(null);
+  const imgRef = useRef(null);
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowLeft" && hasPrev) onPrev();
-      if (e.key === "ArrowRight" && hasNext) onNext();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
-
+  // Mouse wheel zoom
   const handleWheel = (e) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setScale(prev => Math.min(Math.max(prev + delta, 0.5), 3));
+    const delta = e.deltaY > 0 ? -0.2 : 0.2;
+    setScale(prev => {
+      const next = Math.min(Math.max(1, prev + delta), 5);
+      // Reset position if zooming back to 1
+      if (next <= 1) setPosition({ x: 0, y: 0 });
+      return next;
+    });
+  };
+
+  // Drag to pan
+  const handleMouseDown = (e) => {
+    if (scale <= 1) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+
+  // Touch support (mobile pinch/drag)
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setLastTouchDist(dist);
+    } else if (e.touches.length === 1 && scale > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y });
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && lastTouchDist) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const delta = (dist - lastTouchDist) * 0.01;
+      setScale(prev => Math.min(Math.max(1, prev + delta), 5));
+      setLastTouchDist(dist);
+    } else if (e.touches.length === 1 && isDragging) {
+      setPosition({
+        x: e.touches[0].clientX - dragStart.x,
+        y: e.touches[0].clientY - dragStart.y,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    setLastTouchDist(null);
+  };
+
+  // Reset on close
+  const closeLightbox = () => {
+    onClose();
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    setIsDragging(false);
+  };
+
+  // Zoom buttons
+  const zoomIn = () => setScale(prev => Math.min(prev + 0.5, 5));
+  const zoomOut = () => {
+    const next = Math.max(1, scale - 0.5);
+    setScale(next);
+    if (next === 1) setPosition({ x: 0, y: 0 });
+  };
+  const resetZoom = () => { setScale(1); setPosition({ x: 0, y: 0 }); };
+
+  // Keyboard support
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === '+' || e.key === '=') zoomIn();
+      if (e.key === '-') zoomOut();
+      if (e.key === '0') resetZoom();
+      // Arrow keys to pan when zoomed in
+      if (scale > 1) {
+        const step = 50;
+        if (e.key === 'ArrowUp') setPosition(p => ({ ...p, y: p.y + step }));
+        if (e.key === 'ArrowDown') setPosition(p => ({ ...p, y: p.y - step }));
+        if (e.key === 'ArrowLeft') setPosition(p => ({ ...p, x: p.x + step }));
+        if (e.key === 'ArrowRight') setPosition(p => ({ ...p, x: p.x - step }));
+      } else {
+        // Navigate between articles when not zoomed
+        if (e.key === 'ArrowLeft' && hasPrev) onPrev();
+        if (e.key === 'ArrowRight' && hasNext) onNext();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [scale, isDragging, hasPrev, hasNext, onPrev, onNext]);
+
+  const btnStyle = {
+    background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+    width: 32, height: 32, color: 'white', fontSize: 18, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   };
 
   return (
     <div
-      onClick={onClose}
       style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.85)",
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.9)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: isDragging ? 'grabbing' : scale > 1 ? 'grab' : 'default',
+        overflow: 'hidden',
       }}
+      onWheel={handleWheel}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onClick={(e) => { if (e.target === e.currentTarget) closeLightbox(); }}
     >
       {/* Close button */}
-      <button
-        onClick={onClose}
-        style={{
-          position: "absolute",
-          top: 20,
-          right: 20,
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          border: "none",
-          background: "rgba(255,255,255,0.1)",
-          color: "#fff",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 10001,
-        }}
-      >
-        <X size={24} />
+      <button onClick={closeLightbox} style={{
+        position: 'absolute', top: 16, right: 16, zIndex: 10001,
+        background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+        width: 40, height: 40, color: 'white', fontSize: 20, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <X size={20} />
       </button>
 
       {/* Previous button */}
-      {hasPrev && (
+      {hasPrev && scale <= 1 && (
         <button
           onClick={(e) => { e.stopPropagation(); onPrev(); }}
           style={{
@@ -122,7 +215,7 @@ function ImageLightbox({ imageUrl, title, onClose, onPrev, onNext, hasPrev, hasN
       )}
 
       {/* Next button */}
-      {hasNext && (
+      {hasNext && scale <= 1 && (
         <button
           onClick={(e) => { e.stopPropagation(); onNext(); }}
           style={{
@@ -147,45 +240,48 @@ function ImageLightbox({ imageUrl, title, onClose, onPrev, onNext, hasPrev, hasN
         </button>
       )}
 
-      {/* Image container */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onWheel={handleWheel}
-        style={{
-          maxWidth: "90vw",
-          maxHeight: "90vh",
-          overflow: "hidden",
-        }}
-      >
-        <img
-          src={imageUrl}
-          alt={title}
-          style={{
-            maxWidth: "90vw",
-            maxHeight: "90vh",
-            objectFit: "contain",
-            transform: `scale(${scale})`,
-            transition: "transform 0.1s ease-out",
-            cursor: scale > 1 ? "zoom-out" : "zoom-in",
-          }}
-          onClick={() => setScale(s => s > 1 ? 1 : 1.5)}
-        />
+      {/* Zoom controls */}
+      <div style={{
+        position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+        display: 'flex', gap: 8, background: 'rgba(0,0,0,0.6)',
+        borderRadius: 24, padding: '8px 16px', zIndex: 10001,
+      }}>
+        <button onClick={zoomOut} style={btnStyle} title="Zoom out">−</button>
+        <span style={{ color: 'white', fontSize: 13, lineHeight: '32px', minWidth: 50, textAlign: 'center' }}>
+          {Math.round(scale * 100)}%
+        </span>
+        <button onClick={zoomIn} style={btnStyle} title="Zoom in">+</button>
+        <button onClick={resetZoom} style={btnStyle} title="Reset">↺</button>
       </div>
 
-      {/* Zoom indicator */}
-      <div style={{
-        position: "absolute",
-        bottom: 20,
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "rgba(0,0,0,0.6)",
-        color: "#fff",
-        padding: "8px 16px",
-        borderRadius: 20,
-        fontSize: 12,
-      }}>
-        {Math.round(scale * 100)}% · Scroll to zoom · Click image to toggle · Esc to close
-      </div>
+      {/* Hint text */}
+      {scale > 1 && (
+        <div style={{
+          position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: 12,
+          borderRadius: 12, padding: '6px 14px', zIndex: 10001,
+        }}>
+          Drag to pan · Scroll to zoom · ↺ to reset
+        </div>
+      )}
+
+      {/* Image */}
+      <img
+        ref={imgRef}
+        src={imageUrl}
+        alt={title}
+        onMouseDown={handleMouseDown}
+        draggable={false}
+        style={{
+          maxWidth: '90vw', maxHeight: '90vh',
+          objectFit: 'contain',
+          transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+          transformOrigin: 'center center',
+          transition: isDragging ? 'none' : 'transform 0.1s ease',
+          userSelect: 'none',
+          pointerEvents: 'auto',
+        }}
+      />
     </div>
   );
 }

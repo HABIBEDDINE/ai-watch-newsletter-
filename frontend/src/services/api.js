@@ -35,7 +35,11 @@ async function request(path, options = {}) {
       };
 
       fetchOptions.headers = {};
-      if (_token) fetchOptions.headers["Authorization"] = `Bearer ${_token}`;
+      // Use in-memory token first, fall back to localStorage for resilience
+      const token = _token || localStorage.getItem('aiwatch_at');
+      if (token) {
+        fetchOptions.headers["Authorization"] = `Bearer ${token}`;
+      }
       if (body) {
         fetchOptions.headers["Content-Type"] = "application/json";
         fetchOptions.body = typeof body === "string" ? body : JSON.stringify(body);
@@ -102,11 +106,16 @@ export async function getRadar(persona = "cto", maxArticles = 8) {
   return request(`/api/radar?${params.toString()}`);
 }
 
-export async function getTrends(category) {
+export async function getTrends(category, period) {
   const params = new URLSearchParams();
   if (category && category !== "all") params.append("category", category);
+  if (period && period !== "all") params.append("period", period);
   const query = params.toString();
   return request(`/api/trends${query ? `?${query}` : ""}`);
+}
+
+export async function getMonthlySummary() {
+  return request("/api/trends/monthly-summary");
 }
 
 export async function refreshTrends() {
@@ -293,6 +302,10 @@ export async function sendNewsletterNow(persona = "cto") {
 
 export async function sendNewsletterCompose(payload) {
   return request("/api/newsletter/send", { method: "POST", body: payload, timeoutMs: 15000, retries: 0 });
+}
+
+export async function sendSingleItem(payload) {
+  return request("/api/newsletter/send-single", { method: "POST", body: payload, timeoutMs: 15000, retries: 0 });
 }
 
 export async function subscribeEmail(email) {

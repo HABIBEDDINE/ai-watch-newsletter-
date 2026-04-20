@@ -168,24 +168,155 @@ function SelectRow({ label, value, options, onChange }) {
   );
 }
 
+// ── Journal FY26-style Newsletter HTML Generator ─────────────────────────────
+function generateJournalNewsletterHTML(selectedArticles, config) {
+  // Group articles by topic/category
+  const grouped = {};
+  selectedArticles.forEach(article => {
+    const cat = article.topic || article.category || article.search_topic || article.industry || 'General';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(article);
+  });
+
+  const sectionColors = {
+    'AI': '#E84E0F',
+    'Fintech': '#1a6b3c',
+    'HealthTech': '#1a5fa6',
+    'Cybersecurity': '#6b1a1a',
+    'CleanTech': '#2d6b1a',
+    'Robotics': '#4a1a6b',
+    'default': '#0E1020'
+  };
+
+  let sectionsHTML = '';
+  let sectionNum = 1;
+
+  // Executive summary box at top
+  if (config.aiSummary) {
+    sectionsHTML += `
+    <div style="background: #f8f9fc; border-left: 4px solid #E84E0F; padding: 20px 24px; margin: 0 0 32px 0; border-radius: 0 8px 8px 0;">
+      <p style="font-size: 11px; font-weight: 700; color: #E84E0F; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px 0;">
+        EXECUTIVE SUMMARY — ${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+      </p>
+      <p style="font-size: 13px; color: #4a5068; line-height: 1.7; margin: 0;">
+        This week's AI Watch digest covers <strong>${selectedArticles.length} key developments</strong> across
+        ${Object.keys(grouped).join(', ')}.
+        ${selectedArticles.filter(a => a.signal_strength === 'Strong').length} strong signals detected.
+      </p>
+    </div>`;
+  }
+
+  // Sections by category
+  Object.entries(grouped).forEach(([category, articles]) => {
+    const color = sectionColors[category] || sectionColors.default;
+    const num = String(sectionNum).padStart(2, '0');
+
+    sectionsHTML += `
+      <!-- SECTION ${num} -->
+      <div style="background: ${color}; padding: 12px 20px; margin: 32px 0 24px 0; border-radius: 6px;">
+        <p style="color: white; font-size: 16px; font-weight: 800; margin: 0; letter-spacing: -0.3px;">
+          ${num} &nbsp; ${category}
+        </p>
+      </div>`;
+
+    articles.forEach(article => {
+      const summaryText = config.summaryLength === "1"
+        ? (article.summary || article.description || "").split(".")[0] + "."
+        : config.summaryLength === "3"
+          ? (article.summary || article.description || "").split(".").slice(0,3).join(".") + "."
+          : (article.summary || article.description || "").slice(0, 400) + ((article.summary || article.description || "").length > 400 ? '...' : '');
+
+      sectionsHTML += `
+        <!-- ARTICLE -->
+        <div style="margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid #e2e4ee;">
+          <p style="font-size: 16px; font-weight: 700; color: ${color}; margin: 0 0 6px 0; line-height: 1.3;">
+            ${article.title}
+          </p>
+          <p style="font-size: 11px; color: #8b91b5; margin: 0 0 12px 0;">
+            ${article.source || ''} ${article.source && article.published_at ? '·' : ''} ${article.published_at ? new Date(article.published_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+            ${config.signalBadges && article.signal_strength ? ` · <span style="color: ${article.signal_strength === 'Strong' ? '#E84E0F' : '#D97706'}; font-weight: 700;">${article.signal_strength} Signal</span>` : ''}
+          </p>
+          ${summaryText ? `
+          <p style="font-size: 13px; color: #2d3050; line-height: 1.7; margin: 0 0 12px 0;">
+            ${summaryText}
+          </p>` : ''}
+          ${config.showLinks && article.url ? `
+          <a href="${article.url}" style="font-size: 12px; color: ${color}; font-weight: 600; text-decoration: none;">
+            Read full article →
+          </a>` : ''}
+        </div>`;
+    });
+
+    sectionNum++;
+  });
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background: #f0f2ff; font-family: Arial, Helvetica, sans-serif;">
+  <div style="max-width: 680px; margin: 0 auto; background: white;">
+
+    <!-- HEADER -->
+    <div style="background: #0E1020; padding: 32px 40px; text-align: center;">
+      <p style="color: #8b91b5; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 8px 0;">
+        DXC Technology · AI Watch Intelligence
+      </p>
+      <h1 style="color: white; font-size: 28px; font-weight: 900; margin: 0 0 4px 0; letter-spacing: -0.5px;">
+        AI Intelligence Digest
+      </h1>
+      <p style="color: #FFB476; font-size: 13px; margin: 0;">
+        ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+      </p>
+    </div>
+
+    <!-- ORANGE ACCENT BAR -->
+    <div style="height: 4px; background: linear-gradient(90deg, #E84E0F, #FFB476);"></div>
+
+    <!-- CONTENT -->
+    <div style="padding: 40px;">
+      ${sectionsHTML}
+    </div>
+
+    <!-- FOOTER -->
+    <div style="background: #0E1020; padding: 24px 40px; text-align: center;">
+      <p style="color: #8b91b5; font-size: 11px; margin: 0 0 4px 0;">
+        AI Watch · Strategic Intelligence Platform · DXC Technology Morocco
+      </p>
+      <p style="color: #4a5068; font-size: 10px; margin: 0;">
+        You're receiving this because you subscribed to AI Watch Intelligence Digest.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 // ── Live Preview ──────────────────────────────────────────────────────────────
 function LivePreview({ articles, config, selectedIds, recipients, isMobile }) {
   const selected = articles.filter(a => selectedIds.has(a.id || a.title));
   const limit = config.maxArticles === "All" ? 999 : parseInt(config.maxArticles);
   const shown = selected.slice(0, limit);
 
+  // Group articles by topic/category
   const grouped = {};
-  for (const a of shown) {
-    const key = config.groupBy === "Sector" ? (a.topic || "General")
-               : config.groupBy === "Signal strength" ? (a.signal_strength || "Weak")
-               : config.groupBy === "Date" ? fmtDate(a.published_at)
-               : "All Articles";
-    (grouped[key] = grouped[key] || []).push(a);
-  }
+  shown.forEach(article => {
+    const cat = article.topic || article.category || article.search_topic || article.industry || 'General';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(article);
+  });
+
+  const sectionColors = {
+    'AI': '#E84E0F',
+    'Fintech': '#1a6b3c',
+    'HealthTech': '#1a5fa6',
+    'Cybersecurity': '#6b1a1a',
+    'CleanTech': '#2d6b1a',
+    'Robotics': '#4a1a6b',
+  };
 
   return (
     <div style={{
-      width: isMobile ? "100%" : 300,
+      width: isMobile ? "100%" : 340,
       flexShrink:0,
       display:"flex",
       flexDirection:"column",
@@ -193,101 +324,118 @@ function LivePreview({ articles, config, selectedIds, recipients, isMobile }) {
       borderTop: isMobile ? "1px solid var(--border-color)" : "none",
       height: isMobile ? "auto" : "100%",
       maxHeight: isMobile ? "50vh" : "none",
+      background: "#f0f2ff",
     }}>
-      {/* Preview header */}
-      <div style={{
-        background:"var(--text-primary)", color:"#fff", padding:"12px 16px", flexShrink:0,
-      }}>
-        <div style={{ fontSize:9, fontWeight:800, letterSpacing:2, opacity:0.6, textTransform:"uppercase" }}>
-          AI WATCH · STRATEGIC INTELLIGENCE
-        </div>
-        <div style={{ fontSize:13, fontWeight:800, marginTop:4, lineHeight:1.3 }}>
-          Intelligence Brief
-        </div>
-        <div style={{ fontSize:10, opacity:0.6, marginTop:3 }}>{todayStr()}</div>
-      </div>
-
-      {/* Preview body */}
-      <div style={{ flex:1, overflowY:"auto", padding:14, background:"var(--surface)" }}>
-        {/* Executive summary */}
-        {config.aiSummary && (
-          <div style={{
-            background:"var(--card-bg)", border:"1px solid var(--border-color)", borderLeft:"3px solid var(--orange)",
-            borderRadius:6, padding:"10px 12px", marginBottom:12,
-          }}>
-            <div style={{ fontSize:9, fontWeight:800, color:"var(--orange)", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>
-              Executive Summary
+      {/* Email preview container */}
+      <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+        <div style={{ background: "white", borderRadius: 4, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+          {/* Preview header */}
+          <div style={{ background: "#0E1020", padding: "16px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 8, color: "#8b91b5", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>
+              DXC Technology · AI Watch
             </div>
-            <div style={{ fontSize:10, color:"var(--text-secondary)", lineHeight:1.5, fontStyle:"italic" }}>
-              {shown.length} articles curated across {Object.keys(grouped).length} sector(s).
-              Key signals this period include developments in AI infrastructure, fintech regulation,
-              and emerging startup activity.
+            <div style={{ fontSize: 14, fontWeight: 800, color: "white", marginBottom: 2 }}>
+              AI Intelligence Digest
             </div>
+            <div style={{ fontSize: 9, color: "#FFB476" }}>{todayStr()}</div>
           </div>
-        )}
 
-        {/* Articles by group */}
-        {Object.entries(grouped).map(([grp, grpArticles]) => {
-          const sc = SECTOR_COLORS[grp] || SECTOR_COLORS.General;
-          return (
-            <div key={grp} style={{ marginBottom:14 }}>
+          {/* Orange accent bar */}
+          <div style={{ height: 3, background: "linear-gradient(90deg, #E84E0F, #FFB476)" }} />
+
+          {/* Preview body */}
+          <div style={{ padding: "16px 14px" }}>
+            {/* Executive summary */}
+            {config.aiSummary && shown.length > 0 && (
               <div style={{
-                fontSize:9, fontWeight:800, letterSpacing:1, textTransform:"uppercase",
-                color:sc.color, background:sc.bg, padding:"3px 8px",
-                borderRadius:4, marginBottom:8, display:"inline-block",
-              }}>{grp}</div>
-              {grpArticles.map((a, i) => (
-                <div key={i} style={{
-                  background:"var(--card-bg)", borderRadius:6, padding:"8px 10px",
-                  marginBottom:6, border:"1px solid var(--border-color)",
-                }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:"var(--text-primary)", lineHeight:1.4, marginBottom:4 }}>
-                    {a.title}
-                  </div>
-                  <div style={{ fontSize:9, color:"var(--text-secondary)", lineHeight:1.4, marginBottom:4 }}>
-                    {config.summaryLength === "1"
-                      ? (a.summary || "").split(".")[0] + "."
-                      : config.summaryLength === "3"
-                        ? (a.summary || "").split(".").slice(0,3).join(".") + "."
-                        : (a.summary || "").split(".").slice(0,2).join(".") + "."
-                    }
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ fontSize:8, color:"var(--text-muted)" }}>{a.source} · {fmtDate(a.published_at)}</span>
-                    {config.signalBadges && a.signal_strength && (
-                      <span style={{
-                        fontSize:8, fontWeight:700,
-                        color: a.signal_strength === "Strong" ? "var(--orange)" : "var(--amber)",
-                        background: a.signal_strength === "Strong" ? "var(--orange-light)" : "var(--amber-light)",
-                        padding:"1px 5px", borderRadius:3,
-                      }}>{a.signal_strength === "Strong" ? "Strong Signal" : "Emerging"}</span>
-                    )}
-                    {config.showLinks && a.url && (
-                      <span style={{ fontSize:8, color:"var(--orange)", fontWeight:700 }}>Read more →</span>
-                    )}
-                  </div>
+                background: "#f8f9fc",
+                borderLeft: "3px solid #E84E0F",
+                padding: "10px 12px",
+                marginBottom: 16,
+                borderRadius: "0 4px 4px 0",
+              }}>
+                <div style={{ fontSize: 8, fontWeight: 700, color: "#E84E0F", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
+                  Executive Summary
                 </div>
-              ))}
-            </div>
-          );
-        })}
+                <div style={{ fontSize: 9, color: "#4a5068", lineHeight: 1.5 }}>
+                  {shown.length} key developments across {Object.keys(grouped).join(', ')}.
+                  {shown.filter(a => a.signal_strength === 'Strong').length > 0 && ` ${shown.filter(a => a.signal_strength === 'Strong').length} strong signals.`}
+                </div>
+              </div>
+            )}
 
-        {shown.length === 0 && (
-          <div style={{ textAlign:"center", color:"var(--text-muted)", fontSize:11, marginTop:24 }}>
-            Select articles in Step 1 to preview
+            {/* Articles by section */}
+            {Object.entries(grouped).map(([grp, grpArticles], idx) => {
+              const color = sectionColors[grp] || "#0E1020";
+              return (
+                <div key={grp} style={{ marginBottom: 12 }}>
+                  {/* Section header */}
+                  <div style={{
+                    background: color,
+                    padding: "6px 10px",
+                    borderRadius: 4,
+                    marginBottom: 8,
+                  }}>
+                    <span style={{ color: "white", fontSize: 10, fontWeight: 700 }}>
+                      {String(idx + 1).padStart(2, '0')} &nbsp; {grp}
+                    </span>
+                  </div>
+
+                  {/* Articles */}
+                  {grpArticles.slice(0, 3).map((a, i) => (
+                    <div key={i} style={{
+                      paddingBottom: 8,
+                      marginBottom: 8,
+                      borderBottom: "1px solid #e2e4ee",
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: color, lineHeight: 1.3, marginBottom: 3 }}>
+                        {a.title}
+                      </div>
+                      <div style={{ fontSize: 8, color: "#8b91b5", marginBottom: 4 }}>
+                        {a.source} · {fmtDate(a.published_at)}
+                      </div>
+                      <div style={{ fontSize: 8, color: "#4a5068", lineHeight: 1.4 }}>
+                        {(a.summary || a.description || "").split(".")[0]}.
+                      </div>
+                    </div>
+                  ))}
+                  {grpArticles.length > 3 && (
+                    <div style={{ fontSize: 8, color: "#8b91b5", fontStyle: "italic" }}>
+                      +{grpArticles.length - 3} more in this section
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {shown.length === 0 && (
+              <div style={{ textAlign: "center", color: "#8b91b5", fontSize: 10, padding: "20px 0" }}>
+                Select articles in Step 1 to preview
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Preview footer */}
+          <div style={{ background: "#0E1020", padding: "10px 14px", textAlign: "center" }}>
+            <div style={{ fontSize: 8, color: "#8b91b5" }}>
+              AI Watch · DXC Technology Morocco
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Preview footer */}
+      {/* Stats bar */}
       <div style={{
-        background:"var(--text-primary)", padding:"10px 16px", flexShrink:0,
-        display:"flex", alignItems:"center", justifyContent:"space-between",
+        background: "#0E1020",
+        padding: "8px 14px",
+        display: "flex",
+        justifyContent: "space-between",
+        flexShrink: 0,
       }}>
-        <div style={{ fontSize:9, color:"rgba(255,255,255,0.5)" }}>
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
           {recipients.length} recipient{recipients.length !== 1 ? "s" : ""}
         </div>
-        <div style={{ fontSize:9, color:"rgba(255,255,255,0.5)" }}>
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
           {shown.length} article{shown.length !== 1 ? "s" : ""}
         </div>
       </div>
@@ -663,6 +811,12 @@ export default function Newsletter() {
     if (recipients.length === 0) { showToast("error", "Add at least one recipient."); return; }
     setSending(true);
     try {
+      // Get selected articles and generate Journal FY26-style HTML
+      const selected = articles.filter(a => selectedIds.has(a.id || a.title));
+      const limit = config.maxArticles === "All" ? 999 : parseInt(config.maxArticles);
+      const shown = selected.slice(0, limit);
+      const htmlContent = generateJournalNewsletterHTML(shown, config);
+
       const res = await fetch("/api/newsletter/send", {
         method: "POST",
         headers: {
@@ -674,6 +828,7 @@ export default function Newsletter() {
           config,
           recipients,
           subject,
+          html_content: htmlContent,
         }),
       });
       const data = await res.json();

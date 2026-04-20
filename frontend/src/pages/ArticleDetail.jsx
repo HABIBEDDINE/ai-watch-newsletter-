@@ -7,10 +7,14 @@ import { Bookmark, BookmarkCheck } from "lucide-react";
 
 // Colors now use CSS variables for dark mode support
 
+// Patterns that indicate the summary is a placeholder, not real content
 const BAD_PATTERNS = [
   "summary not available",
   "no summary available",
   "error generating",
+  "not available",
+  "no content",
+  "no description",
 ];
 
 const SOURCE_API_LABELS = {
@@ -20,14 +24,19 @@ const SOURCE_API_LABELS = {
   google_news_rss: "Google News",
 };
 
+// Check if a summary is a real value (not a placeholder or bad pattern)
+function isValidSummary(text) {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (trimmed.length < 20) return false;
+  const lower = trimmed.toLowerCase();
+  if (BAD_PATTERNS.some(p => lower.includes(p))) return false;
+  return true;
+}
+
 function bestSummary(article) {
   for (const raw of [article.summary, article.description, article.content]) {
-    if (!raw) continue;
-    const text = raw.trim();
-    if (text.length < 20) continue;
-    const lower = text.toLowerCase();
-    if (BAD_PATTERNS.some(p => lower.includes(p))) continue;
-    return text;
+    if (isValidSummary(raw)) return raw.trim();
   }
   return null;
 }
@@ -75,30 +84,56 @@ export default function ArticleDetail() {
   useEffect(() => {
     if (!article) return;
     const found = bestSummary(article);
-    console.log(`[ArticleDetail] FETCHING SUMMARY CHECK for ${article.id} — stored summary: "${found ? found.slice(0, 60) + "..." : "none"}"`);
+    // Get a valid fallback (not "Summary not available." etc)
+    const fallback = isValidSummary(article.description) ? article.description
+                   : isValidSummary(article.content) ? article.content
+                   : null;
+
     if (found) {
       setSummary(found);
       return;
     }
+
+    // If no content to summarize at all (not even title), return
+    if (!fallback && !article.title) {
+      return;
+    }
+
     // No usable summary in cache — call AI once
     setAiLoading(true);
     setAiError(null);
-    console.log(`[ArticleDetail] CALLING /api/summarize for article ${article.id}`);
-    generateSummary(article)
+    // Pass clean payload with article_id for caching
+    const payload = {
+      id: article.id,
+      title: article.title || '',
+      description: isValidSummary(article.description) ? article.description : '',
+      content: article.content || '',
+      url: article.url || '',
+      source: article.source || '',
+    };
+    generateSummary(payload)
       .then(result => {
         const text = (result.summary || "").trim();
-        if (text && text.length > 20) {
+        // Validate that the returned summary is actually useful (not a bad pattern)
+        if (isValidSummary(text)) {
           setSummary(text);
           setArticle(prev => prev ? { ...prev, summary: text } : prev);
+        } else if (fallback) {
+          // AI returned empty or bad — use raw description as fallback
+          setSummary(fallback);
         }
       })
       .catch(err => {
         const msg = err.message || "";
+        // Use fallback content on any error
+        if (fallback) {
+          setSummary(fallback);
+        }
         if (msg.includes("404")) {
           setAiError("Backend not ready — restart the Python server then refresh.");
         } else if (msg.includes("503")) {
           setAiError("No LLM key configured — check .env for OPENAI_API_KEY or ANTHROPIC_API_KEY.");
-        } else {
+        } else if (!fallback) {
           setAiError(msg || "Auto-summary failed.");
         }
       })
@@ -111,9 +146,19 @@ export default function ArticleDetail() {
     setAiLoading(true);
     setAiError(null);
     try {
-      const result = await generateSummary(article);
+      // Pass clean payload with article_id for caching
+      const payload = {
+        id: article.id,
+        title: article.title || '',
+        description: isValidSummary(article.description) ? article.description : '',
+        content: article.content || '',
+        url: article.url || '',
+        source: article.source || '',
+      };
+      const result = await generateSummary(payload);
       const text = (result.summary || "").trim();
-      if (text && text.length > 20) {
+      // Validate that the returned summary is actually useful (not a bad pattern)
+      if (isValidSummary(text)) {
         setSummary(text);
         setArticle(prev => ({ ...prev, summary: text, description: text }));
       } else {
@@ -205,7 +250,7 @@ export default function ArticleDetail() {
               {article.market_segment}
             </span>
           )}
-          {sourceLabel && (
+          {sourceLabel && sourceLabel !== "Unknown" && (
             <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 12px", borderRadius: 999, background: "var(--amber-light)", color: "var(--amber)", border: "1px solid var(--amber)" }}>
               via {sourceLabel}
             </span>
@@ -254,7 +299,7 @@ export default function ArticleDetail() {
             <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: 1.2, textTransform: "uppercase" }}>
               Summary
             </div>
-            {!summary && !aiLoading && (
+            {!isValidSummary(summary) && !aiLoading && (
               <button
                 onClick={handleGenerateSummary}
                 onMouseEnter={e => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.color = "#fff"; }}
@@ -269,17 +314,21 @@ export default function ArticleDetail() {
           {aiLoading ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
               <div style={{ width: 18, height: 18, border: "2px solid var(--border-color)", borderTop: "2px solid var(--accent)", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Generating AI summary (OpenAI → Anthropic)...</span>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>🤖 Generating AI summary...</span>
             </div>
-          ) : summary ? (
+          ) : isValidSummary(summary) ? (
             <p style={{ fontSize: 15, color: "var(--text-primary)", lineHeight: 1.8, margin: 0 }}>
               {cleanSummary(summary)}
             </p>
           ) : (
             <div>
-              <div style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: aiError ? 10 : 0 }}>
-                No summary available for this article.
-                {url && <span> Click <strong>Read Full Article</strong> below to view the source, or use the button above to generate one with AI.</span>}
+              <div style={{ fontSize: 14, color: "var(--text-muted)", fontStyle: "italic", marginBottom: aiError ? 10 : 0 }}>
+                No content available for this article.
+                {url && (
+                  <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", marginLeft: 6, fontStyle: "normal", fontWeight: 600 }}>
+                    Read original →
+                  </a>
+                )}
               </div>
               {aiError && (
                 <div style={{ fontSize: 12, color: "var(--amber)", background: "var(--amber-light)", border: "1px solid var(--amber)", padding: "8px 12px", borderRadius: 4, marginTop: 8 }}>
@@ -303,7 +352,7 @@ export default function ArticleDetail() {
                 ["Published",  date || "—"],
                 ["Relevance",  `${relevance}/10`],
                 ["Segment",    article.market_segment || "General"],
-                ["Data API",   sourceLabel || "—"],
+                ["Signal",     article.signal_strength || "—"],
               ].map(([label, value]) => (
                 <div key={label} style={{ display: "flex", gap: 12, padding: "12px 16px", background: "var(--card-bg)", borderBottom: "1px solid var(--border-color)" }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", minWidth: 80 }}>{label}</span>

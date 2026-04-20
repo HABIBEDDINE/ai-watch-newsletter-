@@ -115,18 +115,18 @@ def _send_email(to: str, subject: str, html: str):
             s.ehlo()
             s.login(SMTP_USER, SMTP_PASS)
             s.sendmail(SMTP_FROM, [to], msg.as_string())
-        print(f"[Email] ✓ Sent '{subject}' → {to}")
+        print(f"[Email] OK Sent '{subject}' -> {to}")
     except smtplib.SMTPAuthenticationError:
-        print(f"[Email] ✗ SMTP auth failed — check SMTP_USERNAME and SMTP_PASSWORD in .env")
+        print(f"[Email] FAIL SMTP auth failed - check SMTP_USERNAME and SMTP_PASSWORD in .env")
     except smtplib.SMTPException as e:
-        print(f"[Email] ✗ SMTP error sending to {to}: {e}")
+        print(f"[Email] FAIL SMTP error sending to {to}: {e}")
     except Exception as e:
-        print(f"[Email] ✗ Unexpected error sending to {to}: {type(e).__name__}: {e}")
+        print(f"[Email] FAIL Unexpected error sending to {to}: {type(e).__name__}: {e}")
 
 def _send_verification_email(email: str, token: str, full_name: str = ""):
     url  = f"{FRONTEND_URL}/verify-email?token={token}"
     # Always print for dev convenience — works even if SMTP fails
-    print(f"[DEV] Email verify → {url}")
+    print(f"[DEV] Email verify -> {url}")
     name = full_name or email
     html = f"""
 <!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f4;font-family:'Open Sans',Arial,sans-serif;">
@@ -159,6 +159,41 @@ def _send_verification_email(email: str, token: str, full_name: str = ""):
 </table>
 </body></html>"""
     _send_email(email, "Verify your AI Watch account", html)
+
+def _send_password_reset_email(email: str, reset_link: str):
+    # Always print for dev convenience — works even if SMTP fails
+    print(f"[DEV] Password reset -> {reset_link}")
+    html = f"""
+<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f4;font-family:'Open Sans',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
+      <tr><td style="background:#1A1A2E;padding:28px 36px;">
+        <span style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-0.5px;">AI Watch</span>
+        <span style="color:rgba(255,255,255,0.4);font-size:13px;margin-left:8px;">by DXC Technology</span>
+      </td></tr>
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="font-size:15px;color:#111;margin:0 0 8px;">Hi,</p>
+        <p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 28px;">
+          You requested a password reset for your AI Watch account.
+          Click the button below to set a new password. This link expires in 15 minutes.
+        </p>
+        <a href="{reset_link}" style="display:inline-block;background:#1A4A9E;color:#fff;
+          text-decoration:none;font-size:14px;font-weight:700;padding:13px 28px;
+          border-radius:8px;letter-spacing:0.3px;">Reset Password</a>
+        <p style="font-size:12px;color:#999;margin:24px 0 0;line-height:1.7;">
+          If you did not request this, you can safely ignore this email.<br>
+          Or copy this URL: <a href="{reset_link}" style="color:#1A4A9E;">{reset_link}</a>
+        </p>
+      </td></tr>
+      <tr><td style="background:#f9f9f9;padding:16px 36px;border-top:1px solid #eee;">
+        <p style="font-size:11px;color:#aaa;margin:0;">AI Watch · DXC Technology · Internal use only</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+    _send_email(email, "Reset your AI Watch password", html)
 
 # ── schemas ───────────────────────────────────────────────────────────────────
 class RegisterBody(BaseModel):
@@ -418,8 +453,7 @@ async def forgot_password(body: ForgotBody):
         "expires_at": _exp(RESET_TTL),
     }).execute()
     reset_url = f"{FRONTEND_URL}/reset-password/{token}"
-    print(f"[DEV] Password reset → {reset_url}")
-    # TODO: send actual email
+    _send_password_reset_email(email, reset_url)
     return _SAFE
 
 # ── reset password ────────────────────────────────────────────────────────────

@@ -536,6 +536,109 @@ async def test_sources():
     }
 
 
+@app.get("/api/trends/monthly-summary")
+async def get_monthly_summary():
+    """Generate or return cached monthly AI trends summary.
+
+    Checks role_recommendations table for cached summary.
+    If stale (> 24h) or missing, generates new summary with GPT-4o-mini.
+    """
+    import os as _os
+    from openai import OpenAI as _OpenAI
+
+    # Check cache
+    try:
+        cached = supabase.table("role_recommendations").select("*").eq("role", "monthly_summary").limit(1).execute()
+        if cached.data:
+            row = cached.data[0]
+            updated_at = row.get("updated_at", "")
+            # Check if less than 24 hours old
+            if updated_at:
+                try:
+                    from datetime import datetime
+                    updated = datetime.fromisoformat(updated_at.replace("Z", ""))
+                    if (datetime.utcnow() - updated).total_seconds() < 86400:
+                        # Return cached
+                        trends_data = row.get("trends") or {}
+                        return {
+                            "summary": trends_data.get("summary", ""),
+                            "top_themes": trends_data.get("top_themes", []),
+                            "cached": True,
+                        }
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[MonthlySummary] Cache check failed: {e}")
+
+    # Generate new summary
+    api_key = _os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return {"summary": "AI summary unavailable - OpenAI API key not configured.", "top_themes": [], "cached": False}
+
+    # Fetch trends from last 30 days
+    try:
+        cutoff = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        rows = supabase.table("trends").select("topic,category,data").gte("detected_at", cutoff).order("created_at", desc=True).limit(50).execute()
+        trends_data = rows.data or []
+    except Exception as e:
+        print(f"[MonthlySummary] Trends fetch failed: {e}")
+        return {"summary": "Unable to fetch trends data.", "top_themes": [], "cached": False}
+
+    if not trends_data:
+        return {"summary": "No trends detected in the past month.", "top_themes": [], "cached": False}
+
+    # Build prompt with top 10 by score
+    trend_list = []
+    for row in trends_data[:10]:
+        data = row.get("data") or {}
+        topic = row.get("topic") or data.get("topic", "")
+        category = row.get("category") or data.get("category", "")
+        if topic:
+            trend_list.append(f"- {topic} ({category})")
+
+    prompt = f"""You are an AI industry analyst. Based on these trending AI topics from the past month,
+write a 3-sentence executive summary of what's happening in AI right now.
+Focus on patterns, major releases, and strategic implications for enterprise.
+Be specific - mention actual technologies and companies where relevant.
+
+Trends:
+{chr(10).join(trend_list)}
+
+Return JSON: {{"summary": "...", "top_themes": ["theme1", "theme2", "theme3"]}}"""
+
+    try:
+        client = _OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a JSON API. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=400,
+            temperature=0.3,
+        )
+        result = json.loads(response.choices[0].message.content.strip())
+        summary = result.get("summary", "")
+        top_themes = result.get("top_themes", [])
+
+        # Save to cache
+        try:
+            supabase.table("role_recommendations").upsert({
+                "role": "monthly_summary",
+                "trends": {"summary": summary, "top_themes": top_themes},
+                "updated_at": datetime.utcnow().isoformat(),
+            }).execute()
+        except Exception as e:
+            print(f"[MonthlySummary] Cache save failed: {e}")
+
+        return {"summary": summary, "top_themes": top_themes, "cached": False}
+
+    except Exception as e:
+        print(f"[MonthlySummary] GPT call failed: {e}")
+        return {"summary": f"Summary generation failed: {str(e)}", "top_themes": [], "cached": False}
+
+
 @app.get("/api/trends/top")
 def get_top_trends():
     trends, _ = get_cached_trends()
@@ -561,13 +664,32 @@ def get_saved_trends():
 
 
 @app.get("/api/trends")
-def get_trends(category: str = Query(None)):
+def get_trends(category: str = Query(None), period: str = Query("all")):
+    """Get trends with optional category and period filters.
+
+    Args:
+        category: Filter by trend category
+        period: Time period filter - 'today', 'week', 'month', or 'all'
+    """
     trends, last_updated = get_cached_trends()
 
     # Fallback to DB if in-memory cache is empty
     if not trends:
         try:
-            rows = supabase.table("trends").select("*").order("created_at", desc=True).limit(50).execute()
+            query = supabase.table("trends").select("*").order("created_at", desc=True)
+
+            # Apply period filter at DB level for efficiency
+            if period == "today":
+                cutoff = (datetime.utcnow() - timedelta(days=1)).isoformat()
+                query = query.gte("detected_at", cutoff)
+            elif period == "week":
+                cutoff = (datetime.utcnow() - timedelta(days=7)).isoformat()
+                query = query.gte("detected_at", cutoff)
+            elif period == "month":
+                cutoff = (datetime.utcnow() - timedelta(days=30)).isoformat()
+                query = query.gte("detected_at", cutoff)
+
+            rows = query.limit(50).execute()
             if rows.data:
                 from trends_service import _trends_cache as _tc
                 loaded = []
@@ -610,6 +732,19 @@ def get_trends(category: str = Query(None)):
                 last_updated = rows.data[0].get("created_at") if rows.data else None
         except Exception as e:
             print(f"[/api/trends] DB fallback failed: {e}")
+
+    # Apply period filter (for cached trends)
+    if period and period != "all":
+        if period == "today":
+            cutoff = (datetime.utcnow() - timedelta(days=1)).isoformat()
+        elif period == "week":
+            cutoff = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        elif period == "month":
+            cutoff = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        else:
+            cutoff = None
+        if cutoff:
+            trends = [t for t in trends if (t.get("detected_at") or "") >= cutoff]
 
     if category:
         trends = [t for t in trends if t.get("category") == category]
@@ -1420,7 +1555,12 @@ _last_ingest_time = None
 
 
 def _fetch_all_articles(topic=None, signal=None, industry=None, date_from=None, date_to=None):
-    """Query articles from Supabase with optional server-side filters."""
+    """Query articles from Supabase with optional server-side filters.
+
+    Note: Date filters use ingestion_date (when we got the article),
+    NOT published_at (when article was originally published).
+    This ensures "Today" filter shows articles ingested today.
+    """
     try:
         query = supabase.table("articles").select("*").order("ingestion_date", desc=True)
         if topic:
@@ -1430,9 +1570,9 @@ def _fetch_all_articles(topic=None, signal=None, industry=None, date_from=None, 
         if industry:
             query = query.ilike("industry", f"%{industry}%")
         if date_from:
-            query = query.gte("published_at", date_from)
+            query = query.gte("ingestion_date", date_from)
         if date_to:
-            query = query.lte("published_at", date_to)
+            query = query.lte("ingestion_date", date_to)
         return query.execute().data or []
     except Exception as e:
         print(f"[DB] _fetch_all_articles error: {e}")
@@ -1486,30 +1626,66 @@ async def summarize_article_endpoint(article: dict):
     import os as _os
     article_id = article.get("id")
 
-    # ── 1. DB check — return cached summary if it exists ────────────────────
+    # Bad patterns that indicate no real summary
+    BAD_SUMMARY_PATTERNS = [
+        "summary not available",
+        "no summary available",
+        "not available",
+        "error generating",
+    ]
+
+    def is_valid_summary(s):
+        if not s or not s.strip():
+            return False
+        lower = s.lower().strip()
+        if len(lower) < 20:
+            return False
+        return not any(p in lower for p in BAD_SUMMARY_PATTERNS)
+
+    # ── 1. DB check — return cached summary if it exists and is valid ───────
     if article_id:
         try:
             row = supabase.table("articles").select("summary").eq("id", article_id).limit(1).execute()
-            if row.data and row.data[0].get("summary"):
-                return {"summary": row.data[0]["summary"]}
+            cached = row.data[0].get("summary") if row.data else None
+            if is_valid_summary(cached):
+                return {"summary": cached}
         except Exception as e:
             print(f"[summarize] DB check failed: {e}")
 
     # ── 2. Generate summary ─────────────────────────────────────────────────
-    title       = article.get("title", "")
-    description = article.get("description", "") or ""
-    content     = article.get("content", "")
-    text        = f"Title: {title}\n\n{description}\n\n{content}"[:4000]
+    title       = article.get("title", "").strip()
+    description = (article.get("description", "") or "").strip()
+    content     = (article.get("content", "") or "").strip()
+    source      = article.get("source", "").strip()
+
+    # Clean bad values from description/content
+    if not is_valid_summary(description):
+        description = ""
+    if not is_valid_summary(content):
+        content = ""
+
+    # If we have nothing to work with, return null
+    if not title and not description and not content:
+        return {"summary": None}
+
+    # Build text to summarize - use title alone if no description/content
+    if description or content:
+        text = f"Title: {title}\n\n{description}\n\n{content}"[:4000]
+        content_note = ""
+    else:
+        text = f"Title: {title}"
+        content_note = "\nNote: Only the title is available. Provide a brief, factual summary based on what the title implies about this topic."
 
     system_msg = (
-        "You are a strategic AI analyst. "
+        "You are a strategic AI analyst at DXC Technology. "
         "You ALWAYS respond in English only, no matter what language the article is written in."
     )
     prompt = (
-        "Summarise the following article in 3–4 sentences.\n"
-        "Structure: WHAT happened, WHY it matters strategically, WHO is affected, WHAT to watch next.\n"
-        "Write in plain English prose — no bullet points, no French, no other language.\n\n"
+        f"Write a 2-3 sentence professional summary of this article for a technology executive.\n"
+        f"Be specific and factual. Focus on what it means for enterprise AI strategy.\n\n"
         f"{text}"
+        f"{content_note}\n\n"
+        f"Return only the summary text, no labels or formatting."
     )
 
     generated_summary = None
@@ -1936,6 +2112,26 @@ def trigger_ingest(background_tasks: BackgroundTasks, topic: Optional[str] = Que
     }
 
 
+@app.post("/api/admin/ingest-free-sources")
+async def manual_ingest_free_sources():
+    """Manually trigger free source ingestion (HackerNews, Reddit, arXiv, GitHub, official blogs).
+
+    Use this to test the free sources pipeline without waiting for the daily scheduler.
+    """
+    try:
+        from scheduler import ingest_free_sources_as_articles
+        asyncio.create_task(ingest_free_sources_as_articles())
+        return {
+            "status": "started",
+            "message": "Free source ingest started in background. Check logs for progress.",
+            "timestamp": datetime.now().isoformat(),
+        }
+    except ImportError as e:
+        return {"status": "error", "message": f"Failed to import: {e}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/api/funding")
 def get_funding_rounds(page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=100)):
     """Get detected funding rounds from DB articles."""
@@ -2285,10 +2481,11 @@ def _build_sector_data_for_newsletter(persona: str = "cto", max_articles: int = 
     return sector_map if sector_map else {}
 
 
-def _do_send_newsletter(recipients: list, subject: str, sector_data: dict) -> dict:
+def _do_send_newsletter(recipients: list, subject: str, sector_data: dict, custom_html: str = None) -> dict:
     """
     Synchronous SMTP send — raises on failure so callers get real errors.
     Uses the recipients list directly instead of env var.
+    If custom_html is provided, uses it directly; otherwise generates via newsletter_module.
     """
     import smtplib
     from email.mime.text import MIMEText
@@ -2302,9 +2499,12 @@ def _do_send_newsletter(recipients: list, subject: str, sector_data: dict) -> di
     if not recipients:
         raise ValueError("No recipients — add at least one email in Step 3")
 
-    # Flatten sector_data → article list for HTML generation
+    # Use custom HTML if provided, otherwise generate via newsletter_module
     articles_list = [a for arts in sector_data.values() for a in arts]
-    html = newsletter_module.generate_newsletter_html(articles_list)
+    if custom_html:
+        html = custom_html
+    else:
+        html = newsletter_module.generate_newsletter_html(articles_list)
     newsletter_module.save_newsletter_html(html)
 
     plain = f"AI Watch Intelligence Brief\n{datetime.now().strftime('%B %d, %Y')}\nView this email in HTML for the best experience."
@@ -2371,6 +2571,7 @@ async def send_newsletter_now(request: Request):
     wizard_recipients = body.get("recipients") or []
     wizard_subject    = body.get("subject")    or f"AI Watch Intelligence Brief · {datetime.now().strftime('%B %d, %Y')}"
     article_ids       = body.get("article_ids") or []
+    html_content      = body.get("html_content")  # Optional custom HTML from frontend
 
     # ── Resolve recipients ────────────────────────────────────────────────────
     recipients = wizard_recipients or _load_recipients_file()
@@ -2394,7 +2595,7 @@ async def send_newsletter_now(request: Request):
         else:
             sector_data = _build_sector_data_for_newsletter()
 
-        result = _do_send_newsletter(recipients, wizard_subject, sector_data)
+        result = _do_send_newsletter(recipients, wizard_subject, sector_data, custom_html=html_content)
 
         # Record in history
         _newsletter_state["last_sent"]   = datetime.now().isoformat()
@@ -2524,6 +2725,97 @@ def get_newsletter_schedule():
 def save_newsletter_schedule(data: dict = Body(...)):
     _newsletter_schedule.update(data)
     return {"status": "saved", "schedule": _newsletter_schedule}
+
+
+@app.post("/api/newsletter/send-single")
+async def send_single_item(payload: dict = Body(...)):
+    """Send a single saved item (article or trend) via email."""
+    to = payload.get("to")
+    subject = payload.get("subject", "AI Watch Intelligence")
+    content_html = payload.get("content_html", "")
+
+    if not to or "@" not in to:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+
+    current_month = datetime.now().strftime('%B %Y')
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background: #f0f2ff; font-family: Arial, Helvetica, sans-serif;">
+  <div style="max-width: 640px; margin: 0 auto; background: white;">
+
+    <!-- HEADER with DXC Logo -->
+    <div style="background: #0E1020; padding: 28px 40px; text-align: center;">
+      <div style="margin-bottom: 12px;">
+        <span style="font-family: Arial, sans-serif; font-size: 28px; font-weight: 900; color: #E84E0F; letter-spacing: -1px;">DXC</span>
+      </div>
+      <p style="color: #8b91b5; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 6px 0;">
+        AI Watch Intelligence
+      </p>
+      <p style="color: #FFB476; font-size: 12px; margin: 0;">
+        {subject}
+      </p>
+    </div>
+
+    <!-- ORANGE BAR -->
+    <div style="height: 3px; background: linear-gradient(90deg, #E84E0F, #FFB476);"></div>
+
+    <!-- CONTENT -->
+    <div style="padding: 36px 40px;">
+      {content_html}
+    </div>
+
+    <!-- FOOTER -->
+    <div style="background: #0E1020; padding: 20px 40px; text-align: center;">
+      <p style="color: #8b91b5; font-size: 11px; margin: 0 0 4px 0;">
+        AI Watch · Strategic Intelligence Platform · DXC Technology
+      </p>
+      <p style="color: #4a5068; font-size: 10px; margin: 0;">
+        Sent from AI Watch · {current_month}
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>"""
+
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    cfg = newsletter_module.get_smtp_config()
+    smtp_user = cfg.get("username", "")
+    smtp_pass = cfg.get("password", "")
+    smtp_host = cfg.get("host", "smtp.gmail.com")
+    smtp_port = int(cfg.get("port", 587))
+
+    if not smtp_user or not smtp_pass:
+        raise HTTPException(status_code=500, detail="SMTP not configured. Set SMTP_USERNAME and SMTP_PASSWORD in config/.env")
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = smtp_user
+        msg['To'] = to
+        msg.attach(MIMEText(html, 'html'))
+
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
+            s.ehlo()
+            s.starttls()
+            s.ehlo()
+            s.login(smtp_user, smtp_pass)
+            s.sendmail(smtp_user, [to], msg.as_string())
+
+        print(f"[SendSingle] Email sent to {to}: {subject}")
+        return {"sent": True, "to": to}
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(status_code=500, detail="SMTP authentication failed. Check Gmail App Password in .env")
+    except smtplib.SMTPException as e:
+        print(f"[SendSingle] SMTP error: {e}")
+        raise HTTPException(status_code=500, detail=f"SMTP error: {str(e)}")
+    except Exception as e:
+        print(f"[SendSingle] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
 
 @app.get("/api/newsletter/sent")

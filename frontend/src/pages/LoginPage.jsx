@@ -1,14 +1,26 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
-// DXC Brand Colors (Dark Theme)
-const C = {
-  dark: "#0E1020", darker: "#080A14", surface: "#141728",
-  border: "#1E2340", orange: "#FFB476", coral: "#F2805E",
-  accent: "#FFB476", white: "#F0F2FF", muted: "#8B91B5",
-  red: "#F87171", redLight: "rgba(248, 113, 113, 0.1)",
-  gradient: "linear-gradient(135deg, #FFB476, #F2805E)",
+// DXC Brand Colors
+const COLORS = {
+  dark: {
+    bg: "#0E1020", bgAlt: "#080A14", surface: "#141728",
+    border: "#1E2340", orange: "#FFB476", coral: "#F2805E",
+    accent: "#FFB476", text: "#F0F2FF", muted: "#8B91B5",
+    red: "#F87171", redLight: "rgba(248, 113, 113, 0.1)",
+    gradient: "linear-gradient(135deg, #FFB476, #F2805E)",
+    checkBg: "rgba(255, 180, 118, 0.15)", checkBorder: "rgba(255, 180, 118, 0.3)",
+  },
+  light: {
+    bg: "#F8F9FC", bgAlt: "#FFFFFF", surface: "#FFFFFF",
+    border: "#E2E4EB", orange: "#E07830", coral: "#D65A3A",
+    accent: "#E07830", text: "#1A1D2E", muted: "#5C6178",
+    red: "#DC2626", redLight: "rgba(220, 38, 38, 0.08)",
+    gradient: "linear-gradient(135deg, #E07830, #D65A3A)",
+    checkBg: "rgba(224, 120, 48, 0.12)", checkBorder: "rgba(224, 120, 48, 0.35)",
+  },
 };
 
 /* ── breakpoints ─────────────────────────────────────────────────────────── */
@@ -30,7 +42,7 @@ function useBreakpoint() {
 }
 
 /* ── text input ──────────────────────────────────────────────────────────── */
-function Input({ label, type = "text", value, onChange, error, placeholder }) {
+function Input({ label, type = "text", value, onChange, error, placeholder, C }) {
   const [show, setShow] = useState(false);
   const isPassword = type === "password";
   return (
@@ -50,7 +62,7 @@ function Input({ label, type = "text", value, onChange, error, placeholder }) {
             width:"100%", height:50,
             padding: isPassword ? "0 56px 0 14px" : "0 14px",
             border:`1.5px solid ${error ? C.red : C.border}`,
-            borderRadius:8, fontSize:15, color:C.white,
+            borderRadius:8, fontSize:15, color:C.text,
             background:C.surface, outline:"none", boxSizing:"border-box",
             transition:"border-color 0.15s",
             WebkitAppearance:"none",   // remove iOS inner shadow
@@ -91,36 +103,40 @@ function GoogleIcon() {
 }
 
 /* ── feature bullet ──────────────────────────────────────────────────────── */
-function Feature({ text, small }) {
+function Feature({ text, small, C }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16, opacity:0.85 }}>
       <div style={{
-        width: small ? 18 : 20, height: small ? 18 : 20, borderRadius:"50%",
-        background:"rgba(255, 180, 118, 0.15)", border:"1.5px solid rgba(255, 180, 118, 0.3)",
+        width: small ? 20 : 22, height: small ? 20 : 22, minWidth: small ? 20 : 22, borderRadius:"50%",
+        background: C.checkBg, border:`1.5px solid ${C.checkBorder}`,
         display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
       }}>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M2 5L4 7L8 3" stroke={C.orange} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
-      <span style={{ color:C.muted, fontSize: small ? 12 : 13 }}>{text}</span>
+      <span style={{ color:C.muted, fontSize: small ? 13 : 15 }}>{text}</span>
     </div>
   );
 }
 
 const FEATURES = [
-  "Live news from 4 data sources",
-  "AI-powered summaries & signals",
-  "DXC solution matching",
+  "Live news from 26+ verified AI sources",
+  "AI-powered trends & deep-dive analysis",
+  "DXC ONETEAM newsletter archive",
 ];
 
 /* ── main component ──────────────────────────────────────────────────────── */
 export default function LoginPage() {
   const { login }  = useAuth();
+  const { theme }  = useTheme();
   const navigate   = useNavigate();
   const location   = useLocation();
   const from       = location.state?.from || "/";
   const bp         = useBreakpoint();
+
+  // Theme-aware colors
+  const C = COLORS[theme] || COLORS.dark;
 
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
@@ -160,7 +176,7 @@ export default function LoginPage() {
   };
 
   /* ── left panel width by breakpoint ── */
-  const leftWidth = isDesktop ? 420 : isTablet ? 300 : 0;
+  const leftWidth = isDesktop ? 460 : isTablet ? 340 : 0;
 
   /* ── form card style ── */
   const formCardStyle = isMobile ? {
@@ -168,7 +184,7 @@ export default function LoginPage() {
   } : isTablet ? {
     width:"100%", maxWidth:380, padding:"40px 36px",
     background:C.surface, borderRadius:16, border:`1px solid ${C.border}`,
-    boxShadow:"0 8px 40px rgba(0,0,0,0.3)",
+    boxShadow: theme === 'dark' ? "0 8px 40px rgba(0,0,0,0.3)" : "0 8px 40px rgba(0,0,0,0.08)",
     boxSizing:"border-box",
   } : {
     width:"100%", maxWidth:400, padding:"0",
@@ -179,7 +195,7 @@ export default function LoginPage() {
     <div style={{
       minHeight:"100vh",
       display:"flex",
-      background: C.dark,
+      background: C.bg,
       fontFamily:"'Inter','Open Sans','Segoe UI',sans-serif",
       overflowX:"hidden",
     }}>
@@ -188,53 +204,58 @@ export default function LoginPage() {
       {!isMobile && (
         <div style={{
           flex:`0 0 ${leftWidth}px`,
-          background: C.darker,
+          background: C.bgAlt,
           borderRight:`1px solid ${C.border}`,
           display:"flex", flexDirection:"column", justifyContent:"center",
-          padding: isTablet ? "48px 32px" : "60px 48px",
+          padding: isTablet ? "48px 32px" : "60px 56px",
           position:"relative", overflow:"hidden",
+          gap: 0,
         }}>
           {/* decorative circle */}
           <div style={{
             position:"absolute", bottom:-80, right:-80,
             width:260, height:260, borderRadius:"50%",
-            background:"rgba(255, 180, 118, 0.05)", pointerEvents:"none",
+            background: theme === 'dark' ? "rgba(255, 180, 118, 0.05)" : "rgba(224, 120, 48, 0.06)",
+            pointerEvents:"none",
           }} />
           <div style={{
             position:"absolute", top:-100, left:-100,
             width:300, height:300, borderRadius:"50%",
-            background:"rgba(99, 153, 240, 0.03)", pointerEvents:"none",
+            background: theme === 'dark' ? "rgba(99, 153, 240, 0.03)" : "rgba(99, 153, 240, 0.05)",
+            pointerEvents:"none",
           }} />
 
           <div style={{ marginBottom: isTablet ? 24 : 32 }}>
             <img
               src="/DXC-logo.png"
               alt="DXC"
-              style={{ height: isTablet ? 32 : 40, width: 'auto' }}
+              style={{ width: isTablet ? 100 : 140, height: 'auto' }}
             />
           </div>
 
           <h1 style={{
-            color:C.white,
-            fontSize: isTablet ? 26 : 32,
-            fontWeight:700, letterSpacing:-1, lineHeight:1.2,
-            margin:`0 0 ${isTablet ? 12 : 16}px`,
+            color:C.text,
+            fontSize: isTablet ? 32 : 42,
+            fontWeight:800, letterSpacing:-1, lineHeight:1.2,
+            margin:`0 0 16px`,
           }}>
             AI Watch
           </h1>
 
           <p style={{
             color:C.muted,
-            fontSize: isTablet ? 13 : 15,
+            fontSize: isTablet ? 14 : 16,
             lineHeight:1.7,
-            margin:`0 0 ${isTablet ? 28 : 40}px`,
+            opacity: 0.75,
+            maxWidth: 340,
+            margin:`0 0 40px`,
           }}>
             Strategic technology intelligence platform. Monitor trends, track
             competitors, and surface actionable insights — powered by AI.
           </p>
 
-          <div style={{ display:"flex", flexDirection:"column", gap: isTablet ? 10 : 12 }}>
-            {FEATURES.map(f => <Feature key={f} text={f} small={isTablet} />)}
+          <div style={{ display:"flex", flexDirection:"column", gap: 0 }}>
+            {FEATURES.map(f => <Feature key={f} text={f} small={isTablet} C={C} />)}
           </div>
         </div>
       )}
@@ -249,14 +270,14 @@ export default function LoginPage() {
         padding: isMobile ? "0" : isTablet ? "32px 24px" : "32px",
         minHeight:"100vh",
         overflowY:"auto",
-        background: C.dark,
+        background: C.bg,
       }}>
 
         {/* Mobile top brand header */}
         {isMobile && (
           <div style={{
             width:"100%",
-            background: C.darker,
+            background: C.bgAlt,
             borderBottom:`1px solid ${C.border}`,
             padding: bp === "xs" ? "36px 20px 28px" : "44px 24px 36px",
             textAlign:"center",
@@ -268,7 +289,7 @@ export default function LoginPage() {
               style={{ height: 32, width: 'auto', display: 'block', margin: '0 auto 12px' }}
             />
             <h1 style={{
-              color:C.white, fontWeight:700, margin:"0 0 6px",
+              color:C.text, fontWeight:700, margin:"0 0 6px",
               fontSize: bp === "xs" ? 22 : 26, letterSpacing:-0.5,
             }}>AI Watch</h1>
             <p style={{ color:C.muted, fontSize:13, margin:0, lineHeight:1.5 }}>
@@ -283,7 +304,7 @@ export default function LoginPage() {
           <div style={{ marginBottom:24 }}>
             <h2 style={{
               fontSize: isMobile ? (bp === "xs" ? 20 : 22) : 24,
-              fontWeight:700, color:C.white, letterSpacing:-0.5, margin:"0 0 6px",
+              fontWeight:700, color:C.text, letterSpacing:-0.5, margin:"0 0 6px",
             }}>Welcome back</h2>
             <p style={{ fontSize:14, color:C.muted, margin:0 }}>
               Sign in to your AI Watch account
@@ -292,7 +313,7 @@ export default function LoginPage() {
 
           {serverError && (
             <div style={{
-              background:C.redLight, border:`1px solid rgba(248, 113, 113, 0.3)`,
+              background:C.redLight, border:`1px solid ${theme === 'dark' ? 'rgba(248, 113, 113, 0.3)' : 'rgba(220, 38, 38, 0.2)'}`,
               borderLeft:`3px solid ${C.red}`, borderRadius:8,
               padding:"10px 14px", fontSize:13, color:C.red, marginBottom:18,
             }}>
@@ -304,12 +325,12 @@ export default function LoginPage() {
             <Input
               label="Work Email" type="email" value={email}
               onChange={v => { setEmail(v); setErrors(e => ({...e, email:""})); }}
-              error={errors.email} placeholder="you@company.com"
+              error={errors.email} placeholder="you@company.com" C={C}
             />
             <Input
               label="Password" type="password" value={password}
               onChange={v => { setPassword(v); setErrors(e => ({...e, password:""})); }}
-              error={errors.password} placeholder="Your password"
+              error={errors.password} placeholder="Your password" C={C}
             />
 
             <div style={{ display:"flex", justifyContent:"flex-end", marginTop:-10, marginBottom:20 }}>
@@ -327,7 +348,7 @@ export default function LoginPage() {
               style={{
                 width:"100%", height:50,
                 background: submitting ? C.muted : C.gradient,
-                color: C.darker, border:"none", borderRadius:8,
+                color: "#fff", border:"none", borderRadius:8,
                 fontSize:15, fontWeight:700,
                 cursor: submitting ? "default" : "pointer",
                 letterSpacing:0.3, transition:"all 0.2s",
@@ -355,7 +376,7 @@ export default function LoginPage() {
               style={{
                 width:"100%", height:50, background:C.surface,
                 border:`1.5px solid ${C.border}`, borderRadius:8,
-                fontSize:15, fontWeight:600, color:C.white,
+                fontSize:15, fontWeight:600, color:C.text,
                 cursor:"pointer", display:"flex", alignItems:"center",
                 justifyContent:"center", gap:10,
                 transition:"all 0.15s",

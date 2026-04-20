@@ -56,9 +56,12 @@ function StatCard({ label, value, isMobile }) {
 function ArticleCard({ article, onOpen, isSaved, onToggleSave, isMobile }) {
   const isStrong = article.signal_strength === "Strong";
   const title    = cleanText(article.title);
-  const rawSum   = cleanText(article.summary || article.description || "")
+  // Try multiple fields for summary content, explicitly filter out "Summary not available"
+  const rawSum   = cleanText(article.summary || article.description || article.content || "")
     .replace(/^[-•]\s*/gm, "").replace(/\n+/g, " ").trim();
-  const summary  = rawSum && rawSum !== title && rawSum.length > 20 ? rawSum : null;
+  const hasSummary = rawSum && rawSum !== title && rawSum.length > 20
+    && !rawSum.toLowerCase().includes("summary not available");
+  const summary  = hasSummary ? rawSum : null;
   const industry = article.topic || article.search_topic || article.industry || "General";
   const date     = article.published_at
     ? new Date(article.published_at).toLocaleDateString()
@@ -162,7 +165,7 @@ function ArticleCard({ article, onOpen, isSaved, onToggleSave, isMobile }) {
           overflow: "hidden",
           fontStyle: summary ? "normal" : "italic",
         }}>
-          {summary || "No summary — click to read full article."}
+          {summary || `${article.source || "Source"} · ${industry}`}
         </div>
 
         {/* Metadata footer */}
@@ -379,7 +382,7 @@ export default function Explore() {
       markdownContent += `## ${idx + 1}. ${article.title}\n\n`;
       markdownContent += `**Source:** ${article.source}\n**Signal:** ${article.signal_strength}\n**Relevance:** ${article.relevance}/10\n`;
       markdownContent += `**Published:** ${new Date(article.published_at).toLocaleDateString()}\n**URL:** ${article.url || "No URL available"}\n\n`;
-      markdownContent += `${article.summary || "Summary not available"}\n\n---\n\n`;
+      markdownContent += `${article.summary || article.description || ""}\n\n---\n\n`;
     });
     try {
       if (reportFormat === "pdf") {
@@ -443,6 +446,24 @@ export default function Explore() {
         <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "var(--text-primary)", letterSpacing: -0.3, margin: "0 0 4px" }}>
           Explore Intelligence
         </h1>
+        <p style={{
+          fontSize: 13,
+          color: "var(--text-secondary)",
+          margin: "0 0 12px 0",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}>
+          <span style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "#22c55e",
+            display: "inline-block",
+            boxShadow: "0 0 6px #22c55e",
+          }}/>
+          Updated daily at 8:00 AM UTC · {loading ? "—" : `${totalCount} articles indexed`}
+        </p>
         {user?.role && ROLE_LABELS[user.role] && (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <a

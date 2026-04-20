@@ -17,6 +17,9 @@ Strategic AI technology intelligence platform for DXC Technology. Monitor trends
 | **V4.3** | **DXC ONETEAM Newsletter Archive** — 94 newsletter articles (Dec 2024 – Mar 2026) with full-page images, month/category filters, searchable content, and detail view with original formatting | Internal news archive, visual newsletter browsing |
 | **V4.4** | **Unified Theme System** — Light/dark mode toggle, single DXC orange accent color, theme-aware sidebar & navbar, fixed header, CSS variable architecture | Brand-consistent UI, improved navigation, user preference persistence |
 | **V4.5** | **DXC Newsletter Detail Redesign** — 3-panel layout with AI-generated journal cards (GPT-4o-mini), full-screen article modal, zoomable page images with lightbox | Executive intelligence briefs, immersive reading experience |
+| **V4.6** | **Login Page Redesign** — Expanded left panel with larger DXC logo (140px), updated feature bullets (26+ sources, trends, ONETEAM archive), full light/dark mode support via ThemeContext | Polished first impression, brand consistency |
+| **V4.6** | **Lightbox Enhancements** — Drag-to-pan for zoomed images, touch support (pinch-to-zoom, single-finger drag), keyboard navigation (arrow keys pan, +/- zoom), zoom control buttons | Mobile-friendly image viewing, accessibility |
+| **V4.6** | **Content Quality Fix** — Removed "Summary not available" fallback text, frontend shows "source · topic" instead, backend returns empty string for failed scrapes | Cleaner article cards, no placeholder text |
 
 ---
 
@@ -185,14 +188,21 @@ ai-watch-V4/
 - **Detail view (V4.5)** — 3-panel layout:
   - **Panel 1 (left)** — AI-generated journal card with headline, context, key points, stats, and takeaway (GPT-4o-mini, cached in DB)
   - **Panel 2 (center)** — Full article text with "Read Full Article" button opening a full-screen modal
-  - **Panel 3 (right)** — Zoomable newsletter page image with click-to-expand lightbox (scroll to zoom, keyboard navigation)
+  - **Panel 3 (right)** — Zoomable newsletter page image with click-to-expand lightbox
+- **Lightbox features (V4.6)**:
+  - Mouse wheel zoom (1x–5x)
+  - Drag-to-pan when zoomed in
+  - Touch support: pinch-to-zoom, single-finger drag
+  - Keyboard: arrow keys pan, +/- zoom, 0 reset, Esc close
+  - Visual zoom controls with percentage display
+  - Hint text shown when zoomed
 - **Data source** — extracted from the 212-page ONETEAM PDF, email threads automatically removed
 
 ### Caching
 - **Server cache** — article summaries cached in-memory for 30 days (`_SUMMARY_CACHE`)
 - **Client cache** — all GET API responses cached in browser for 5 minutes (`REQUEST_CACHE`)
 
-### Theme System (V4.4)
+### Theme System (V4.4 + V4.6)
 - **Dark mode** — default, dark navy (#0E1020) background with orange (#FFB476) accents
 - **Light mode** — white background, DXC red-orange (#E84E0F) accents matching dxc.com
 - **Persistent** — preference saved to `localStorage` key `aiwatch_theme`
@@ -200,6 +210,7 @@ ai-watch-V4/
 - **Fixed header** — navbar stays fixed at top when scrolling, uses `var(--bg-primary)` for theme support
 - **Single accent color** — all interactive elements use one unified DXC orange variable
 - **Toggle** — Sun/Moon button in top bar (and landing page), switches instantly via CSS variables on `<html data-theme>`
+- **Login page (V4.6)** — Full light/dark mode support with theme-aware colors for left panel, form inputs, buttons, and decorative elements
 
 ---
 

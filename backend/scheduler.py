@@ -29,6 +29,70 @@ except ImportError:
 
 TOPICS = ["AI", "Fintech", "HealthTech", "Cybersecurity", "CleanTech", "Robotics"]
 
+
+async def ingest_free_sources_as_articles():
+    """Pull raw items from free sources and save to articles table.
+
+    This runs after NewsAPI/NewsData ingestion to supplement the feed with
+    high-quality items from official blogs, research, and community sources.
+    """
+    if not FREE_SOURCES_AVAILABLE:
+        logger.warning("[Free Sources] Module not available, skipping article ingestion")
+        return
+
+    logger.info("[Free Sources] Starting article ingestion from free sources...")
+
+    try:
+        items = await fetch_all_free_sources()
+        logger.info(f"[Free Sources] Fetched {len(items)} items")
+    except Exception as e:
+        logger.error(f"[Free Sources] Fetch failed: {e}")
+        return
+
+    saved = 0
+    skipped = 0
+    for item in items:
+        if not item.get("url") or not item.get("title"):
+            continue
+
+        try:
+            # Skip if URL already exists
+            existing = supabase.table("articles").select("id").eq("url", item["url"]).limit(1).execute()
+            if existing.data:
+                skipped += 1
+                continue
+
+            # Map free source item to articles schema
+            trust_score = item.get("trust_score", 5)
+
+            # Get the best available text for description
+            description = (
+                item.get("summary") or
+                item.get("description") or
+                item.get("content") or
+                item.get("snippet") or
+                ""
+            )[:500]
+
+            supabase.table("articles").insert({
+                "url": item["url"],
+                "title": item["title"],
+                "description": description,
+                "summary": description,  # Also populate summary field
+                "source": item.get("source", item.get("org", "Unknown")),
+                "topic": "AI",
+                "industry": "AI",
+                "signal_strength": "Strong" if trust_score >= 8 else "Weak",
+                "relevance": min(10, trust_score + 2),  # Boost trusted sources
+                "ingestion_date": datetime.utcnow().isoformat(),  # Use NOW, not article publish date
+            }).execute()
+            saved += 1
+
+        except Exception as e:
+            logger.debug(f"[Free Sources] Skip article {item.get('url', '')[:50]}: {e}")
+
+    logger.info(f"[Free Sources] Saved {saved} new articles, skipped {skipped} duplicates")
+
 # Free RSS feeds for AI trends (cost: $0/month)
 RSS_FEEDS = [
     # Original feeds
@@ -101,6 +165,13 @@ def scheduled_daily_ingest():
             logger.info(f"✅ Ingested topic: {topic}")
         except Exception as e:
             logger.error(f"❌ Failed topic {topic}: {e}")
+
+    # Also ingest from free sources (official blogs, arXiv, HN, Reddit, GitHub)
+    try:
+        asyncio.run(ingest_free_sources_as_articles())
+    except Exception as e:
+        logger.error(f"❌ Free sources ingestion failed: {e}")
+
     _db_cleanup()
     logger.info("✅ Daily ingestion complete")
 
