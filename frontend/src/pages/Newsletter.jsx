@@ -1,1351 +1,710 @@
-import { useState, useEffect, useCallback } from "react";
-import { jsPDF } from "jspdf";
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  getArticles,
-  getRecipients, addRecipient, removeRecipient,
-  getSchedule, saveSchedule, getSentHistory,
-} from "../services/api";
+  Send, Check, ChevronRight, ChevronLeft, Search,
+  Eye, Download, Plus, X, RefreshCw, Calendar,
+  BarChart2, Settings, ExternalLink
+} from 'lucide-react';
 
-// Colors now use CSS variables for dark mode support
-// Sector colors are kept as explicit values for badges
-const SECTOR_COLORS = {
-  AI:            { bg: "var(--accent-dim)", color: "var(--accent)" },
-  Fintech:       { bg: "var(--orange-light)", color: "var(--orange)" },
-  HealthTech:    { bg: "var(--red-light)", color: "var(--red)" },
-  Cybersecurity: { bg: "var(--amber-light)", color: "var(--amber)" },
-  CleanTech:     { bg: "var(--delta-bg)", color: "var(--delta-color)" },
-  Robotics:      { bg: "var(--accent-dim)", color: "var(--accent)" },
-  General:       { bg: "var(--surface)", color: "var(--text-secondary)" },
+/* ─── Config key (shared with Profile page) ──────────── */
+const CONFIG_KEY = 'aiwatch_newsletter_config';
+
+const DEFAULT_CONFIG = {
+  subject: '',
+  summary: '',
+  include_summary: true,
+  include_findings: true,
+  include_funding: true,
+  include_articles: true,
+  show_scores: true,
+  show_signal: true,
+  show_read_link: true,
 };
 
-const TOPICS = ["All", "AI", "Fintech", "HealthTech", "Cybersecurity", "CleanTech", "Robotics"];
-const DAYS   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-
-function fmtDate(d) {
-  if (!d) return "";
-  try { return new Date(d).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }); }
-  catch { return d; }
-}
-function todayStr() {
-  return new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"long", year:"numeric" });
+function loadConfig() {
+  try {
+    const saved = localStorage.getItem(CONFIG_KEY);
+    return saved ? { ...DEFAULT_CONFIG, ...JSON.parse(saved) } : { ...DEFAULT_CONFIG };
+  } catch { return { ...DEFAULT_CONFIG }; }
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-function Toast({ t }) {
-  if (!t) return null;
-  const ok = t.kind === "success";
-  return (
-    <div style={{
-      position:"fixed", top:72, right:24, zIndex:9999,
-      background:"var(--card-bg)", border:`1px solid ${ok ? "var(--delta-color)" : "var(--orange)"}`,
-      borderLeft:`4px solid ${ok ? "var(--delta-color)" : "var(--orange)"}`,
-      padding:"10px 16px", borderRadius:8, fontSize:13,
-      color: ok ? "var(--delta-color)" : "var(--orange)", boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
-      maxWidth:360, display:"flex", alignItems:"center", gap:8,
-    }}>
-      <span style={{ fontWeight:700 }}>{ok ? "✓" : "!"}</span> {t.msg}
-    </div>
-  );
-}
-
-// ── Step bar ──────────────────────────────────────────────────────────────────
-function StepBar({ step, selectedCount }) {
-  const steps = [
-    { n:1, label:"Select Articles", sub: step === 1 ? `${selectedCount} selected` : `${selectedCount} selected` },
-    { n:2, label:"Configure Edition", sub:"Content & style" },
-    { n:3, label:"Send & Schedule",   sub:"Deliver" },
-  ];
-  return (
-    <div className="wizard-steps" style={{
-      display:"flex", alignItems:"center", gap:0,
-      background:"var(--card-bg)", borderBottom:"1px solid var(--border-color)",
-      padding:"0 16px", flexShrink:0,
-      overflowX:"auto", WebkitOverflowScrolling:"touch",
-    }}>
-      {steps.map((s, i) => {
-        const done   = step > s.n;
-        const active = step === s.n;
-        return (
-          <div key={s.n} style={{ display:"flex", alignItems:"center", flex: i < 2 ? 1 : "none" }}>
-            <div style={{
-              display:"flex", alignItems:"center", gap:12,
-              padding:"18px 0", opacity: !active && !done ? 0.5 : 1,
-            }}>
-              <div style={{
-                width:28, height:28, borderRadius:"50%", flexShrink:0,
-                background: done ? "var(--delta-color)" : active ? "var(--orange)" : "var(--border-color)",
-                color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:12, fontWeight:800,
-              }}>
-                {done ? "✓" : s.n}
-              </div>
-              <div>
-                <div style={{ fontSize:13, fontWeight:700, color: active ? "var(--orange)" : done ? "var(--text-primary)" : "var(--text-muted)" }}>{s.label}</div>
-                <div style={{ fontSize:11, color: active ? "var(--orange)" : "var(--text-muted)", marginTop:1 }}>{s.sub}</div>
-              </div>
-            </div>
-            {i < 2 && (
-              <div style={{ flex:1, height:1, background:"var(--border-color)", margin:"0 20px" }} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Collapsible section ───────────────────────────────────────────────────────
-function Section({ title, defaultOpen=true, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div style={{ marginBottom:16 }}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        style={{
-          width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
-          background:"none", border:"none", borderBottom:"1px solid var(--border-color)",
-          padding:"10px 0", cursor:"pointer", marginBottom: open ? 16 : 0, color:"var(--text-secondary)",
-        }}
-      >
-        <span style={{ fontSize:11, fontWeight:800, color:"var(--text-secondary)", letterSpacing:1.2, textTransform:"uppercase" }}>{title}</span>
-        <span style={{ fontSize:16, color:"var(--text-muted)", lineHeight:1 }}>{open ? "−" : "+"}</span>
-      </button>
-      {open && <div>{children}</div>}
-    </div>
-  );
-}
-
-// ── Toggle row ────────────────────────────────────────────────────────────────
-function ToggleRow({ label, desc, value, onChange }) {
-  return (
-    <div style={{
-      display:"flex", alignItems:"center", justifyContent:"space-between",
-      gap:12, padding:"10px 0", borderBottom:"1px solid var(--surface)",
-    }}>
-      <div>
-        <div style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)" }}>{label}</div>
-        {desc && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{desc}</div>}
-      </div>
-      <button
-        onClick={() => onChange(!value)}
-        style={{
-          width:44, height:24, borderRadius:999, border:"none",
-          background: value ? "var(--orange)" : "var(--border-color)", position:"relative",
-          cursor:"pointer", flexShrink:0, transition:"background 0.2s",
-        }}
-      >
-        <span style={{
-          position:"absolute", top:3,
-          left: value ? 23 : 3, width:18, height:18,
-          borderRadius:"50%", background:"#fff",
-          transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
-        }} />
-      </button>
-    </div>
-  );
-}
-
-// ── Select row ────────────────────────────────────────────────────────────────
-function SelectRow({ label, value, options, onChange }) {
-  return (
-    <div style={{
-      display:"flex", alignItems:"center", justifyContent:"space-between",
-      gap:12, padding:"10px 0", borderBottom:"1px solid var(--surface)",
-    }}>
-      <div style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)" }}>{label}</div>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        style={{
-          fontSize:12, fontWeight:600, color:"var(--text-secondary)",
-          border:"1.5px solid var(--border-color)", borderRadius:6,
-          padding:"4px 10px", background:"var(--input-bg)", cursor:"pointer", outline:"none",
-        }}
-      >
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-}
-
-// ── Journal FY26-style Newsletter HTML Generator ─────────────────────────────
-function generateJournalNewsletterHTML(selectedArticles, config) {
-  // Group articles by topic/category
-  const grouped = {};
-  selectedArticles.forEach(article => {
-    const cat = article.topic || article.category || article.search_topic || article.industry || 'General';
-    if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push(article);
+/* ─── API helper ─────────────────────────────────────── */
+async function apiFetch(path, opts = {}) {
+  const token = localStorage.getItem('aiwatch_at');
+  const res = await fetch(path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...opts.headers,
+    },
   });
-
-  const sectionColors = {
-    'AI': '#E84E0F',
-    'Fintech': '#1a6b3c',
-    'HealthTech': '#1a5fa6',
-    'Cybersecurity': '#6b1a1a',
-    'CleanTech': '#2d6b1a',
-    'Robotics': '#4a1a6b',
-    'default': '#0E1020'
-  };
-
-  let sectionsHTML = '';
-  let sectionNum = 1;
-
-  // Executive summary box at top
-  if (config.aiSummary) {
-    sectionsHTML += `
-    <div style="background: #f8f9fc; border-left: 4px solid #E84E0F; padding: 20px 24px; margin: 0 0 32px 0; border-radius: 0 8px 8px 0;">
-      <p style="font-size: 11px; font-weight: 700; color: #E84E0F; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px 0;">
-        EXECUTIVE SUMMARY — ${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-      </p>
-      <p style="font-size: 13px; color: #4a5068; line-height: 1.7; margin: 0;">
-        This week's AI Watch digest covers <strong>${selectedArticles.length} key developments</strong> across
-        ${Object.keys(grouped).join(', ')}.
-        ${selectedArticles.filter(a => a.signal_strength === 'Strong').length} strong signals detected.
-      </p>
-    </div>`;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(body.detail || 'Request failed');
   }
+  return res.json();
+}
 
-  // Sections by category
-  Object.entries(grouped).forEach(([category, articles]) => {
-    const color = sectionColors[category] || sectionColors.default;
-    const num = String(sectionNum).padStart(2, '0');
+/* ─── Period helper ──────────────────────────────────── */
+const PERIODS = [
+  { key: 'today', label: 'Today' },
+  { key: 'week',  label: 'This Week' },
+  { key: 'month', label: 'This Month' },
+  { key: 'all',   label: 'All Time' },
+];
 
-    sectionsHTML += `
-      <!-- SECTION ${num} -->
-      <div style="background: ${color}; padding: 12px 20px; margin: 32px 0 24px 0; border-radius: 6px;">
-        <p style="color: white; font-size: 16px; font-weight: 800; margin: 0; letter-spacing: -0.3px;">
-          ${num} &nbsp; ${category}
-        </p>
-      </div>`;
+function periodToDateFrom(period) {
+  if (period === 'all') return null;
+  const now = new Date();
+  if (period === 'today')  { now.setHours(0, 0, 0, 0); return now.toISOString(); }
+  if (period === 'week')   { now.setDate(now.getDate() - 7); return now.toISOString(); }
+  if (period === 'month')  { now.setDate(now.getDate() - 30); return now.toISOString(); }
+  return null;
+}
 
-    articles.forEach(article => {
-      const summaryText = config.summaryLength === "1"
-        ? (article.summary || article.description || "").split(".")[0] + "."
-        : config.summaryLength === "3"
-          ? (article.summary || article.description || "").split(".").slice(0,3).join(".") + "."
-          : (article.summary || article.description || "").slice(0, 400) + ((article.summary || article.description || "").length > 400 ? '...' : '');
-
-      sectionsHTML += `
-        <!-- ARTICLE -->
-        <div style="margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid #e2e4ee;">
-          <p style="font-size: 16px; font-weight: 700; color: ${color}; margin: 0 0 6px 0; line-height: 1.3;">
-            ${article.title}
-          </p>
-          <p style="font-size: 11px; color: #8b91b5; margin: 0 0 12px 0;">
-            ${article.source || ''} ${article.source && article.published_at ? '·' : ''} ${article.published_at ? new Date(article.published_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
-            ${config.signalBadges && article.signal_strength ? ` · <span style="color: ${article.signal_strength === 'Strong' ? '#E84E0F' : '#D97706'}; font-weight: 700;">${article.signal_strength} Signal</span>` : ''}
-          </p>
-          ${summaryText ? `
-          <p style="font-size: 13px; color: #2d3050; line-height: 1.7; margin: 0 0 12px 0;">
-            ${summaryText}
-          </p>` : ''}
-          ${config.showLinks && article.url ? `
-          <a href="${article.url}" style="font-size: 12px; color: ${color}; font-weight: 600; text-decoration: none;">
-            Read full article →
-          </a>` : ''}
-        </div>`;
-    });
-
-    sectionNum++;
+/* ─── Newsletter HTML generator ──────────────────────── */
+function generateNewsletterHTML({ articles, config, date }) {
+  const today = date || new Date().toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric',
   });
+  const cfg = { ...DEFAULT_CONFIG, ...config };
+
+  // Topic map for Key Findings
+  const topicMap = {};
+  articles.forEach(a => {
+    const topic = a.topic || a.industry || 'General AI';
+    if (!topicMap[topic]) topicMap[topic] = [];
+    topicMap[topic].push(a.title);
+  });
+
+  // Executive summary
+  const execSummary = cfg.summary ||
+    `This AI Watch Daily Brief covers ${articles.length} key developments across the AI landscape. ` +
+    `Our intelligence platform has identified the following high-priority signals for DXC Technology leadership. ` +
+    `Topics span ${Object.keys(topicMap).slice(0, 3).join(', ')}.`;
+
+  // Funding articles
+  const fundingArticles = articles.filter(a =>
+    /fund|invest|acqui|partner|deal|billion|million|raise/i.test(
+      (a.title || '') + ' ' + (a.description || '')
+    )
+  );
+
+  const findingsList = Object.entries(topicMap).map(([topic, titles]) => `
+    <tr>
+      <td style="padding: 6px 0 10px 16px; border-left: 3px solid #e8450a;">
+        <strong style="color: #111; font-size: 13px;">${topic}</strong>
+        <ul style="margin: 5px 0 0; padding-left: 16px;">
+          ${titles.map(t => `<li style="font-size: 13px; color: #444; margin-bottom: 3px; line-height: 1.5;">${t}</li>`).join('')}
+        </ul>
+      </td>
+    </tr>
+  `).join('');
+
+  const fundingSection = cfg.include_funding && fundingArticles.length > 0 ? `
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 24px; background: #fff8f0; border: 1px solid #fcd9b3; border-radius: 10px;">
+    <tr><td style="padding: 18px 20px;">
+      <h2 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: #92400e;">💰 Funding &amp; Key Actors</h2>
+      <ul style="margin: 0; padding-left: 18px;">
+        ${fundingArticles.slice(0, 4).map(a => `
+          <li style="font-size: 13px; color: #555; margin-bottom: 6px; line-height: 1.55;">
+            <strong style="color: #111;">${a.source || 'Unknown'}</strong> — ${a.title}
+          </li>`).join('')}
+      </ul>
+    </td></tr>
+  </table>` : '';
+
+  const articleCards = articles.map((art, idx) => {
+    const signal = art.signal_strength || 'Weak';
+    const score = art.relevance || 0;
+    const isStrong = signal.toLowerCase() === 'strong';
+    const signalColor = isStrong ? '#10b981' : '#f59e0b';
+    const source = art.source || '';
+    const dateStr = art.ingestion_date
+      ? new Date(art.ingestion_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : today;
+    const desc = art.description || art.summary || '';
+    const url = art.url || '#';
+
+    return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 14px; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background: #fff; border-collapse: separate; border-spacing: 0;">
+      <tr><td style="padding: 0;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; border-bottom: 1px solid #e5e7eb;">
+          <tr>
+            <td style="padding: 10px 16px;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td style="padding-right: 10px; vertical-align: middle;">
+                  <span style="display: inline-block; width: 26px; height: 26px; background: #e8450a; color: white; border-radius: 50%; text-align: center; line-height: 26px; font-size: 12px; font-weight: 700;">${idx + 1}</span>
+                </td>
+                ${cfg.show_signal ? `<td style="padding-right: 8px; vertical-align: middle;">
+                  <span style="display: inline-block; background: ${signalColor}22; color: ${signalColor}; border: 1px solid ${signalColor}44; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 700; text-transform: uppercase;">${signal}</span>
+                </td>` : ''}
+                ${score && cfg.show_scores ? `<td style="vertical-align: middle;">
+                  <span style="display: inline-block; background: #6366f122; color: #6366f1; border: 1px solid #6366f144; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 700;">Score ${score}/10</span>
+                </td>` : ''}
+              </tr></table>
+            </td>
+            <td style="padding: 10px 16px; text-align: right; color: #6b7280; font-size: 12px; white-space: nowrap;">${source}${source && dateStr ? ' · ' : ''}${dateStr}</td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding: 16px 20px;">
+        <h3 style="margin: 0 0 10px; font-size: 15px; font-weight: 700; color: #111; line-height: 1.4;">${art.title || 'Untitled'}</h3>
+        ${desc ? `<p style="margin: 0 0 14px; font-size: 13px; color: #555; line-height: 1.65;">${desc.slice(0, 280)}${desc.length > 280 ? '…' : ''}</p>` : ''}
+        ${url && url !== '#' && cfg.show_read_link ? `<a href="${url}" target="_blank" style="display: inline-block; padding: 7px 14px; background: #e8450a; color: white; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 600;">Read Article →</a>` : ''}
+      </td></tr>
+    </table>`;
+  }).join('');
 
   return `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background: #f0f2ff; font-family: Arial, Helvetica, sans-serif;">
-  <div style="max-width: 680px; margin: 0 auto; background: white;">
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DXC AI Watch — Daily Brief</title></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 0;">
+<tr><td align="center">
+<table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
 
-    <!-- HEADER -->
-    <div style="background: #0E1020; padding: 32px 40px; text-align: center;">
-      <p style="color: #8b91b5; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 8px 0;">
-        DXC Technology · AI Watch Intelligence
-      </p>
-      <h1 style="color: white; font-size: 28px; font-weight: 900; margin: 0 0 4px 0; letter-spacing: -0.5px;">
-        AI Intelligence Digest
-      </h1>
-      <p style="color: #FFB476; font-size: 13px; margin: 0;">
-        ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-      </p>
-    </div>
+  <!-- ORANGE HEADER -->
+  <tr><td style="background:#e8450a;border-radius:12px 12px 0 0;padding:22px 28px;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:middle;">
+        <div style="color:#fff;font-size:30px;font-weight:900;letter-spacing:2px;line-height:1;">DXC</div>
+        <div style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:4px;text-transform:uppercase;margin-top:2px;">TECHNOLOGY</div>
+      </td>
+      <td style="text-align:right;vertical-align:middle;">
+        <div style="color:#fff;font-size:17px;font-weight:700;">AI Watch</div>
+        <div style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:2px;">Daily Brief</div>
+      </td>
+    </tr></table>
+  </td></tr>
 
-    <!-- ORANGE ACCENT BAR -->
-    <div style="height: 4px; background: linear-gradient(90deg, #E84E0F, #FFB476);"></div>
+  <!-- DATE BAR -->
+  <tr><td style="background:#c73d09;padding:9px 28px;">
+    <span style="color:rgba(255,255,255,0.9);font-size:12px;font-weight:500;">${today} &nbsp;·&nbsp; ${articles.length} articles</span>
+  </td></tr>
 
-    <!-- CONTENT -->
-    <div style="padding: 40px;">
-      ${sectionsHTML}
-    </div>
+  <!-- BODY -->
+  <tr><td style="background:#fff;padding:26px 28px;border-radius:0 0 12px 12px;">
 
-    <!-- FOOTER -->
-    <div style="background: #0E1020; padding: 24px 40px; text-align: center;">
-      <p style="color: #8b91b5; font-size: 11px; margin: 0 0 4px 0;">
-        AI Watch · Strategic Intelligence Platform · DXC Technology Morocco
-      </p>
-      <p style="color: #4a5068; font-size: 10px; margin: 0;">
-        You're receiving this because you subscribed to AI Watch Intelligence Digest.
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
+    ${cfg.include_summary ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:22px;background:#f8f9fa;border-left:4px solid #e8450a;border-radius:0 8px 8px 0;">
+      <tr><td style="padding:14px 18px;">
+        <h2 style="margin:0 0 8px;font-size:13px;font-weight:700;color:#e8450a;text-transform:uppercase;letter-spacing:1px;">Executive Summary</h2>
+        <p style="margin:0;font-size:13px;color:#374151;line-height:1.7;">${execSummary}</p>
+      </td></tr>
+    </table>` : ''}
+
+    ${cfg.include_findings ? `
+    <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#111;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">🔑 Key Findings</h2>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">${findingsList}</table>` : ''}
+
+    ${fundingSection}
+
+    ${cfg.include_articles ? `
+    <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#111;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">📰 Articles &amp; Sources</h2>
+    ${articleCards}` : ''}
+
+  </td></tr>
+
+  <!-- FOOTER -->
+  <tr><td style="padding:18px 28px;text-align:center;background:#1f2937;border-radius:0 0 12px 12px;margin-top:4px;">
+    <p style="margin:0 0 4px;color:rgba(255,255,255,0.9);font-size:13px;font-weight:700;">DXC AI Watch V4</p>
+    <p style="margin:0;color:rgba(255,255,255,0.45);font-size:11px;">Strategic AI Intelligence · ${today} · © 2026 DXC Technology</p>
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
-// ── Live Preview ──────────────────────────────────────────────────────────────
-function LivePreview({ articles, config, selectedIds, recipients, isMobile }) {
-  const selected = articles.filter(a => selectedIds.has(a.id || a.title));
-  const limit = config.maxArticles === "All" ? 999 : parseInt(config.maxArticles);
-  const shown = selected.slice(0, limit);
+/* ─── Step 1: Article Selector ───────────────────────── */
+const TOPICS = ['AI', 'Fintech', 'HealthTech', 'CloudTech', 'Cybersecurity', 'Automation'];
 
-  // Group articles by topic/category
-  const grouped = {};
-  shown.forEach(article => {
-    const cat = article.topic || article.category || article.search_topic || article.industry || 'General';
-    if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push(article);
-  });
+function StepArticles({ selected, onToggle, onSelectAll, onClearAll, onNext }) {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch]   = useState('');
+  const [topic, setTopic]     = useState('');
+  const [period, setPeriod]   = useState('month');
 
-  const sectionColors = {
-    'AI': '#E84E0F',
-    'Fintech': '#1a6b3c',
-    'HealthTech': '#1a5fa6',
-    'Cybersecurity': '#6b1a1a',
-    'CleanTech': '#2d6b1a',
-    'Robotics': '#4a1a6b',
-  };
+  useEffect(() => {
+    const ctrl = new AbortController();
+    (async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ page_size: 60 });
+        if (topic) params.set('topic', topic);
+        if (search.trim()) params.set('search', search.trim());
+        const df = periodToDateFrom(period);
+        if (df) params.set('date_from', df);
+        const data = await apiFetch(`/api/articles?${params}`, { signal: ctrl.signal });
+        setArticles(Array.isArray(data) ? data : data.articles || data.items || []);
+      } catch (e) { if (e.name !== 'AbortError') setArticles([]); }
+      finally { setLoading(false); }
+    })();
+    return () => ctrl.abort();
+  }, [search, topic, period]);
+
+  const allSelected = articles.length > 0 && articles.every(a => selected.some(s => s.id === a.id));
 
   return (
-    <div style={{
-      width: isMobile ? "100%" : 340,
-      flexShrink:0,
-      display:"flex",
-      flexDirection:"column",
-      borderLeft: isMobile ? "none" : "1px solid var(--border-color)",
-      borderTop: isMobile ? "1px solid var(--border-color)" : "none",
-      height: isMobile ? "auto" : "100%",
-      maxHeight: isMobile ? "50vh" : "none",
-      background: "#f0f2ff",
-    }}>
-      {/* Email preview container */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
-        <div style={{ background: "white", borderRadius: 4, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-          {/* Preview header */}
-          <div style={{ background: "#0E1020", padding: "16px 20px", textAlign: "center" }}>
-            <div style={{ fontSize: 8, color: "#8b91b5", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>
-              DXC Technology · AI Watch
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "white", marginBottom: 2 }}>
-              AI Intelligence Digest
-            </div>
-            <div style={{ fontSize: 9, color: "#FFB476" }}>{todayStr()}</div>
-          </div>
+    <div>
+      {/* Search + Topic */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary, #9ca3af)', pointerEvents: 'none' }} />
+          <input placeholder="Search articles..." value={search} onChange={e => setSearch(e.target.value)}
+            style={{ ...inputStyle, paddingLeft: 34 }} />
+        </div>
+        <select value={topic} onChange={e => setTopic(e.target.value)} style={{ ...selectStyle, minWidth: 130 }}>
+          <option value="">All Topics</option>
+          {TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
 
-          {/* Orange accent bar */}
-          <div style={{ height: 3, background: "linear-gradient(90deg, #E84E0F, #FFB476)" }} />
+      {/* Period pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary, #9ca3af)', fontWeight: 500 }}>Period:</span>
+        {PERIODS.map(p => (
+          <button key={p.key} onClick={() => setPeriod(p.key)} style={{
+            padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
+            border: period === p.key ? 'none' : '1px solid var(--border-color, rgba(255,255,255,0.12))',
+            background: period === p.key ? '#e8450a' : 'transparent',
+            color: period === p.key ? '#fff' : 'var(--text-secondary, #9ca3af)',
+            cursor: 'pointer', transition: 'all 0.15s',
+          }}>
+            {p.label}
+          </button>
+        ))}
+      </div>
 
-          {/* Preview body */}
-          <div style={{ padding: "16px 14px" }}>
-            {/* Executive summary */}
-            {config.aiSummary && shown.length > 0 && (
-              <div style={{
-                background: "#f8f9fc",
-                borderLeft: "3px solid #E84E0F",
-                padding: "10px 12px",
-                marginBottom: 16,
-                borderRadius: "0 4px 4px 0",
-              }}>
-                <div style={{ fontSize: 8, fontWeight: 700, color: "#E84E0F", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
-                  Executive Summary
-                </div>
-                <div style={{ fontSize: 9, color: "#4a5068", lineHeight: 1.5 }}>
-                  {shown.length} key developments across {Object.keys(grouped).join(', ')}.
-                  {shown.filter(a => a.signal_strength === 'Strong').length > 0 && ` ${shown.filter(a => a.signal_strength === 'Strong').length} strong signals.`}
-                </div>
-              </div>
-            )}
-
-            {/* Articles by section */}
-            {Object.entries(grouped).map(([grp, grpArticles], idx) => {
-              const color = sectionColors[grp] || "#0E1020";
-              return (
-                <div key={grp} style={{ marginBottom: 12 }}>
-                  {/* Section header */}
-                  <div style={{
-                    background: color,
-                    padding: "6px 10px",
-                    borderRadius: 4,
-                    marginBottom: 8,
-                  }}>
-                    <span style={{ color: "white", fontSize: 10, fontWeight: 700 }}>
-                      {String(idx + 1).padStart(2, '0')} &nbsp; {grp}
-                    </span>
-                  </div>
-
-                  {/* Articles */}
-                  {grpArticles.slice(0, 3).map((a, i) => (
-                    <div key={i} style={{
-                      paddingBottom: 8,
-                      marginBottom: 8,
-                      borderBottom: "1px solid #e2e4ee",
-                    }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: color, lineHeight: 1.3, marginBottom: 3 }}>
-                        {a.title}
-                      </div>
-                      <div style={{ fontSize: 8, color: "#8b91b5", marginBottom: 4 }}>
-                        {a.source} · {fmtDate(a.published_at)}
-                      </div>
-                      <div style={{ fontSize: 8, color: "#4a5068", lineHeight: 1.4 }}>
-                        {(a.summary || a.description || "").split(".")[0]}.
-                      </div>
-                    </div>
-                  ))}
-                  {grpArticles.length > 3 && (
-                    <div style={{ fontSize: 8, color: "#8b91b5", fontStyle: "italic" }}>
-                      +{grpArticles.length - 3} more in this section
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {shown.length === 0 && (
-              <div style={{ textAlign: "center", color: "#8b91b5", fontSize: 10, padding: "20px 0" }}>
-                Select articles in Step 1 to preview
-              </div>
-            )}
-          </div>
-
-          {/* Preview footer */}
-          <div style={{ background: "#0E1020", padding: "10px 14px", textAlign: "center" }}>
-            <div style={{ fontSize: 8, color: "#8b91b5" }}>
-              AI Watch · DXC Technology Morocco
-            </div>
-          </div>
+      {/* Select all row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary, #9ca3af)' }}>
+          <strong style={{ color: 'var(--text-primary, #f9fafb)' }}>{selected.length}</strong> selected
+          &nbsp;·&nbsp; {articles.length} found
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => allSelected ? onClearAll(articles) : onSelectAll(articles)}
+            style={{
+              padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+              background: allSelected ? 'rgba(239,68,68,0.1)' : 'rgba(232,69,10,0.1)',
+              color: allSelected ? '#ef4444' : '#e8450a',
+              border: `1px solid ${allSelected ? 'rgba(239,68,68,0.2)' : 'rgba(232,69,10,0.2)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            {allSelected ? '✕ Deselect All' : '✓ Select All'}
+          </button>
+          {selected.length > 0 && (
+            <button onClick={() => onClearAll(articles)} style={{
+              padding: '5px 12px', borderRadius: 6, fontSize: 12,
+              background: 'none', color: 'var(--text-secondary, #9ca3af)',
+              border: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+              cursor: 'pointer',
+            }}>
+              Clear ({selected.length})
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div style={{
-        background: "#0E1020",
-        padding: "8px 14px",
-        display: "flex",
-        justifyContent: "space-between",
-        flexShrink: 0,
-      }}>
-        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
-          {recipients.length} recipient{recipients.length !== 1 ? "s" : ""}
+      {/* Article list */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary, #9ca3af)' }}>
+          <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite', marginBottom: 8 }} />
+          <p style={{ margin: 0 }}>Loading articles...</p>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
-        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
-          {shown.length} article{shown.length !== 1 ? "s" : ""}
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto', paddingRight: 4 }}>
+          {articles.map(art => {
+            const isSel = selected.some(s => s.id === art.id);
+            const isStrong = (art.signal_strength || '').toLowerCase() === 'strong';
+            return (
+              <div key={art.id} onClick={() => onToggle(art)} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '11px 14px',
+                background: isSel ? 'rgba(232,69,10,0.07)' : 'var(--bg-secondary, rgba(255,255,255,0.03))',
+                border: `1px solid ${isSel ? 'rgba(232,69,10,0.4)' : 'var(--border-color, rgba(255,255,255,0.07))'}`,
+                borderRadius: 9, cursor: 'pointer', transition: 'all 0.12s',
+              }}>
+                {/* Checkbox */}
+                <div style={{
+                  width: 17, height: 17, borderRadius: 4, flexShrink: 0,
+                  background: isSel ? '#e8450a' : 'transparent',
+                  border: `2px solid ${isSel ? '#e8450a' : 'var(--text-secondary, #9ca3af)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {isSel && <Check size={10} color="white" />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #f9fafb)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {art.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary, #9ca3af)', marginTop: 2 }}>
+                    {art.source} · {art.topic} · Score {art.relevance ?? '—'}
+                  </div>
+                </div>
+                {art.signal_strength && (
+                  <span style={{
+                    flexShrink: 0,
+                    background: isStrong ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+                    color: isStrong ? '#10b981' : '#f59e0b',
+                    border: `1px solid ${isStrong ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`,
+                    borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700,
+                  }}>
+                    {art.signal_strength}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          {!loading && articles.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary, #9ca3af)' }}>No articles found</div>
+          )}
         </div>
+      )}
+
+      {/* Next */}
+      <div style={{ marginTop: 18, display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={onNext} disabled={selected.length === 0} style={{
+          padding: '10px 22px',
+          background: selected.length > 0 ? '#e8450a' : 'var(--bg-secondary, #444)',
+          color: '#fff', border: 'none', borderRadius: 8,
+          cursor: selected.length > 0 ? 'pointer' : 'not-allowed',
+          fontWeight: 600, fontSize: 14,
+          display: 'flex', alignItems: 'center', gap: 6,
+          opacity: selected.length === 0 ? 0.5 : 1,
+        }}>
+          Preview &amp; Send <ChevronRight size={16} />
+        </button>
       </div>
     </div>
   );
 }
 
-// ── PDF Export ────────────────────────────────────────────────────────────────
-function generatePDF(articles, config, selectedIds) {
-  const selected = articles.filter(a => selectedIds.has(a.id || a.title));
-  const limit = config.maxArticles === "All" ? 999 : parseInt(config.maxArticles);
-  const shown = selected.slice(0, limit);
+/* ─── Step 2: Preview & Send ─────────────────────────── */
+function StepSend({ selected, config, onPrev }) {
+  const navigate = useNavigate();
+  const [recipientInput, setRecipientInput] = useState('');
+  const [recipients, setRecipients]         = useState([]);
+  const [sending, setSending]               = useState(false);
+  const [sent, setSent]                     = useState(false);
+  const [error, setError]                   = useState('');
+  const [showPreview, setShowPreview]       = useState(false);
+  const [activeTab, setActiveTab]           = useState('send');
 
-  const doc = new jsPDF("p", "mm", "a4");
-  const PW = 210, PH = 297, ML = 20, MR = 20, MT = 20, BW = PW - ML - MR;
+  const html = useMemo(() => generateNewsletterHTML({
+    articles: selected, config,
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+  }), [selected, config]);
 
-  const setOrange = () => doc.setTextColor(224, 90, 43);
-  const setNavy   = () => doc.setTextColor(26, 26, 46);
-  const setGray   = () => doc.setTextColor(100, 100, 100);
-  const setBlack  = () => doc.setTextColor(17, 17, 17);
-
-  let pg = 1;
-  const addHeader = () => {
-    doc.setFillColor(224, 90, 43);
-    doc.rect(0, 0, PW, 8, "F");
-  };
-
-  const addFooter = (pageNum) => {
-    doc.setFontSize(8);
-    setGray();
-    doc.text(`AI Watch · DXC Technology · Page ${pageNum} · ${todayStr()}`, ML, PH - 8);
-  };
-
-  // ── Page 1: Cover ──────────────────────────────────────────────────────────
-  addHeader();
-
-  // Orange bar left
-  doc.setFillColor(224, 90, 43);
-  doc.rect(ML, 30, 3, 40, "F");
-
-  doc.setFontSize(28);
-  doc.setFont("helvetica", "bold");
-  setNavy();
-  doc.text("AI Watch", ML + 10, 48);
-
-  doc.setFontSize(14);
-  setGray();
-  doc.text("Intelligence Brief", ML + 10, 58);
-
-  doc.setFontSize(11);
-  setOrange();
-  doc.text(todayStr(), ML + 10, 68);
-
-  doc.setFontSize(18);
-  setNavy();
-  doc.setFont("helvetica", "normal");
-  doc.text("Strategic Technology Intelligence", ML, 90);
-
-  // Thin orange rule
-  doc.setDrawColor(224, 90, 43);
-  doc.setLineWidth(0.8);
-  doc.line(ML, 95, PW - MR, 95);
-
-  // Summary stats
-  doc.setFontSize(11);
-  setBlack();
-  doc.setFont("helvetica", "bold");
-  doc.text(`${shown.length} Articles Curated`, ML, 110);
-  doc.setFont("helvetica", "normal");
-  setGray();
-  doc.setFontSize(10);
-  doc.text(`Topics: ${[...new Set(shown.map(a => a.topic).filter(Boolean))].join(", ") || "General"}`, ML, 118);
-  doc.text(`Language: ${config.language}  ·  Tone: ${config.tone}`, ML, 126);
-
-  addFooter(pg);
-
-  // ── Pages 2+: Articles ─────────────────────────────────────────────────────
-  const grouped = {};
-  for (const a of shown) {
-    const key = config.groupBy === "Sector" ? (a.topic || "General")
-               : config.groupBy === "Signal strength" ? (a.signal_strength || "Weak")
-               : "All Articles";
-    (grouped[key] = grouped[key] || []).push(a);
-  }
-
-  for (const [sector, arts] of Object.entries(grouped)) {
-    pg++;
-    doc.addPage();
-    addHeader();
-
-    let y = MT + 16;
-
-    // Executive summary (first sector only)
-    if (config.aiSummary && Object.keys(grouped)[0] === sector) {
-      doc.setFillColor(245, 245, 248);
-      doc.rect(ML, y, BW, 24, "F");
-      doc.setFontSize(8);
-      setOrange();
-      doc.setFont("helvetica", "bold");
-      doc.text("EXECUTIVE SUMMARY", ML + 4, y + 7);
-      doc.setFontSize(9);
-      setGray();
-      doc.setFont("helvetica", "italic");
-      const summaryText = `${shown.length} articles curated. Key signals include developments in AI infrastructure, fintech regulation, and emerging startup activity this period.`;
-      const summaryLines = doc.splitTextToSize(summaryText, BW - 8);
-      doc.text(summaryLines, ML + 4, y + 13);
-      y += 30;
-    }
-
-    // Sector header
-    doc.setFontSize(11);
-    setOrange();
-    doc.setFont("helvetica", "bold");
-    doc.text(sector.toUpperCase(), ML, y);
-    doc.setDrawColor(224, 90, 43);
-    doc.setLineWidth(0.4);
-    doc.line(ML, y + 2, PW - MR, y + 2);
-    y += 10;
-
-    for (const a of arts) {
-      if (y > PH - 40) {
-        addFooter(pg);
-        pg++;
-        doc.addPage();
-        addHeader();
-        y = MT + 16;
-      }
-
-      // Title
-      doc.setFontSize(10);
-      setNavy();
-      doc.setFont("helvetica", "bold");
-      const titleLines = doc.splitTextToSize(a.title || "Untitled", BW);
-      doc.text(titleLines, ML, y);
-      y += titleLines.length * 5 + 2;
-
-      // Summary
-      const summaryLines = doc.splitTextToSize(
-        config.summaryLength === "1"
-          ? (a.summary || "").split(".")[0] + "."
-          : (a.summary || "").split(".").slice(0,2).join(".") + ".",
-        BW
-      );
-      doc.setFontSize(9);
-      setBlack();
-      doc.setFont("helvetica", "normal");
-      doc.text(summaryLines, ML, y);
-      y += summaryLines.length * 4.5 + 2;
-
-      // Meta
-      doc.setFontSize(8);
-      setGray();
-      doc.text(`${a.source || "Unknown"} · ${fmtDate(a.published_at)}`, ML, y);
-
-      // Link
-      if (config.showLinks && a.url) {
-        y += 4;
-        setOrange();
-        const linkText = a.url.length > 60 ? a.url.slice(0, 60) + "…" : a.url;
-        doc.text(`Read article: ${linkText}`, ML, y);
-      }
-
-      y += 8;
-
-      // Divider
-      doc.setDrawColor(232, 232, 232);
-      doc.setLineWidth(0.2);
-      doc.line(ML, y - 2, PW - MR, y - 2);
-    }
-
-    addFooter(pg);
-  }
-
-  // ── Last page: Signals summary ─────────────────────────────────────────────
-  pg++;
-  doc.addPage();
-  addHeader();
-
-  let sy = MT + 16;
-  doc.setFontSize(14);
-  setNavy();
-  doc.setFont("helvetica", "bold");
-  doc.text("Signals Summary", ML, sy);
-  sy += 10;
-
-  // Table headers
-  const cols = ["Sector", "Strong Signals", "Emerging Signals", "Top Source"];
-  const colW = [50, 40, 40, 60];
-  let cx = ML;
-  doc.setFontSize(8);
-  setOrange();
-  for (let i = 0; i < cols.length; i++) {
-    doc.text(cols[i], cx + 2, sy);
-    cx += colW[i];
-  }
-  doc.setDrawColor(224, 90, 43);
-  doc.setLineWidth(0.3);
-  doc.line(ML, sy + 2, PW - MR, sy + 2);
-  sy += 6;
-
-  for (const [sector, arts] of Object.entries(grouped)) {
-    cx = ML;
-    doc.setFontSize(8);
-    setBlack();
-    doc.setFont("helvetica", "normal");
-    const strong   = arts.filter(a => a.signal_strength === "Strong").length;
-    const emerging = arts.filter(a => a.signal_strength !== "Strong").length;
-    const topSrc   = arts[0]?.source || "—";
-    const row = [sector, String(strong), String(emerging), topSrc];
-    for (let i = 0; i < row.length; i++) {
-      doc.text(row[i], cx + 2, sy);
-      cx += colW[i];
-    }
-    sy += 5;
-  }
-
-  addFooter(pg);
-
-  doc.save(`AI_Watch_Brief_${new Date().toISOString().slice(0,10)}.pdf`);
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-export default function Newsletter() {
-  const [step, setStep]       = useState(1);
-  const [toast, setToast]     = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-
-  // Handle resize
-  useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
-
-  // ── Step 1 state ──────────────────────────────────────────────────────────
-  const [articles, setArticles]         = useState([]);
-  const [articlesLoading, setArtLoading] = useState(true);
-  const [selectedIds, setSelectedIds]   = useState(new Set());
-  const [topicFilter, setTopicFilter]   = useState("All");
-  const [dateFilter, setDateFilter]     = useState("all");
-  const [signalFilter, setSignalFilter] = useState("All");
-
-  // ── Step 2 config ─────────────────────────────────────────────────────────
-  const [config, setConfig] = useState({
-    includeImages:    true,
-    showLinks:        true,
-    aiSummary:        true,
-    signalBadges:     false,
-    startupSpotlight: false,
-    summaryLength:    "2",
-    tone:             "Professional",
-    language:         "English",
-    groupBy:          "Sector",
-    linkStyle:        "Read more → button",
-    maxArticles:      "8",
-  });
-  const cfg = (k, v) => setConfig(c => ({ ...c, [k]: v }));
-
-  // ── Step 3 state ──────────────────────────────────────────────────────────
-  const [sendTab,    setSendTab]    = useState("now");
-  const [recipients, setRecipients] = useState([]);
-  const [newEmail,   setNewEmail]   = useState("");
-  const [subject,    setSubject]    = useState(`AI Watch Brief · ${todayStr()}`);
-  const [sending,    setSending]    = useState(false);
-  const [schedule,   setSchedule]   = useState({ days:["Mon","Wed","Fri"], hour:7, minute:0, frequency:"Weekly", enabled:false });
-  const [savingSched, setSavingSched] = useState(false);
-  const [sentHistory, setSentHistory] = useState([]);
-  const [loadingHist, setLoadingHist] = useState(false);
-
-  const showToast = (kind, msg) => {
-    setToast({ kind, msg });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  // Load articles — same call as Explore page
-  const loadArticles = useCallback(() => {
-    setArtLoading(true);
-    getArticles({ pageSize: 50, page: 1 })
-      .then(data => {
-        // API returns { items: [], total: N }
-        const list = data?.items || data?.articles || (Array.isArray(data) ? data : []);
-        console.log("[Newsletter] article shape sample:", list[0]); // debug field names
-        setArticles(list);
-        // Pre-CHECK (checkbox) Strong Signal articles, but show all
-        const preSelected = new Set(
-          list.filter(a => a.signal_strength === "Strong").map(a => a.id || a.title)
-        );
-        setSelectedIds(preSelected);
-      })
-      .catch(() => setArticles([]))
-      .finally(() => setArtLoading(false));
-  }, []);
-
-  useEffect(() => { loadArticles(); }, [loadArticles]);
-
-  // Load recipients + schedule on mount
-  useEffect(() => {
-    getRecipients()
-      .then(d => setRecipients(d.recipients || []))
-      .catch(() => {});
-    getSchedule()
-      .then(d => setSchedule(s => ({ ...s, ...d })))
-      .catch(() => {});
-  }, []);
-
-  // Load sent history when step 3 opens
-  useEffect(() => {
-    if (step !== 3) return;
-    setLoadingHist(true);
-    getSentHistory()
-      .then(d => setSentHistory(d.history || []))
-      .catch(() => {})
-      .finally(() => setLoadingHist(false));
-  }, [step]);
-
-  // ── Filtered articles ─────────────────────────────────────────────────────
-  const filtered = articles.filter(a => {
-    const aTopic = a.topic || a.search_topic || a.industry || a.category || "General";
-    if (topicFilter !== "All" && aTopic !== topicFilter) return false;
-    if (signalFilter !== "All" && a.signal_strength !== signalFilter) return false;
-    if (dateFilter !== "all") {
-      const d = new Date(a.published_at || a.date || a.created_at);
-      const now = new Date();
-      if (dateFilter === "today" && (now - d) > 86400000) return false;
-      if (dateFilter === "week"  && (now - d) > 7*86400000) return false;
-      if (dateFilter === "month" && (now - d) > 30*86400000) return false;
-    }
-    return true;
-  });
-
-  const toggleId = (id) => setSelectedIds(s => {
-    const n = new Set(s);
-    n.has(id) ? n.delete(id) : n.add(id);
-    return n;
-  });
-
-  const toggleAll = () => {
-    if (filtered.every(a => selectedIds.has(a.id || a.title))) {
-      setSelectedIds(s => { const n = new Set(s); filtered.forEach(a => n.delete(a.id || a.title)); return n; });
-    } else {
-      setSelectedIds(s => { const n = new Set(s); filtered.forEach(a => n.add(a.id || a.title)); return n; });
+  const addRecipient = () => {
+    const e = recipientInput.trim();
+    if (e && e.includes('@') && !recipients.includes(e)) {
+      setRecipients(p => [...p, e]);
+      setRecipientInput('');
     }
   };
 
-  // ── Recipients management ─────────────────────────────────────────────────
-  const handleAddRecipient = async () => {
-    const email = newEmail.trim().toLowerCase();
-    if (!email || !email.includes("@")) { showToast("error", "Enter a valid email address."); return; }
-    if (recipients.includes(email)) { showToast("error", "Already in list."); return; }
+  const handleSend = async () => {
+    if (recipients.length === 0) { setError('Add at least one recipient.'); return; }
+    setSending(true); setError('');
     try {
-      const data = await addRecipient(email);
-      // Use the list returned by the server as source of truth
-      setRecipients(data.recipients || [...recipients, email]);
-      setNewEmail("");
-      showToast("success", `${email} added.`);
-    } catch (err) {
-      showToast("error", err.message || "Failed to add recipient.");
-    }
-  };
-
-  const handleRemoveRecipient = useCallback(async (email) => {
-    try {
-      const data = await removeRecipient(email);
-      setRecipients(data.recipients || (r => r.filter(e => e !== email)));
-    } catch (err) {
-      showToast("error", err.message || "Failed to remove recipient.");
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Send now ──────────────────────────────────────────────────────────────
-  const handleSendNow = async () => {
-    if (selectedIds.size === 0) { showToast("error", "Select at least one article."); return; }
-    if (recipients.length === 0) { showToast("error", "Add at least one recipient."); return; }
-    setSending(true);
-    try {
-      // Get selected articles and generate Journal FY26-style HTML
-      const selected = articles.filter(a => selectedIds.has(a.id || a.title));
-      const limit = config.maxArticles === "All" ? 999 : parseInt(config.maxArticles);
-      const shown = selected.slice(0, limit);
-      const htmlContent = generateJournalNewsletterHTML(shown, config);
-
-      const res = await fetch("/api/newsletter/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("aiwatch_at")}`,
-        },
+      await apiFetch('/api/newsletter/send', {
+        method: 'POST',
         body: JSON.stringify({
-          article_ids: [...selectedIds],
-          config,
           recipients,
-          subject,
-          html_content: htmlContent,
+          subject: config.subject || 'DXC AI Watch — Daily Brief',
+          html_content: html,
+          article_ids: selected.map(a => a.id),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || `Server error ${res.status}`);
-      showToast("success", `Sent to ${data.recipient_count} recipient(s) — ${data.article_count} articles.`);
-    } catch (err) {
-      showToast("error", err.message || "Send failed.");
-    } finally {
-      setSending(false);
-    }
+      setSent(true);
+    } catch (e) { setError(e.message); }
+    finally { setSending(false); }
   };
 
-  // ── Save schedule ─────────────────────────────────────────────────────────
-  const handleSaveSchedule = async () => {
-    setSavingSched(true);
-    try {
-      await saveSchedule(schedule);
-      showToast("success", "Schedule saved.");
-    } catch { showToast("error", "Failed to save schedule."); }
-    finally { setSavingSched(false); }
+  const handleDownload = () => {
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `dxc-aiwatch-brief-${new Date().toISOString().split('T')[0]}.html`;
+    a.click(); URL.revokeObjectURL(url);
   };
 
-  // ── Styles ────────────────────────────────────────────────────────────────
-  const pill = (active) => ({
-    fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:999, cursor:"pointer",
-    border:`1.5px solid ${active ? "var(--orange)" : "var(--border-color)"}`, background: active ? "var(--orange-light)" : "var(--card-bg)",
-    color: active ? "var(--orange)" : "var(--text-secondary)", transition:"all 0.15s",
-  });
-
-  const btnOrange = (loading) => ({
-    background: loading ? "var(--border-color)" : "var(--orange)", color:"#fff", border:"none", borderRadius:8,
-    padding:"10px 24px", fontSize:13, fontWeight:700, cursor: loading ? "default" : "pointer",
-    transition:"background 0.2s", letterSpacing:0.3,
-  });
-
-  // Only block Next when no articles are selected — don't block just because filters hide results
-  const nextDisabled = step === 1 && selectedIds.size === 0;
+  // Summary of active sections from config
+  const activeSections = [
+    config.include_summary  !== false && 'Summary',
+    config.include_findings !== false && 'Key Findings',
+    config.include_funding  !== false && 'Funding',
+    config.include_articles !== false && 'Articles',
+  ].filter(Boolean);
 
   return (
-    <div style={{
-      display:"flex", flexDirection:"column",
-      minHeight:"100vh", background:"var(--surface)",
-      fontFamily:"'Inter','Segoe UI',Arial,sans-serif", color:"var(--text-primary)",
-    }}>
+    <div>
+      {/* Config summary banner */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'var(--bg-secondary, rgba(255,255,255,0.03))',
+        border: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+        borderRadius: 10, padding: '10px 14px', marginBottom: 20, flexWrap: 'wrap', gap: 8,
+      }}>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary, #9ca3af)' }}>
+          <strong style={{ color: 'var(--text-primary, #f9fafb)' }}>{selected.length} articles</strong>
+          &nbsp;·&nbsp; {activeSections.join(' · ')}
+        </div>
+        <button onClick={() => navigate('/profile')} style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          background: 'none', border: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+          color: 'var(--text-secondary, #9ca3af)',
+          borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
+        }}>
+          <Settings size={12} /> Edit Preferences
+        </button>
+      </div>
 
-      <Toast t={toast} />
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'var(--bg-card, #1e2028)', border: '1px solid var(--border-color, rgba(255,255,255,0.08))', borderRadius: 10, padding: 4 }}>
+        {[
+          { key: 'send',     label: '✉️ Send Now' },
+          { key: 'schedule', label: '🕐 Schedule' },
+          { key: 'history',  label: '📋 History' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+            padding: '8px 16px', flex: 1,
+            background: activeTab === tab.key ? '#e8450a' : 'none',
+            color: activeTab === tab.key ? '#fff' : 'var(--text-secondary, #9ca3af)',
+            border: 'none', cursor: 'pointer', borderRadius: 7,
+            fontSize: 13, fontWeight: 500,
+          }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Step bar */}
-      <StepBar step={step} selectedCount={selectedIds.size} />
-
-      {/* Body */}
-      <div style={{ flex:1, display:"flex", flexDirection: isMobile ? "column" : "row", overflow: isMobile ? "visible" : "hidden", minHeight:0 }}>
-
-        {/* ── Main panel ── */}
-        <div style={{ flex:1, overflowY:"auto", padding: isMobile ? "16px" : "24px 28px" }}>
-
-          {/* ────────────── STEP 1 ────────────── */}
-          {step === 1 && (
-            <div>
-              {/* Filters */}
-              <div className="filter-chips-scroll" style={{
-                display:"flex", alignItems:"center", gap:8,
-                flexWrap: isMobile ? "nowrap" : "wrap",
-                overflowX: isMobile ? "auto" : "visible",
-                marginBottom:16, padding: isMobile ? "10px 12px" : "12px 16px", background:"var(--card-bg)",
-                borderRadius:10, border:"1px solid var(--border-color)",
-                WebkitOverflowScrolling: "touch",
-              }}>
-                <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", marginRight:4, flexShrink:0 }}>TOPIC</span>
-                {TOPICS.map(t => (
-                  <button key={t} style={{...pill(topicFilter === t), flexShrink:0}} onClick={() => setTopicFilter(t)}>{t}</button>
-                ))}
-                <div style={{ width:1, height:20, background:"var(--border-color)", margin:"0 4px", flexShrink:0 }} />
-                <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", flexShrink:0 }}>SIGNAL</span>
-                {["All","Strong","Weak"].map(s => (
-                  <button key={s} style={{...pill(signalFilter === s), flexShrink:0}} onClick={() => setSignalFilter(s)}>{s}</button>
-                ))}
-                {!isMobile && <>
-                  <div style={{ width:1, height:20, background:"var(--border-color)", margin:"0 4px" }} />
-                  <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)" }}>DATE</span>
-                  {[["all","All time"],["today","Today"],["week","This week"],["month","This month"]].map(([v,l]) => (
-                    <button key={v} style={pill(dateFilter === v)} onClick={() => setDateFilter(v)}>{l}</button>
-                  ))}
-                </>}
-              </div>
-              {/* Date filter row - separate on mobile */}
-              {isMobile && (
-                <div className="filter-chips-scroll" style={{
-                  display:"flex", alignItems:"center", gap:8,
-                  overflowX:"auto",
-                  marginBottom:16, padding:"10px 12px", background:"var(--card-bg)",
-                  borderRadius:10, border:"1px solid var(--border-color)",
-                  WebkitOverflowScrolling: "touch",
-                }}>
-                  <span style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", flexShrink:0 }}>DATE</span>
-                  {[["all","All"],["today","Today"],["week","Week"],["month","Month"]].map(([v,l]) => (
-                    <button key={v} style={{...pill(dateFilter === v), flexShrink:0}} onClick={() => setDateFilter(v)}>{l}</button>
-                  ))}
-                </div>
-              )}
-
-              {/* Article list header */}
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ fontSize:13, color:"var(--text-secondary)" }}>
-                    <strong style={{ color:"var(--text-primary)" }}>{filtered.length}</strong> articles · <strong style={{ color:"var(--orange)" }}>{selectedIds.size}</strong> selected
-                  </div>
-                  <button
-                    onClick={loadArticles}
-                    disabled={articlesLoading}
-                    title="Refresh articles"
-                    style={{
-                      background:"none", border:"1px solid var(--border-color)", borderRadius:6,
-                      width:28, height:28, cursor: articlesLoading ? "default" : "pointer",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:14, color:"var(--text-muted)", opacity: articlesLoading ? 0.4 : 1,
-                    }}
-                  >↻</button>
-                </div>
-                <button style={{ ...pill(false), background:"var(--surface)" }} onClick={toggleAll}>
-                  {filtered.length > 0 && filtered.every(a => selectedIds.has(a.id || a.title)) ? "Deselect All" : "Select All"}
-                </button>
-              </div>
-
-              {/* Articles */}
-              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {/* Loading spinner */}
-                {articlesLoading && (
-                  <div style={{ textAlign:"center", padding:"48px 0" }}>
-                    <div style={{
-                      width:32, height:32, borderRadius:"50%",
-                      border:"3px solid var(--border-color)", borderTopColor:"var(--orange)",
-                      animation:"spin 0.8s linear infinite", margin:"0 auto 12px",
-                    }} />
-                    <div style={{ fontSize:13, color:"var(--text-muted)" }}>Loading articles…</div>
-                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                  </div>
-                )}
-
-                {/* No data yet */}
-                {!articlesLoading && articles.length === 0 && (
-                  <div style={{
-                    textAlign:"center", padding:"48px 24px",
-                    background:"var(--card-bg)", borderRadius:10, border:"1px solid var(--border-color)",
-                  }}>
-                    <div style={{ fontSize:28, marginBottom:12 }}>📭</div>
-                    <div style={{ fontSize:14, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>No articles loaded yet</div>
-                    <div style={{ fontSize:13, color:"var(--text-muted)", marginBottom:16 }}>
-                      Go to News Feed and click "Generate New Data" first, then come back.
-                    </div>
-                    <a href="/" style={{
-                      display:"inline-block", background:"var(--orange)", color:"#fff",
-                      padding:"8px 20px", borderRadius:8, fontSize:13, fontWeight:700,
-                      textDecoration:"none",
-                    }}>Go to News Feed →</a>
-                  </div>
-                )}
-
-                {/* Filtered but empty */}
-                {!articlesLoading && articles.length > 0 && filtered.length === 0 && (
-                  <div style={{ textAlign:"center", color:"var(--text-muted)", padding:"32px 0", fontSize:13 }}>
-                    No articles match the current filters. Try clearing the filters above.
-                  </div>
-                )}
-
-                {filtered.map(a => {
-                  const id     = a.id || a.title;
-                  const sel    = selectedIds.has(id);
-                  // Normalise field names — matches Explore.jsx exactly
-                  const topic  = a.topic || a.search_topic || a.industry || a.category || "General";
-                  const source = a.source || (a.url ? new URL(a.url).hostname.replace("www.","") : "Unknown");
-                  const date   = a.published_at || a.date || a.created_at || "";
-                  const strong = a.signal_strength === "Strong";
-                  const sc     = SECTOR_COLORS[topic] || SECTOR_COLORS.General;
-                  return (
-                    <div
-                      key={id}
-                      onClick={() => toggleId(id)}
-                      style={{
-                        display:"flex", alignItems:"flex-start", gap:12,
-                        background:"var(--card-bg)", borderRadius:8,
-                        border:`1.5px solid ${sel ? "var(--orange)" : "var(--border-color)"}`,
-                        padding:"12px 14px", cursor:"pointer",
-                        transition:"border-color 0.15s",
-                        boxShadow: sel ? "0 0 0 3px var(--orange-light)" : "none",
-                      }}
-                    >
-                      {/* Checkbox */}
-                      <div style={{
-                        width:18, height:18, borderRadius:4, flexShrink:0, marginTop:2,
-                        border:`2px solid ${sel ? "var(--orange)" : "var(--border-color)"}`, background: sel ? "var(--orange)" : "var(--card-bg)",
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        transition:"all 0.15s",
-                      }}>
-                        {sel && <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
-                        </svg>}
-                      </div>
-
-                      {/* Content */}
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:"var(--text-primary)", lineHeight:1.4, marginBottom:6 }}>
-                          {a.title}
-                        </div>
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
-                          {source && (
-                            <span style={{ fontSize:10, color:"var(--text-secondary)", fontWeight:600 }}>{source}</span>
-                          )}
-                          {topic && (
-                            <span style={{
-                              fontSize:10, fontWeight:700,
-                              background:sc.bg, color:sc.color,
-                              padding:"2px 8px", borderRadius:999,
-                            }}>{topic}</span>
-                          )}
-                          <span style={{
-                            fontSize:10, fontWeight:700,
-                            background: strong ? "var(--orange-light)" : "var(--amber-light)",
-                            color: strong ? "var(--orange)" : "var(--amber)",
-                            padding:"2px 8px", borderRadius:999,
-                          }}>
-                            {strong ? "Strong Signal" : "Emerging"}
-                          </span>
-                          {date && (
-                            <span style={{ fontSize:10, color:"var(--text-muted)" }}>{fmtDate(date)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ────────────── STEP 2 ────────────── */}
-          {step === 2 && (
-            <div style={{ maxWidth:580 }}>
-              <div style={{ fontSize:15, fontWeight:800, color:"var(--text-primary)", marginBottom:20, letterSpacing:-0.3 }}>
-                Configure Edition
-              </div>
-
-              <div style={{ background:"var(--card-bg)", borderRadius:12, padding:"20px 24px", border:"1px solid var(--border-color)" }}>
-                <Section title="Content">
-                  <ToggleRow label="Include article images"       desc="Pull cover image from source URL"              value={config.includeImages}    onChange={v => cfg("includeImages",v)} />
-                  <ToggleRow label='Show "Read article" links'    desc="Append source URL below each summary"          value={config.showLinks}        onChange={v => cfg("showLinks",v)} />
-                  <ToggleRow label="AI executive summary"         desc="1-paragraph strategic overview at top"         value={config.aiSummary}        onChange={v => cfg("aiSummary",v)} />
-                  <ToggleRow label="Signal badges"                desc='Show "Strong / Emerging" labels on articles'   value={config.signalBadges}     onChange={v => cfg("signalBadges",v)} />
-                  <ToggleRow label="Startup spotlight section"    desc="Auto-extract featured startups"                value={config.startupSpotlight} onChange={v => cfg("startupSpotlight",v)} />
-                </Section>
-
-                <Section title="Style">
-                  <SelectRow label="Summary length" value={config.summaryLength} options={["1","2","3"]}                                         onChange={v => cfg("summaryLength",v)} />
-                  <SelectRow label="Tone"           value={config.tone}          options={["Professional","Concise","Analytical"]}               onChange={v => cfg("tone",v)} />
-                  <SelectRow label="Language"       value={config.language}      options={["English","French","Both"]}                           onChange={v => cfg("language",v)} />
-                  <SelectRow label="Group articles by" value={config.groupBy}   options={["Sector","Signal strength","Date","No grouping"]}     onChange={v => cfg("groupBy",v)} />
-                </Section>
-
-                <Section title="Layout">
-                  <SelectRow label="Article link style" value={config.linkStyle}    options={["Inline text link","Read more → button","No links"]}  onChange={v => cfg("linkStyle",v)} />
-                  <SelectRow label="Max articles shown" value={config.maxArticles}  options={["5","8","12","All"]}                                  onChange={v => cfg("maxArticles",v)} />
-                </Section>
-              </div>
-            </div>
-          )}
-
-          {/* ────────────── STEP 3 ────────────── */}
-          {step === 3 && (
-            <div style={{ maxWidth:580 }}>
-              <div style={{ fontSize:15, fontWeight:800, color:"var(--text-primary)", marginBottom:20, letterSpacing:-0.3 }}>
-                Send & Schedule
-              </div>
-
-              {/* Sub-tabs */}
-              <div style={{ display:"flex", gap:0, marginBottom:20, borderBottom:"1px solid var(--border-color)" }}>
-                {["now","schedule","history"].map(t => (
-                  <button key={t} onClick={() => setSendTab(t)} style={{
-                    background:"none", border:"none",
-                    borderBottom:`2px solid ${sendTab === t ? "var(--orange)" : "transparent"}`,
-                    color: sendTab === t ? "var(--orange)" : "var(--text-muted)", fontWeight:700,
-                    fontSize:13, padding:"10px 20px", cursor:"pointer",
-                    transition:"all 0.15s", textTransform:"capitalize",
-                  }}>
-                    {t === "now" ? "Send Now" : t === "schedule" ? "Schedule" : "History"}
-                  </button>
-                ))}
-              </div>
-
-              {/* ── Send Now ── */}
-              {sendTab === "now" && (
-                <div style={{ background:"var(--card-bg)", borderRadius:12, padding:24, border:"1px solid var(--border-color)" }}>
-                  <div style={{ marginBottom:20 }}>
-                    <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>
-                      Recipients ({recipients.length})
-                    </label>
-                    <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:12 }}>
-                      {recipients.map(email => (
-                        <div key={email} style={{
-                          display:"flex", alignItems:"center", justifyContent:"space-between",
-                          background:"var(--surface)", border:"1px solid var(--border-color)", borderRadius:8,
-                          padding:"8px 12px",
-                        }}>
-                          <span style={{ fontSize:13, color:"var(--text-primary)" }}>{email}</span>
-                          <button
-                            onClick={() => handleRemoveRecipient(email)}
-                            style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-muted)", fontSize:16, lineHeight:1 }}
-                          >×</button>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <input
-                        value={newEmail}
-                        onChange={e => setNewEmail(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && handleAddRecipient()}
-                        placeholder="email@example.com"
-                        style={{
-                          flex:1, height:38, padding:"0 12px", border:"1.5px solid var(--border-color)",
-                          borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)",
-                        }}
-                        onFocus={e => { e.target.style.borderColor = "var(--orange)"; }}
-                        onBlur={e  => { e.target.style.borderColor = "var(--border-color)"; }}
-                      />
-                      <button onClick={handleAddRecipient} style={{ ...btnOrange(false), padding:"0 20px" }}>
-                        + Add
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom:20 }}>
-                    <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>
-                      Subject Line
-                    </label>
-                    <input
-                      value={subject}
-                      onChange={e => setSubject(e.target.value)}
-                      style={{
-                        width:"100%", height:42, padding:"0 14px",
-                        border:"1.5px solid var(--border-color)", borderRadius:8,
-                        fontSize:13, outline:"none", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text-primary)",
-                      }}
-                      onFocus={e => { e.target.style.borderColor = "var(--orange)"; }}
-                      onBlur={e  => { e.target.style.borderColor = "var(--border-color)"; }}
-                    />
-                    <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:4 }}>
-                      Preview: <em>{subject}</em>
-                    </div>
-                  </div>
-
-                  <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
-                    <button
-                      onClick={handleSendNow}
-                      disabled={sending}
-                      style={{ ...btnOrange(sending), fontSize:14, padding:"12px 32px" }}
-                    >
-                      {sending ? "Sending…" : "Send Now"}
-                    </button>
-                    <button
-                      onClick={() => generatePDF(articles, config, selectedIds)}
-                      style={{
-                        background:"var(--card-bg)", border:"1.5px solid var(--border-color)", borderRadius:8,
-                        padding:"12px 20px", fontSize:13, fontWeight:700, color:"var(--text-secondary)",
-                        cursor:"pointer",
-                      }}
-                    >
-                      Download PDF
-                    </button>
-                  </div>
-
-                  {selectedIds.size > 0 && (
-                    <div style={{ marginTop:16, fontSize:12, color:"var(--text-muted)" }}>
-                      Will include <strong style={{ color:"var(--text-primary)" }}>{selectedIds.size}</strong> selected article(s) to <strong style={{ color:"var(--text-primary)" }}>{recipients.length}</strong> recipient(s).
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Schedule ── */}
-              {sendTab === "schedule" && (
-                <div style={{ background:"var(--card-bg)", borderRadius:12, padding:24, border:"1px solid var(--border-color)" }}>
-                  <div style={{ marginBottom:20 }}>
-                    <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:10 }}>
-                      Days
-                    </label>
-                    <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                      {DAYS.map(d => {
-                        const on = schedule.days.includes(d);
-                        return (
-                          <button key={d} onClick={() => {
-                            setSchedule(s => ({
-                              ...s, days: on ? s.days.filter(x => x !== d) : [...s.days, d]
-                            }));
-                          }} style={{
-                            width:44, height:44, borderRadius:8, fontWeight:700, fontSize:12,
-                            border:`1.5px solid ${on ? "var(--orange)" : "var(--border-color)"}`,
-                            background: on ? "var(--orange-light)" : "var(--card-bg)", color: on ? "var(--orange)" : "var(--text-secondary)", cursor:"pointer",
-                          }}>{d}</button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div style={{ display:"flex", gap:16, marginBottom:20, flexWrap:"wrap" }}>
-                    <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>Time (UTC)</label>
-                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <select value={schedule.hour} onChange={e => setSchedule(s => ({...s, hour:parseInt(e.target.value)}))}
-                          style={{ height:38, padding:"0 8px", border:"1.5px solid var(--border-color)", borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)" }}>
-                          {Array.from({length:24},(_,i) => <option key={i} value={i}>{String(i).padStart(2,"0")}</option>)}
-                        </select>
-                        <span style={{ fontWeight:700, color:"var(--text-muted)" }}>:</span>
-                        <select value={schedule.minute} onChange={e => setSchedule(s => ({...s, minute:parseInt(e.target.value)}))}
-                          style={{ height:38, padding:"0 8px", border:"1.5px solid var(--border-color)", borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)" }}>
-                          {[0,15,30,45].map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}</option>)}
-                        </select>
-                        <span style={{ fontSize:12, color:"var(--text-muted)" }}>UTC</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:"var(--text-secondary)", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:8 }}>Frequency</label>
-                      <select value={schedule.frequency} onChange={e => setSchedule(s => ({...s, frequency:e.target.value}))}
-                        style={{ height:38, padding:"0 12px", border:"1.5px solid var(--border-color)", borderRadius:8, fontSize:13, outline:"none", background:"var(--input-bg)", color:"var(--text-primary)" }}>
-                        {["Weekly","Bi-weekly","Daily"].map(f => <option key={f} value={f}>{f}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Next send preview */}
-                  {schedule.days.length > 0 && (
-                    <div style={{
-                      background:"var(--surface)", border:"1px solid var(--border-color)", borderRadius:8,
-                      padding:"10px 14px", marginBottom:20, fontSize:12, color:"var(--text-secondary)",
-                    }}>
-                      Next send: <strong style={{ color:"var(--text-primary)" }}>
-                        {schedule.days[0]} {String(schedule.hour).padStart(2,"0")}:{String(schedule.minute).padStart(2,"0")} UTC
-                      </strong>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleSaveSchedule}
-                    disabled={savingSched}
-                    style={btnOrange(savingSched)}
-                  >
-                    {savingSched ? "Saving…" : "Save Schedule"}
-                  </button>
-                </div>
-              )}
-
-              {/* ── History ── */}
-              {sendTab === "history" && (
-                <div style={{ background:"var(--card-bg)", borderRadius:12, padding:24, border:"1px solid var(--border-color)" }}>
-                  {loadingHist && <div style={{ color:"var(--text-muted)", fontSize:13 }}>Loading…</div>}
-                  {!loadingHist && sentHistory.length === 0 && (
-                    <div style={{ color:"var(--text-muted)", fontSize:13, textAlign:"center", padding:"24px 0" }}>
-                      No sends yet. Use "Send Now" to send your first edition.
-                    </div>
-                  )}
-                  {sentHistory.map(h => (
-                    <div key={h.id} style={{
-                      display:"flex", justifyContent:"space-between", alignItems:"center",
-                      padding:"12px 0", borderBottom:"1px solid var(--surface)", gap:12, flexWrap:"wrap",
-                    }}>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:700, color:"var(--text-primary)" }}>{h.subject}</div>
-                        <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:3 }}>{fmtDate(h.sent_at)}</div>
-                      </div>
-                      <div style={{ display:"flex", gap:12 }}>
-                        <div style={{ textAlign:"right" }}>
-                          <div style={{ fontSize:12, fontWeight:700, color:"var(--text-primary)" }}>{h.recipient_count}</div>
-                          <div style={{ fontSize:10, color:"var(--text-muted)" }}>recipients</div>
-                        </div>
-                        <div style={{ textAlign:"right" }}>
-                          <div style={{ fontSize:12, fontWeight:700, color:"var(--text-primary)" }}>{h.article_count}</div>
-                          <div style={{ fontSize:10, color:"var(--text-muted)" }}>articles</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Navigation buttons ── */}
-          <div style={{ display:"flex", justifyContent:"space-between", marginTop:28 }}>
-            <button
-              onClick={() => setStep(s => Math.max(1, s - 1))}
-              disabled={step === 1}
-              style={{
-                background:"none", border:"1.5px solid var(--border-color)", borderRadius:8,
-                padding:"10px 24px", fontSize:13, fontWeight:700, color:"var(--text-secondary)",
-                cursor: step === 1 ? "default" : "pointer",
-                opacity: step === 1 ? 0.4 : 1,
-              }}
-            >← Back</button>
-            {step < 3 && (
-              <button
-                onClick={() => setStep(s => s + 1)}
-                disabled={nextDisabled}
-                style={{ ...btnOrange(nextDisabled), opacity: nextDisabled ? 0.4 : 1 }}
-              >
-                Next →
+      {sent ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: 60, marginBottom: 14 }}>✅</div>
+          <h3 style={{ color: 'var(--text-primary, #f9fafb)', marginBottom: 8 }}>Newsletter Sent!</h3>
+          <p style={{ color: 'var(--text-secondary, #9ca3af)' }}>
+            Delivered to {recipients.length} recipient{recipients.length !== 1 ? 's' : ''}.
+          </p>
+        </div>
+      ) : activeTab === 'send' ? (
+        <div>
+          {/* Recipients */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Recipients</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input type="email" placeholder="email@company.com"
+                value={recipientInput}
+                onChange={e => setRecipientInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addRecipient()}
+                style={{ ...inputStyle, flex: 1 }} />
+              <button onClick={addRecipient} style={{ ...primaryBtnStyle, padding: '10px 14px', flexShrink: 0 }}>
+                <Plus size={15} />
               </button>
-            )}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {recipients.map(r => (
+                <span key={r} style={{
+                  background: 'rgba(232,69,10,0.1)', color: '#e8450a',
+                  border: '1px solid rgba(232,69,10,0.2)',
+                  borderRadius: 20, padding: '4px 10px',
+                  fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}>
+                  {r}
+                  <button onClick={() => setRecipients(p => p.filter(x => x !== r))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'flex' }}>
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Preview toggle */}
+          <button onClick={() => setShowPreview(v => !v)} style={{ ...secondaryBtnStyle, marginBottom: 14 }}>
+            <Eye size={13} /> {showPreview ? 'Hide Preview' : 'Show Preview'}
+          </button>
+
+          {showPreview && (
+            <div style={{ border: '1px solid var(--border-color, rgba(255,255,255,0.08))', borderRadius: 10, overflow: 'hidden', marginBottom: 14, height: 380, background: '#fff' }}>
+              <iframe srcDoc={html} title="Newsletter Preview" style={{ width: '100%', height: '100%', border: 'none' }} />
+            </div>
+          )}
+
+          {error && (
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#ef4444', fontSize: 13 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={handleSend} disabled={sending} style={{ ...primaryBtnStyle, flex: 1 }}>
+              {sending ? 'Sending…' : <><Send size={14} /> Send Newsletter</>}
+            </button>
+            <button onClick={handleDownload} style={secondaryBtnStyle}>
+              <ExternalLink size={13} /> Download HTML
+            </button>
           </div>
         </div>
+      ) : activeTab === 'schedule' ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary, #9ca3af)' }}>
+          <Calendar size={36} style={{ marginBottom: 10, opacity: 0.4 }} />
+          <p>Scheduling coming soon.</p>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary, #9ca3af)' }}>
+          <BarChart2 size={36} style={{ marginBottom: 10, opacity: 0.4 }} />
+          <p>Send history will appear here.</p>
+        </div>
+      )}
 
-        {/* ── Live preview panel ── */}
-        <LivePreview
-          articles={articles}
-          config={config}
-          selectedIds={selectedIds}
-          recipients={recipients}
-          isMobile={isMobile}
-        />
+      <div style={{ marginTop: 18 }}>
+        <button onClick={onPrev} style={secondaryBtnStyle}>
+          <ChevronLeft size={16} /> Back
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Shared styles ──────────────────────────────────── */
+const inputStyle = {
+  width: '100%', padding: '10px 14px',
+  background: 'var(--bg-secondary, rgba(255,255,255,0.05))',
+  border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+  borderRadius: 8, color: 'var(--text-primary, #f9fafb)',
+  fontSize: 14, outline: 'none', boxSizing: 'border-box',
+};
+const selectStyle = {
+  padding: '10px 14px',
+  background: 'var(--bg-card, #1e2028)',
+  border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+  borderRadius: 8, color: 'var(--text-primary, #f9fafb)',
+  fontSize: 14, outline: 'none', cursor: 'pointer',
+};
+const labelStyle = {
+  display: 'block', marginBottom: 7,
+  fontSize: 12, fontWeight: 600,
+  color: 'var(--text-secondary, #9ca3af)',
+  textTransform: 'uppercase', letterSpacing: '0.5px',
+};
+const primaryBtnStyle = {
+  padding: '10px 20px',
+  background: '#e8450a', color: '#fff',
+  border: 'none', borderRadius: 8,
+  cursor: 'pointer', fontWeight: 600, fontSize: 14,
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+};
+const secondaryBtnStyle = {
+  padding: '10px 14px',
+  background: 'none',
+  border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+  color: 'var(--text-secondary, #9ca3af)',
+  borderRadius: 8, cursor: 'pointer', fontSize: 13,
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+};
+
+/* ─── Main Page ──────────────────────────────────────── */
+const STEPS = ['Select Articles', 'Preview & Send'];
+
+export default function Newsletter() {
+  const [step, setStep]       = useState(0);
+  const [selected, setSelected] = useState([]);
+  const [config]              = useState(() => loadConfig()); // loaded from Profile prefs
+
+  const toggleArticle = useCallback((art) => {
+    setSelected(prev =>
+      prev.some(a => a.id === art.id) ? prev.filter(a => a.id !== art.id) : [...prev, art]
+    );
+  }, []);
+
+  const selectAll = useCallback((articles) => {
+    setSelected(prev => {
+      const ids = new Set(prev.map(a => a.id));
+      const toAdd = articles.filter(a => !ids.has(a.id));
+      return [...prev, ...toAdd];
+    });
+  }, []);
+
+  const clearAll = useCallback((articles) => {
+    const ids = new Set(articles.map(a => a.id));
+    setSelected(prev => prev.filter(a => !ids.has(a.id)));
+  }, []);
+
+  return (
+    <div style={{ padding: '32px 24px', maxWidth: 860, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 26 }}>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--text-primary, #f9fafb)' }}>
+          AI Newsletter Builder
+        </h1>
+        <p style={{ margin: '4px 0 0', color: 'var(--text-secondary, #9ca3af)', fontSize: 14 }}>
+          Compose and send DXC-branded AI intelligence briefings
+        </p>
+      </div>
+
+      {/* Stepper */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+        {STEPS.map((label, idx) => (
+          <React.Fragment key={idx}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: '50%',
+                background: idx < step ? '#10b981' : idx === step ? '#e8450a' : 'var(--bg-card, #1e2028)',
+                border: `2px solid ${idx < step ? '#10b981' : idx === step ? '#e8450a' : 'var(--border-color, rgba(255,255,255,0.15))'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: idx <= step ? '#fff' : 'var(--text-secondary, #9ca3af)',
+                fontSize: 12, fontWeight: 700, flexShrink: 0, transition: 'all 0.2s',
+              }}>
+                {idx < step ? <Check size={13} /> : idx + 1}
+              </div>
+              <span style={{
+                fontSize: 13, fontWeight: idx === step ? 600 : 400,
+                color: idx === step ? 'var(--text-primary, #f9fafb)' : 'var(--text-secondary, #9ca3af)',
+                whiteSpace: 'nowrap',
+              }}>
+                {label}
+              </span>
+            </div>
+            {idx < STEPS.length - 1 && (
+              <div style={{
+                flex: 1, height: 2,
+                background: idx < step ? '#10b981' : 'var(--border-color, rgba(255,255,255,0.08))',
+                margin: '0 12px', transition: 'background 0.3s',
+              }} />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Step card */}
+      <div style={{
+        background: 'var(--bg-card, #1e2028)',
+        border: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+        borderRadius: 14, padding: '22px 26px',
+      }}>
+        {step === 0 && (
+          <StepArticles
+            selected={selected}
+            onToggle={toggleArticle}
+            onSelectAll={selectAll}
+            onClearAll={clearAll}
+            onNext={() => setStep(1)}
+          />
+        )}
+        {step === 1 && (
+          <StepSend
+            selected={selected}
+            config={config}
+            onPrev={() => setStep(0)}
+          />
+        )}
       </div>
     </div>
   );
