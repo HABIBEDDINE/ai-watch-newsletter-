@@ -1,5 +1,5 @@
 /**
- * SCÉNARIO C — "L'Observatoire"
+ * SCÉNARIO C — "INSIGHTS"
  * Fully responsive: Mobile < 768 | Tablet 768–1024 | Desktop > 1024
  * DXC design system (CSS variables — light & dark compatible)
  */
@@ -262,7 +262,7 @@ export default function NewsletterDashboardC() {
                 fontWeight: 900, color: "var(--text-primary)",
                 margin: "0 0 8px", lineHeight: 1.1, letterSpacing: "-0.02em",
               }}>
-                L'Observatoire
+                INSIGHTS
               </h1>
 
               <div style={{
@@ -379,7 +379,7 @@ export default function NewsletterDashboardC() {
               margin: 0, lineHeight: 1.1, letterSpacing: "-0.02em",
               textAlign: "left", wordBreak: "keep-all",
             }}>
-              L'Observatoire
+              INSIGHTS
             </h1>
 
             {/* Subtitle */}
