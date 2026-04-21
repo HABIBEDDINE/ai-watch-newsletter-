@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   BookmarkX, TrendingUp, FileText, Zap, ExternalLink,
   Download, Mail, X, RefreshCw, AlertCircle, Clock,
-  ArrowUpRight, ArrowDownRight, Minus, Search, Filter,
+  ArrowUpRight, ArrowDownRight, Minus, Search,
   ChevronDown, ChevronUp, Globe
 } from 'lucide-react';
 
@@ -705,7 +705,7 @@ export default function SavedPage() {
   const [error, setError] = useState(null);
   const [sendModalItem, setSendModalItem] = useState(null);
   const [search, setSearch] = useState('');
-  const [removing, setRemoving] = useState(new Set());
+  const [removing, setRemoving] = useState(new Set()); // eslint-disable-line no-unused-vars
 
   /* Fetch saved items */
   const fetchSaved = useCallback(async () => {

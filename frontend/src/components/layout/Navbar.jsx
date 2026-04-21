@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { getArticles } from '../../services/api';
 import { Bell, Menu, PanelLeftClose } from 'lucide-react';
 
@@ -477,12 +476,12 @@ export default function Navbar({
                   style={{
                     background: 'none',
                     border: 'none',
-                    fontSize: 13,
+                    fontSize: 12,
                     color: 'var(--accent-orange)',
                     cursor: 'pointer',
                   }}
                 >
-                  View all articles →
+                  View all
                 </button>
               </div>
             </div>

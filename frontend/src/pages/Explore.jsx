@@ -29,7 +29,7 @@ const LS_TOPIC_KEY = "aiwatch_explore_topic";
 const ACCENT   = "var(--dxc-orange)";
 const ACCENT_BG = "rgba(255, 180, 118, 0.1)";
 
-const SIGNALS = ["All", "Strong", "Weak"];
+const SIGNALS = ["All", "Strong", "Weak"]; // eslint-disable-line no-unused-vars
 
 function StatCard({ label, value, isMobile }) {
   return (
@@ -337,14 +337,14 @@ export default function Explore() {
     }
   };
 
-  const toggleArticleSelection = (articleId) => {
+  const toggleArticleSelection = (articleId) => { // eslint-disable-line no-unused-vars
     const newSet = new Set(selectedArticles);
     if (newSet.has(articleId)) newSet.delete(articleId);
     else newSet.add(articleId);
     setSelectedArticles(newSet);
   };
 
-  const toggleAllArticles = () => {
+  const toggleAllArticles = () => { // eslint-disable-line no-unused-vars
     if (selectedArticles.size === articles.length) setSelectedArticles(new Set());
     else setSelectedArticles(new Set(articles.map(a => a.id)));
   };

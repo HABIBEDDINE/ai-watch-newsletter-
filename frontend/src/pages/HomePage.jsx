@@ -271,7 +271,7 @@ function fmtDate(d) {
 // ── HomePage ──────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { user } = useAuth();
-  const { theme } = useTheme();
+  useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 

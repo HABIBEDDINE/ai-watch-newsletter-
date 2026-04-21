@@ -152,6 +152,7 @@ function ImageLightbox({ imageUrl, title, onClose, onPrev, onNext, hasPrev, hasN
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scale, isDragging, hasPrev, hasNext, onPrev, onNext]);
 
   const btnStyle = {

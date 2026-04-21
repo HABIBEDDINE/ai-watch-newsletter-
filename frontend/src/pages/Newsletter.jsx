@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Send, Check, ChevronRight, ChevronLeft, Search,
-  Eye, Download, Plus, X, RefreshCw, Calendar,
+  Eye, Plus, X, RefreshCw, Calendar,
   BarChart2, Settings, ExternalLink
 } from 'lucide-react';
 

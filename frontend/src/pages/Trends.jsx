@@ -569,6 +569,7 @@ function SectionContent({ text }) {
 }
 
 // Perplexity-style sources component
+// eslint-disable-next-line no-unused-vars
 function SourcesSection({ sources }) {
   console.log('[SourcesSection] Received sources:', sources);
   if (!sources || sources.length === 0) {
