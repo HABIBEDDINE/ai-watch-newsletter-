@@ -187,7 +187,7 @@ export default function NewsletterDashboardA() {
               const m = ALL_MONTHS.find(x => x.key === key);
               if (!m) return null;
               return (
-                <div key={key} className="a-card" onClick={() => navigate("/dxc-newsletter")} style={{
+                <div key={key} className="a-card" onClick={() => navigate("/dxc-newsletter", { state: { selectedMonth: key } })} style={{
                   width: cardW, flexShrink: 0,
                   background: "var(--bg-card)", border: "1px solid var(--border)",
                   borderRadius: 14, overflow: "hidden", cursor: "pointer",

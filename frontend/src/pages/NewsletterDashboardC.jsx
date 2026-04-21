@@ -32,12 +32,12 @@ const IMG = {
 };
 
 const HIGHLIGHTS = [
-  { img: IMG.hero,     caption: "GITEX Africa 2025",       sub: "Marrakech — 3e participation" },
-  { img: IMG.brandon,  caption: "Brandon Hall Awards",      sub: "4 trophées d'excellence RH" },
-  { img: IMG.cgem,     caption: "Label RSE CGEM",           sub: "Engagement RSE validé" },
-  { img: IMG.iwd,      caption: "Journée Femmes",           sub: "International Women's Day" },
-  { img: IMG.marathon, caption: "Marathon de Casablanca",   sub: "Esprit d'équipe & sport" },
-  { img: IMG.gen_ai,   caption: "Gen AI Summit 2024",       sub: "Innovation & Transformation" },
+  { id: "gitex-africa-2025",       img: IMG.hero,     caption: "GITEX Africa 2025",       sub: "Marrakech — 3e participation",      title: "GITEX Africa 2025 — DXC.CDG à Marrakech",            source: "ONETEAM Newsletter", published_at: "2025-04-01" },
+  { id: "brandon-hall-awards",     img: IMG.brandon,  caption: "Brandon Hall Awards",      sub: "4 trophées d'excellence RH",        title: "Brandon Hall Awards — 4 trophées d'excellence RH",   source: "ONETEAM Newsletter", published_at: "2025-09-01" },
+  { id: "label-rse-cgem",         img: IMG.cgem,     caption: "Label RSE CGEM",           sub: "Engagement RSE validé",             title: "Label RSE CGEM — Engagement RSE validé",              source: "ONETEAM Newsletter", published_at: "2025-11-01" },
+  { id: "journee-femmes",         img: IMG.iwd,      caption: "Journée Femmes",           sub: "International Women's Day",         title: "Journée Internationale des Femmes — DXC.CDG",         source: "ONETEAM Newsletter", published_at: "2025-03-08" },
+  { id: "marathon-casablanca",    img: IMG.marathon, caption: "Marathon de Casablanca",   sub: "Esprit d'équipe & sport",           title: "Marathon de Casablanca — Esprit d'équipe & sport",    source: "ONETEAM Newsletter", published_at: "2025-10-01" },
+  { id: "gen-ai-summit-2024",     img: IMG.gen_ai,   caption: "Gen AI Summit 2024",       sub: "Innovation & Transformation",       title: "Gen AI Summit 2024 — Insights IA & Transformation",   source: "ONETEAM Newsletter", published_at: "2024-11-01" },
 ];
 
 const PILLARS = [
@@ -454,7 +454,7 @@ export default function NewsletterDashboardC() {
         </p>
         <div style={{ display: "grid", gridTemplateColumns: gridHL, gap: isMobile ? 12 : 16 }}>
           {HIGHLIGHTS.map((h, i) => (
-            <div key={i} className="c-hl" onClick={() => navigate("/dxc-newsletter")} style={{
+            <div key={i} className="c-hl" onClick={() => navigate(`/dxc-newsletter/${h.id}`, { state: { article: h } })} style={{
               background: "var(--bg-card)", border: "1px solid #eee",
               borderRadius: 12, overflow: "hidden", cursor: "pointer",
             }}>

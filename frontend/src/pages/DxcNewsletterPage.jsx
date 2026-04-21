@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getDxcNewsletters, getDxcNewsletterFilters } from "../services/api";
 import { Search, ChevronRight, Newspaper } from "lucide-react";
 
@@ -170,6 +170,7 @@ function NewsletterCard({ article, onClick, isMobile }) {
 
 export default function DxcNewsletterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const [articles, setArticles] = useState([]);
@@ -177,7 +178,7 @@ export default function DxcNewsletterPage() {
   const [error, setError] = useState(null);
 
   const [filters, setFilters] = useState({ months: [], categories: [] });
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(location.state?.selectedMonth || "");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchTimeout, setSearchTimeout] = useState(null);
@@ -456,7 +457,7 @@ export default function DxcNewsletterPage() {
             <NewsletterCard
               key={article.id}
               article={article}
-              onClick={() => navigate(`/dxc-newsletter/${article.id}`)}
+              onClick={() => navigate(`/dxc-newsletter/${article.id}`, { state: { article } })}
               isMobile={isMobile}
             />
           ))}
