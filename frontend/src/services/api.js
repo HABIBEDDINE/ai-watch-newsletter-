@@ -1,7 +1,6 @@
-// Empty base URL — all /api/* requests are proxied to the backend by the
-// CRA dev server (see "proxy" in package.json). Same-origin means cookies
-// are sent automatically without needing credentials:'include'.
-const API_BASE_URL = "";
+// In development, CRA proxies /api/* to localhost:8000 (see package.json "proxy").
+// In production (Vercel), REACT_APP_API_BASE_URL must point to the Render backend.
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "";
 
 // ── Auth token (in-memory) ────────────────────────────────────────────────────
 let _token = null;
