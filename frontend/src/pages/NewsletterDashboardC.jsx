@@ -17,10 +17,10 @@ import ChronologieTimelineRich from "../components/ChronologieTimelineRich";
 const IMG = {
   hero:      "/newsletter-images/page187_inside_gitex_africa_2025_dxc.jpg",
   brandon:   "/newsletter-images/page144_brandon_hall_group_excellence_gold.jpg",
-  iwd:       "/newsletter-images/page016_international_women_s_day_event___march_10th.jpg",
+  iwd:       "/newsletter-images/page022_in_the_spotlight_our_svp_lamiaa.jpg",
   cgem:      "/newsletter-images/page086_dxc_cdg_earns_cgem_csr_label_.jpg",
   vow:       "/newsletter-images/page023_fy26_vow_preparations_are_underway_.jpg",
-  marathon:  "/newsletter-images/page062_team_spirit_in_motion_dxc_cdg_at_the_casablanca_marathon_.jpg",
+  marathon:  "/newsletter-images/page184_colleagues_from_across_dxc_cdg_took_on_the.jpg",
   seminar:   "/newsletter-images/page002_quality_at_the_heart_of_the_adm_seminar.jpg",
   town_hall: "/newsletter-images/page097_a_look_back_at_our_recent_town_hall_with_leadership.jpg",
   umnia:     "/newsletter-images/page004_a_strategic_partnership_with_umnia_bank.jpg",

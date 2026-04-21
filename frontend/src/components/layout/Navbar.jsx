@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getArticles } from '../../services/api';
-import { Sun, Moon, Bell, Menu, PanelLeftClose } from 'lucide-react';
+import { Bell, Menu, PanelLeftClose } from 'lucide-react';
 
 const pulseKeyframes = `
 @keyframes livePulse {
@@ -30,7 +30,7 @@ export default function Navbar({
   isMobile,
 }) {
   const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  // theme toggle removed
   const navigate = useNavigate();
   const location = useLocation();
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -211,33 +211,6 @@ export default function Navbar({
 
           {/* Right: Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobileView ? 8 : 12 }}>
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--dxc-border)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                padding: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--dxc-muted)',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--dxc-orange)';
-                e.currentTarget.style.color = 'var(--dxc-orange)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--dxc-border)';
-                e.currentTarget.style.color = 'var(--dxc-muted)';
-              }}
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
 
             {/* Login */}
             <button
@@ -360,26 +333,6 @@ export default function Navbar({
 
       {/* Right: Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-secondary)',
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
 
         {/* Bell with notification dropdown */}
         <div ref={notifRef} style={{ position: 'relative' }}>

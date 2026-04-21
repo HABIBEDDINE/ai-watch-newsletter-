@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Sun, Moon } from 'lucide-react';
 import './HomePage.css';
 
 // ── Topic → thumbnail bg colour (using CSS variables for theme support) ──────
@@ -272,7 +271,7 @@ function fmtDate(d) {
 // ── HomePage ──────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -510,34 +509,6 @@ export default function HomePage() {
         </div>
 
         <div className="hp-nav-right">
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--dxc-border)',
-              borderRadius: 8,
-              cursor: 'pointer',
-              padding: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--dxc-muted)',
-              transition: 'all 0.15s',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.borderColor = 'var(--dxc-orange)';
-              e.currentTarget.style.color = 'var(--dxc-orange)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.borderColor = 'var(--dxc-border)';
-              e.currentTarget.style.color = 'var(--dxc-muted)';
-            }}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
           {user ? (
             <>
               <button className="hp-btn-sub" onClick={() => navigate('/feed')}>Dashboard</button>

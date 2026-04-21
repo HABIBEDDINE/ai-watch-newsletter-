@@ -7,102 +7,101 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DARK MODE (default)
+   ROOT DEFAULTS (light mode only — dark mode removed)
    ═══════════════════════════════════════════════════════════════════════════ */
-:root,
-[data-theme="dark"] {
-  /* Core brand colors */
+:root {
+  /* Core brand colors - DXC official (light mode) */
   --dxc-dark: #0E1020;
   --dxc-darker: #080A14;
-  --dxc-surface: #141728;
-  --dxc-border: #1E2340;
-  --dxc-orange: #FFB476;
+  --dxc-surface: #F8F9FC;
+  --dxc-border: #E2E4EE;
+  --dxc-orange: #E84E0F;
   --dxc-coral: #F2805E;
-  --dxc-blue: #FFB476;
-  --dxc-white: #F0F2FF;
-  --dxc-muted: #8B91B5;
-  --gradient-brand: linear-gradient(135deg, #FFB476, #F2805E);
+  --dxc-blue: #E84E0F;
+  --dxc-white: #0E1020;
+  --dxc-muted: #4A5068;
+  --gradient-brand: linear-gradient(135deg, #E84E0F, #F2805E);
 
   /* Unified accent colors (DXC Orange) */
-  --accent: #FFB476;
-  --accent-hover: #F2805E;
-  --accent-dim: rgba(255, 180, 118, 0.12);
-  --accent-border: rgba(255, 180, 118, 0.35);
+  --accent: #E84E0F;
+  --accent-hover: #C43A00;
+  --accent-dim: rgba(232, 78, 15, 0.08);
+  --accent-border: rgba(232, 78, 15, 0.25);
 
   /* Theme-aware variables */
-  --bg-primary: #0E1020;
-  --bg-secondary: #080A14;
-  --bg-surface: #141728;
-  --bg-card: #141728;
-  --border: #1E2340;
-  --text-primary: #F0F2FF;
-  --text-secondary: #8B91B5;
-  --text-muted: #5A6080;
-  --accent-orange: #FFB476;
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F4F5F9;
+  --bg-surface: #F8F9FC;
+  --bg-card: #FFFFFF;
+  --border: #E2E4EE;
+  --text-primary: #0E1020;
+  --text-secondary: #4A5068;
+  --text-muted: #8B91B5;
+  --accent-orange: #E84E0F;
   --accent-coral: #F2805E;
-  --accent-blue: #FFB476;
-  --signal-strong-bg: rgba(255, 180, 118, 0.15);
-  --signal-strong-border: rgba(255, 180, 118, 0.5);
-  --signal-strong-text: #FFB476;
-  --signal-weak-bg: rgba(139, 145, 181, 0.1);
-  --signal-weak-text: #8B91B5;
-  --sidebar-bg: #080A14;
-  --topbar-bg: #0C0E1A;
-  --input-bg: #1A1F35;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --accent-blue: #E84E0F;
+  --signal-strong-bg: rgba(232, 78, 15, 0.08);
+  --signal-strong-border: rgba(232, 78, 15, 0.3);
+  --signal-strong-text: #C43A00;
+  --signal-weak-bg: rgba(74, 80, 104, 0.08);
+  --signal-weak-text: #4A5068;
+  --sidebar-bg: #FFFFFF;
+  --topbar-bg: #FFFFFF;
+  --input-bg: #F4F5F9;
+  --shadow: 0 4px 24px rgba(14, 16, 32, 0.08);
 
   /* Legacy compatibility */
-  --orange: #FFB476;
-  --orange-hover: #F2805E;
-  --orange-light: rgba(255, 180, 118, 0.1);
-  --orange-border: rgba(255, 180, 118, 0.3);
+  --orange: #E84E0F;
+  --orange-hover: #C43A00;
+  --orange-light: rgba(232, 78, 15, 0.08);
+  --orange-border: rgba(232, 78, 15, 0.2);
   --dark: #0E1020;
   --dark-2: #080A14;
   --dark-3: #141728;
   --dark-border: #1E2340;
-  --dark-border-color: #1E2340;
-  --white: #141728;
-  --surface: #0E1020;
-  --surface-2: #1A1F35;
-  --border-2: #2A3050;
-  --border-color: #1E2340;
-  --text-hint: #3A4060;
-  --blue: #FFB476;
-  --blue-light: rgba(255, 180, 118, 0.12);
-  --blue-accent: #FFB476;
-  --purple: #A78BFA;
-  --green: #4ADE80;
-  --green-light: rgba(74, 222, 128, 0.1);
-  --amber: #FBBF24;
-  --amber-light: rgba(251, 191, 36, 0.1);
-  --red: #F87171;
-  --red-light: rgba(248, 113, 113, 0.1);
-  --delta-bg: rgba(74, 222, 128, 0.1);
-  --delta-color: #4ADE80;
-  --bg-hover: #1A1F35;
-  --bg-active: rgba(255, 180, 118, 0.15);
-  --topic-ai-bg: rgba(255, 180, 118, 0.15);
-  --topic-ai: #FFB476;
-  --topic-fintech-bg: rgba(255, 180, 118, 0.15);
-  --topic-fintech: #FFB476;
-  --topic-healthtech-bg: rgba(74, 222, 128, 0.15);
-  --topic-healthtech: #4ADE80;
-  --topic-cybersecurity-bg: rgba(248, 113, 113, 0.15);
-  --topic-cybersecurity: #F87171;
-  --topic-cleantech-bg: rgba(74, 222, 128, 0.15);
-  --topic-cleantech: #4ADE80;
-  --topic-robotics-bg: rgba(167, 139, 250, 0.15);
-  --topic-robotics: #A78BFA;
-  --topic-strategy-bg: rgba(242, 128, 94, 0.15);
-  --topic-strategy: #F2805E;
-  --topic-infrastructure-bg: rgba(139, 145, 181, 0.15);
-  --topic-infrastructure: #8B91B5;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
-  --card-bg: #141728;
-  --nav-bg: #080A14;
-  --page-bg: #0E1020;
+  --dark-border-color: #E2E4EE;
+  --white: #FFFFFF;
+  --surface: #F4F5F9;
+  --surface-2: #F8F9FC;
+  --border-2: #D1D5E0;
+  --border-color: #E2E4EE;
+  --text-hint: #A0A5B8;
+  --blue: #E84E0F;
+  --blue-light: rgba(232, 78, 15, 0.08);
+  --blue-accent: #E84E0F;
+  --purple: #7C3AED;
+  --green: #15803D;
+  --green-light: rgba(21, 128, 61, 0.08);
+  --amber: #B45309;
+  --amber-light: rgba(180, 83, 9, 0.08);
+  --red: #DC2626;
+  --red-light: rgba(220, 38, 38, 0.08);
+  --delta-bg: rgba(21, 128, 61, 0.08);
+  --delta-color: #15803D;
+  --bg-hover: #F4F5F9;
+  --bg-active: rgba(232, 78, 15, 0.08);
+  --topic-ai-bg: rgba(232, 78, 15, 0.08);
+  --topic-ai: #E84E0F;
+  --topic-fintech-bg: rgba(232, 78, 15, 0.08);
+  --topic-fintech: #E84E0F;
+  --topic-healthtech-bg: rgba(21, 128, 61, 0.08);
+  --topic-healthtech: #15803D;
+  --topic-cybersecurity-bg: rgba(220, 38, 38, 0.08);
+  --topic-cybersecurity: #DC2626;
+  --topic-cleantech-bg: rgba(21, 128, 61, 0.08);
+  --topic-cleantech: #15803D;
+  --topic-robotics-bg: rgba(124, 58, 237, 0.08);
+  --topic-robotics: #7C3AED;
+  --topic-strategy-bg: rgba(232, 78, 15, 0.08);
+  --topic-strategy: #E84E0F;
+  --topic-infrastructure-bg: rgba(74, 80, 104, 0.08);
+  --topic-infrastructure: #4A5068;
+  --shadow-sm: 0 1px 3px rgba(14, 16, 32, 0.06);
+  --shadow-md: 0 4px 12px rgba(14, 16, 32, 0.08);
+  --shadow-lg: 0 12px 40px rgba(14, 16, 32, 0.12);
+  --card-bg: #FFFFFF;
+  --nav-bg: #FFFFFF;
+  --page-bg: #F4F5F9;
 
   /* Layout */
   --navbar-height: 64px;
