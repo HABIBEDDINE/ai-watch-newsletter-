@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { ArticleProvider } from "./context/ArticleContext";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -20,10 +20,11 @@ import ProfilePage from "./pages/ProfilePage";
 import SavedPage from "./pages/SavedPage";
 import DxcNewsletterPage from "./pages/DxcNewsletterPage";
 import DxcNewsletterDetail from "./pages/DxcNewsletterDetail";
-import NewsletterDashboardA from "./pages/NewsletterDashboardA";
-import NewsletterDashboardB from "./pages/NewsletterDashboardB";
 import NewsletterDashboardC from "./pages/NewsletterDashboardC";
-import NewsletterShowcase from "./pages/NewsletterShowcase";
+// Kept for reference but no longer routed:
+// import NewsletterDashboardA from "./pages/NewsletterDashboardA";
+// import NewsletterDashboardB from "./pages/NewsletterDashboardB";
+// import NewsletterShowcase from "./pages/NewsletterShowcase";
 
 export default function AIWatchDXC() {
   return (
@@ -43,12 +44,17 @@ export default function AIWatchDXC() {
       <Route path="/feed" element={<DashboardLayout><Explore /></DashboardLayout>} />
       <Route path="/article/:id" element={<DashboardLayout><ArticleDetail /></DashboardLayout>} />
       <Route path="/trends" element={<ProtectedRoute><DashboardLayout><Trends /></DashboardLayout></ProtectedRoute>} />
+
+      {/* DXC Newsletter — consolidated to /newsletter-dashboard-c */}
+      <Route path="/newsletter-dashboard-c" element={<ProtectedRoute><DashboardLayout><NewsletterDashboardC /></DashboardLayout></ProtectedRoute>} />
       <Route path="/dxc-newsletter" element={<ProtectedRoute><DashboardLayout><DxcNewsletterPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/dxc-newsletter/:id" element={<ProtectedRoute><DashboardLayout><DxcNewsletterDetail /></DashboardLayout></ProtectedRoute>} />
-      <Route path="/newsletter-showcase" element={<ProtectedRoute><DashboardLayout><NewsletterShowcase /></DashboardLayout></ProtectedRoute>} />
-      <Route path="/newsletter-dashboard-a" element={<ProtectedRoute><DashboardLayout><NewsletterDashboardA /></DashboardLayout></ProtectedRoute>} />
-      <Route path="/newsletter-dashboard-b" element={<ProtectedRoute><DashboardLayout><NewsletterDashboardB /></DashboardLayout></ProtectedRoute>} />
-      <Route path="/newsletter-dashboard-c" element={<ProtectedRoute><DashboardLayout><NewsletterDashboardC /></DashboardLayout></ProtectedRoute>} />
+
+      {/* Redirects for old newsletter routes */}
+      <Route path="/newsletter-showcase" element={<Navigate to="/newsletter-dashboard-c" replace />} />
+      <Route path="/newsletter-dashboard-a" element={<Navigate to="/newsletter-dashboard-c" replace />} />
+      <Route path="/newsletter-dashboard-b" element={<Navigate to="/newsletter-dashboard-c" replace />} />
+
       <Route path="/newsletter" element={<ProtectedRoute><DashboardLayout><Newsletter /></DashboardLayout></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><DashboardLayout><Reports /></DashboardLayout></ProtectedRoute>} />
       <Route path="/saved" element={<ProtectedRoute><DashboardLayout><SavedPage /></DashboardLayout></ProtectedRoute>} />

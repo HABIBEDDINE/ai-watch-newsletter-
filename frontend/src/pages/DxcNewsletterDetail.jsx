@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getDxcNewsletterById, getDxcNewsletters, generateDxcJournalCard } from "../services/api";
-import { ArrowLeft, Calendar, Tag, FileText, ChevronLeft, ChevronRight, X, ZoomIn, Newspaper, Lightbulb, BookOpen } from "lucide-react";
+import { ArrowLeft, Calendar, Tag, FileText, ChevronLeft, ChevronRight, X, Lightbulb, BookOpen } from "lucide-react";
 
 // Year-based badge colors (theme-aware)
 const getYearColor = (month) => {
@@ -293,6 +293,7 @@ export default function DxcNewsletterDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024);
   const [showLightbox, setShowLightbox] = useState(false);
   const [adjacentArticles, setAdjacentArticles] = useState({ prev: null, next: null });
   const [journalCard, setJournalCard] = useState(null);
@@ -300,7 +301,11 @@ export default function DxcNewsletterDetail() {
   const [showArticleModal, setShowArticleModal] = useState(false);
 
   useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth < 768);
+    const fn = () => {
+      const w = window.innerWidth;
+      setIsMobile(w < 768);
+      setIsTablet(w >= 768 && w < 1024);
+    };
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
   }, []);
@@ -721,34 +726,27 @@ export default function DxcNewsletterDetail() {
         </div>
       </div>
 
-      {/* 3-Panel Layout */}
+      {/* 2-Column Layout */}
       <div
-        className="three-panel-layout"
+        className="two-panel-layout"
         style={{
-          display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          maxWidth: 1400,
+          display: isMobile ? "block" : "grid",
+          gridTemplateColumns: isMobile ? "1fr" : isTablet ? "280px 1fr" : "320px 1fr",
+          maxWidth: 1200,
           margin: "0 auto",
           padding: isMobile ? 16 : 24,
-          gap: isMobile ? 20 : 24,
+          gap: isMobile ? 20 : 32,
         }}
       >
-        <style>{`
-          @media (max-width: 768px) {
-            .three-panel-layout { flex-direction: column !important; }
-            .panel-1 { order: 3 !important; }
-            .panel-2 { order: 2 !important; }
-            .panel-3 { order: 1 !important; }
-          }
-        `}</style>
-
-        {/* PANEL 1 — AI-Generated Journal Card (left, ~30%) */}
+        {/* LEFT SIDEBAR — AI-Generated Journal Card (sticky on desktop) */}
         <div
-          className="panel-1"
+          className="sidebar-panel"
           style={{
-            flex: isMobile ? "none" : "0 0 30%",
-            maxWidth: isMobile ? "100%" : "30%",
-            order: 1,
+            ...(isMobile ? { marginBottom: 24 } : {
+              position: "sticky",
+              top: "1.5rem",
+              alignSelf: "start",
+            }),
           }}
         >
           <div style={{
@@ -832,7 +830,7 @@ export default function DxcNewsletterDetail() {
                     <>
                       <div style={{
                         display: "flex",
-                        gap: 16,
+                        gap: 12,
                         marginBottom: 16,
                         flexWrap: "wrap",
                       }}>
@@ -841,12 +839,13 @@ export default function DxcNewsletterDetail() {
                             background: "var(--bg-primary)",
                             border: "1px solid var(--border)",
                             borderRadius: 8,
-                            padding: "12px 16px",
+                            padding: "10px 14px",
                             textAlign: "center",
-                            minWidth: 70,
+                            minWidth: 60,
+                            flex: 1,
                           }}>
                             <div style={{
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: 700,
                               color: "var(--accent)",
                               lineHeight: 1.1,
@@ -854,7 +853,7 @@ export default function DxcNewsletterDetail() {
                               {stat.value}
                             </div>
                             <div style={{
-                              fontSize: 11,
+                              fontSize: 10,
                               color: "var(--text-muted)",
                               marginTop: 4,
                             }}>
@@ -942,216 +941,138 @@ export default function DxcNewsletterDetail() {
           </div>
         </div>
 
-        {/* PANEL 2 — Article Text (center, ~35%) */}
+        {/* RIGHT CONTENT — Hero Image + Article Text */}
         <div
           id="article-content"
-          className="panel-2"
-          style={{
-            flex: isMobile ? "none" : "0 0 35%",
-            maxWidth: isMobile ? "100%" : "35%",
-            order: 2,
-          }}
+          className="content-panel"
         >
-          <div style={{
-            fontSize: 11,
-            fontWeight: 800,
-            color: "var(--text-muted)",
-            letterSpacing: 1.5,
-            textTransform: "uppercase",
-            marginBottom: 16,
-          }}>
-            Article Content
-          </div>
-
-          <div style={{
-            borderLeft: "3px solid var(--accent)",
-            paddingLeft: 20,
-          }}>
-            {/* Badges at top */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 600,
-                padding: "4px 10px",
-                borderRadius: 999,
-                background: catColor.bg,
-                color: catColor.color,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}>
-                <Tag size={10} />
-                {category}
-              </span>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 600,
-                padding: "4px 10px",
-                borderRadius: 999,
-                background: yearColor.bg,
-                color: yearColor.color,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}>
-                <Calendar size={10} />
-                {month}
-              </span>
-              {pageNumber && (
-                <span style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  background: "var(--bg-surface)",
-                  color: "var(--text-muted)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}>
-                  <FileText size={10} />
-                  Page {pageNumber}
-                </span>
-              )}
-            </div>
-
-            {/* Article text */}
-            <div style={{
-              fontSize: 14,
-              color: "var(--text-primary)",
-              lineHeight: 1.8,
-              whiteSpace: "pre-wrap",
-            }}>
-              {content}
-            </div>
-
-            {/* Read Full Article button */}
-            <button
-              onClick={() => setShowArticleModal(true)}
+          {/* Hero Image */}
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt={title}
               style={{
-                marginTop: 24,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                background: "var(--accent)",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                padding: "10px 20px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
+                width: isMobile ? "100%" : "100%",
+                maxWidth: isMobile ? "100%" : 640,
+                height: isMobile ? 180 : isTablet ? 240 : 280,
+                objectFit: "cover",
+                objectPosition: "center center",
+                borderRadius: 12,
+                margin: "0 0 1.5rem 0",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
               }}
-            >
-              <BookOpen size={16} />
-              Read Full Article →
-            </button>
-          </div>
-        </div>
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          )}
 
-        {/* PANEL 3 — Page Image (right, ~35%) */}
-        <div
-          className="panel-3"
-          style={{
-            flex: isMobile ? "none" : "0 0 35%",
-            maxWidth: isMobile ? "100%" : "35%",
-            order: 3,
-          }}
-        >
-          <div style={{
-            fontSize: 11,
-            fontWeight: 800,
-            color: "var(--text-muted)",
-            letterSpacing: 1.5,
-            textTransform: "uppercase",
-            marginBottom: 16,
-          }}>
-            Newsletter Page
-          </div>
-
-          <div style={{
-            background: "var(--bg-surface)",
-            borderRadius: 8,
-            overflow: "hidden",
-            border: "1px solid var(--border)",
-          }}>
-            {imageUrl ? (
-              <>
-                <img
-                  src={imageUrl}
-                  alt={title}
-                  onClick={() => setShowLightbox(true)}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    display: "block",
-                    cursor: "zoom-in",
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                    e.target.nextSibling.style.display = "flex";
-                  }}
-                />
-                <div style={{ display: "none" }} />
-              </>
-            ) : (
-              <div style={{
-                display: "flex",
-                width: "100%",
-                minHeight: 300,
-                alignItems: "center",
-                justifyContent: "center",
+          {/* Tag chips */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "5px 12px",
+              borderRadius: 999,
+              background: catColor.bg,
+              color: catColor.color,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+            }}>
+              <Tag size={11} />
+              {category}
+            </span>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "5px 12px",
+              borderRadius: 999,
+              background: yearColor.bg,
+              color: yearColor.color,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+            }}>
+              <Calendar size={11} />
+              {month}
+            </span>
+            {pageNumber && (
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "5px 12px",
+                borderRadius: 999,
                 background: "var(--bg-surface)",
                 color: "var(--text-muted)",
-                flexDirection: "column",
-                gap: 12,
-                padding: 40,
+                border: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
               }}>
-                <Newspaper size={48} strokeWidth={1} />
-                <div style={{ fontSize: 14, fontWeight: 600 }}>Page {pageNumber || "N/A"}</div>
-                <div style={{ fontSize: 12 }}>No image available</div>
-              </div>
+                <FileText size={11} />
+                Page {pageNumber}
+              </span>
             )}
           </div>
 
-          {/* Zoom controls */}
-          {imageUrl && (
-            <div style={{
-              marginTop: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-            }}>
-              <button
-                onClick={() => setShowLightbox(true)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 16px",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  background: "var(--bg-surface)",
-                  color: "var(--text-primary)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                <ZoomIn size={14} />
-                Click to expand
-              </button>
-            </div>
-          )}
-          <div style={{
-            marginTop: 8,
-            fontSize: 11,
-            color: "var(--text-muted)",
-            textAlign: "center",
+          {/* Article title */}
+          <h2 style={{
+            fontSize: isMobile ? 22 : 26,
+            fontWeight: 800,
+            color: "var(--text-primary)",
+            lineHeight: 1.3,
+            marginBottom: 20,
           }}>
-            Click image to open full view
+            {title}
+          </h2>
+
+          {/* Article body text with proper paragraph formatting */}
+          <div style={{
+            maxWidth: "72ch",
+          }}>
+            {content.split(/\n\n+/).map((paragraph, idx) => {
+              const trimmed = paragraph.trim();
+              if (!trimmed) return null;
+              return (
+                <p key={idx} style={{
+                  fontSize: 15,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.7,
+                  marginBottom: "1rem",
+                }}>
+                  {trimmed.split(/\n/).map((line, lineIdx, arr) => (
+                    <span key={lineIdx}>
+                      {line}
+                      {lineIdx < arr.length - 1 && <br />}
+                    </span>
+                  ))}
+                </p>
+              );
+            })}
           </div>
+
+          {/* Read Full Article button */}
+          <button
+            onClick={() => setShowArticleModal(true)}
+            style={{
+              marginTop: 28,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "var(--accent)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "12px 24px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <BookOpen size={18} />
+            Read Full Article →
+          </button>
         </div>
       </div>
 

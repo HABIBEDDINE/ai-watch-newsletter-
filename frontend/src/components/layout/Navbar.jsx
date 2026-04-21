@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getArticles } from '../../services/api';
-import { Sun, Moon, Bell, LogOut, Menu, PanelLeftClose } from 'lucide-react';
+import { Sun, Moon, Bell, Menu, PanelLeftClose } from 'lucide-react';
 
 const pulseKeyframes = `
 @keyframes livePulse {
@@ -29,7 +29,7 @@ export default function Navbar({
   isCollapsed,
   isMobile,
 }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,16 +103,6 @@ export default function Navbar({
     } else {
       navigate(link.path);
     }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
-  };
-
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -545,43 +535,6 @@ export default function Navbar({
             </div>
           )}
         </div>
-
-        {/* User avatar */}
-        <div style={{
-          width: 34,
-          height: 34,
-          borderRadius: '50%',
-          background: 'var(--gradient-brand)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 13,
-          fontWeight: 700,
-          color: '#FFFFFF',
-          marginLeft: 4,
-        }}>
-          {getInitials(user?.full_name)}
-        </div>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-secondary)',
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-        >
-          <LogOut size={18} />
-        </button>
       </div>
     </nav>
   );

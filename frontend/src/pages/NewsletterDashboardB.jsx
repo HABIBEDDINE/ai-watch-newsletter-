@@ -7,10 +7,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp, Users, Leaf,
-  ArrowRight, CheckCircle, Sparkles, ChevronRight, BarChart2
+  ArrowRight, CheckCircle, ChevronRight, BarChart2
 } from "lucide-react";
-import { ALL_MONTHS, YEAR_GROUPS } from "./newsletterSharedData";
 import { useBreakpoint, rv } from "./useBreakpoint";
+import ChronologieTimelineRich from "../components/ChronologieTimelineRich";
 
 // ── Images ────────────────────────────────────────────────────────────────────
 const IMG = {
@@ -27,13 +27,6 @@ const IMG = {
   town:     "/newsletter-images/page097_a_look_back_at_our_recent_town_hall_with_leadership.jpg",
 };
 
-const TIMELINE_IMGS = {
-  "nov-2024": IMG.gen_ai,   "dec-2024": IMG.forum,
-  "jan-2025": IMG.seminar,  "fev-2025": IMG.town,
-  "avr-2025": IMG.business, "aout-2025": IMG.marathon,
-  "sep-2025": IMG.people,   "dec-2025": IMG.esg,
-  "mars-2026": IMG.vow,
-};
 
 const ACCORDIONS = [
   {
@@ -92,7 +85,6 @@ const ACCORDIONS = [
   },
 ];
 
-const NODE_COLORS = { 2024: "#8B91B5", 2025: "#E84E0F", 2026: "#7C3AED" };
 
 function useCountUp(target, duration = 1600, started = false) {
   const [value, setValue] = useState(0);
@@ -115,7 +107,6 @@ export default function NewsletterDashboardB() {
   const bp = useBreakpoint();
   const [countStarted, setCountStarted] = useState(false);
   const [openAccordion, setOpenAccordion] = useState(null);
-  const [selectedNode, setSelectedNode] = useState(null);
   const heroRef = useRef(null);
 
   const count1465 = useCountUp(1465, 1600, countStarted);
@@ -131,8 +122,6 @@ export default function NewsletterDashboardB() {
     return () => obs.disconnect();
   }, []);
 
-  const nodeData = selectedNode ? ALL_MONTHS.find(m => m.key === selectedNode) : null;
-
   // ── Responsive values ───────────────────────────────────────────────────────
   const pad      = rv(bp, "24px 16px", "32px 24px", "48px 56px");
   const padSm    = rv(bp, "20px 16px", "26px 24px", "36px 56px");
@@ -142,7 +131,6 @@ export default function NewsletterDashboardB() {
   const heroGap  = rv(bp, 24,          32,           48);
   const bigCount = rv(bp, 80,          110,          140);
   const gridMet  = rv(bp, "1fr",       "1fr 1fr",   "1fr 1fr");
-  const gridCard = rv(bp, "1fr",       "1fr 1fr",   "1fr 1fr");
 
   return (
     <div style={{ background: "var(--bg-primary)", minHeight: "100vh", color: "var(--text-primary)", fontFamily: "var(--font-family,'Inter',sans-serif)", overflowX: "hidden" }}>
@@ -150,13 +138,8 @@ export default function NewsletterDashboardB() {
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         .b-acc-btn { transition:background .15s;border:none;cursor:pointer;font-family:inherit;width:100%;text-align:left; }
         .b-acc-btn:hover { background:var(--bg-hover) !important; }
-        .b-node { transition:transform .18s;cursor:pointer; }
-        .b-node:hover { transform:scale(1.12); }
         .b-cta { transition:opacity .15s; }
         .b-cta:hover { opacity:.85; }
-        .b-tl::-webkit-scrollbar { height:4px; }
-        .b-tl::-webkit-scrollbar-track { background:var(--bg-surface); }
-        .b-tl::-webkit-scrollbar-thumb { background:var(--accent-orange);border-radius:2px; }
         .img-cover { width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.38s ease; }
         .img-overlay { position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.42) 0%,rgba(0,0,0,0.08) 55%,transparent 100%);pointer-events:none; }
         .b-acc-photo:hover .img-cover { transform:scale(1.04); }
@@ -339,112 +322,9 @@ export default function NewsletterDashboardB() {
 
       <div style={{ height: 1, background: "var(--border)", margin: divider }} />
 
-      {/* ── TIMELINE ──────────────────────────────────────────────────────────── */}
+      {/* ── CHRONOLOGIE TIMELINE (Rich dot version) ─────────────────────────────── */}
       <div style={{ padding: pad }}>
-        <h2 style={{ fontSize: h2Size, fontWeight: 800, margin: "0 0 4px" }}>Chronologie des 12 Éditions</h2>
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 20px" }}>
-          Cliquez sur un mois pour afficher les détails
-        </p>
-
-        <div className="b-tl" style={{ overflowX: "auto", paddingBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "flex-end", width: "max-content", padding: "4px 4px 8px" }}>
-            {ALL_MONTHS.map((m, i) => {
-              const nc     = NODE_COLORS[m.year] || "var(--accent-orange)";
-              const active = selectedNode === m.key;
-              return (
-                <React.Fragment key={m.key}>
-                  {i > 0 && (
-                    <div style={{
-                      width: rv(bp, 24, 28, 32), height: 2, alignSelf: "center",
-                      background: `linear-gradient(90deg,${NODE_COLORS[ALL_MONTHS[i-1].year]},${nc})`,
-                      flexShrink: 0,
-                    }} />
-                  )}
-                  <div className="b-node" onClick={() => setSelectedNode(active ? null : m.key)}
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, minWidth: rv(bp, 52, 56, 60) }}>
-                    <div style={{
-                      width: active ? 14 : 10, height: active ? 14 : 10, borderRadius: "50%",
-                      background: active ? nc : "transparent", border: `2px solid ${nc}`,
-                      boxShadow: active ? `0 0 8px ${nc}66` : "none", transition: "all .2s",
-                    }} />
-                    <div style={{ fontSize: rv(bp, 9, 10, 10), fontWeight: active ? 700 : 500, color: active ? nc : "var(--text-secondary)", textAlign: "center" }}>
-                      {m.short}
-                    </div>
-                    <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{m.year}</div>
-                  </div>
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Year legend */}
-        <div style={{ display: "flex", gap: 14, marginTop: 4, flexWrap: "wrap" }}>
-          {Object.entries(NODE_COLORS).map(([yr, c]) => (
-            <div key={yr} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
-              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{yr}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Node detail card */}
-        {nodeData && (
-          <div style={{
-            marginTop: 16, background: "var(--bg-card)",
-            border: `1px solid var(--border)`,
-            borderLeft: `4px solid ${NODE_COLORS[nodeData.year]}`,
-            borderRadius: 12, overflow: "hidden",
-            animation: "fadeIn .25s ease", boxShadow: "var(--shadow-sm)",
-          }}>
-            {TIMELINE_IMGS[nodeData.key] && (
-              <div style={{ height: rv(bp, 165, 185, 205), overflow: "hidden", background: "linear-gradient(135deg,var(--bg-surface),var(--bg-card))", position: "relative", boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}>
-                <img src={TIMELINE_IMGS[nodeData.key]} alt={nodeData.label} className="img-cover"
-                  onError={e => { e.target.style.display="none"; e.target.parentElement.style.background="linear-gradient(135deg,var(--bg-surface),var(--bg-card))"; }}
-                />
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.60) 0%,rgba(0,0,0,0.10) 55%,transparent 100%)" }} />
-                <div style={{ position: "absolute", bottom: 10, left: 14, color: "#fff" }}>
-                  <div style={{ fontSize: rv(bp, 14, 15, 16), fontWeight: 800 }}>{nodeData.label}</div>
-                  <div style={{ fontSize: 11, opacity: 0.8 }}>{nodeData.highlight}</div>
-                </div>
-                <div style={{
-                  position: "absolute", top: 8, right: 10,
-                  background: NODE_COLORS[nodeData.year], color: "#fff",
-                  borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700,
-                }}>
-                  {nodeData.articleCount} art.
-                </div>
-              </div>
-            )}
-            <div style={{ padding: rv(bp, "14px 16px", "16px 18px", "18px 20px") }}>
-              <div style={{ display: "grid", gridTemplateColumns: gridCard, gap: rv(bp, 14, 16, 18), marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 9 }}>KPIs</div>
-                  {nodeData.kpis.map((k, i) => (
-                    <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 7 }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: NODE_COLORS[nodeData.year], marginTop: 6, flexShrink: 0 }} />
-                      <span style={{ fontSize: rv(bp, 12, 12, 13), color: "var(--text-primary)", lineHeight: 1.5 }}>{k}</span>
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 9 }}>Événements</div>
-                  {nodeData.events.map((e, i) => (
-                    <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 7 }}>
-                      <div style={{ width: 18, height: 18, borderRadius: 4, background: NODE_COLORS[nodeData.year] + "20", color: NODE_COLORS[nodeData.year], fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</div>
-                      <span style={{ fontSize: rv(bp, 12, 12, 13), color: "var(--text-primary)", lineHeight: 1.5 }}>{e}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div style={{ paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-                <div style={{ fontSize: rv(bp, 12, 12, 13), color: "var(--text-secondary)", fontStyle: "italic", lineHeight: 1.6 }}>
-                  « {nodeData.quote} »
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <ChronologieTimelineRich bp={bp} h2Size={h2Size} />
       </div>
 
       {/* ── FOOTER ────────────────────────────────────────────────────────────── */}

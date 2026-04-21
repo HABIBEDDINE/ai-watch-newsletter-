@@ -1,12 +1,12 @@
 // src/components/layout/Sidebar.jsx
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { LogOut } from 'lucide-react';
 
 const NAV_ITEMS = [
   { icon: '◎', label: 'News Feed', path: '/feed' },
   { icon: '◈', label: 'AI Trends', path: '/trends' },
-  { icon: '📰', label: 'DXC Newsletter', path: '/dxc-newsletter' },
+  { icon: '📰', label: 'DXC Newsletter', path: '/newsletter-dashboard-c', matchPaths: ['/newsletter-dashboard-c', '/dxc-newsletter'] },
   // { icon: '▦', label: 'Data Table', path: '/data' },
   // { icon: '📄', label: 'My Reports', path: '/reports' },
   { icon: '🔖', label: 'Saved Items', path: '/saved' },
@@ -17,10 +17,19 @@ const NAV_ITEMS = [
 export default function Sidebar({ isCollapsed = false }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  // Check if current path matches any of the item's matchPaths (for DXC Newsletter)
+  const isItemActive = (item) => {
+    if (item.matchPaths) {
+      return item.matchPaths.some(mp => location.pathname.startsWith(mp));
+    }
+    return location.pathname === item.path;
   };
 
   return (
@@ -42,44 +51,47 @@ export default function Sidebar({ isCollapsed = false }) {
     }}>
       {/* Nav items */}
       <nav style={{ flex: 1, padding: '16px 8px', overflowY: 'auto' }}>
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: isCollapsed ? 0 : 12,
-              padding: isCollapsed ? '12px 0' : '11px 14px',
-              marginBottom: 4,
-              borderRadius: 8,
-              textDecoration: 'none',
-              justifyContent: isCollapsed ? 'center' : 'flex-start',
-              borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
-              background: isActive ? 'var(--accent-dim)' : 'transparent',
-              color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-              fontWeight: isActive ? 600 : 500,
-              transition: 'all 0.15s ease',
-            })}
-          >
-            <span style={{
-              fontSize: isCollapsed ? 18 : 16,
-              width: isCollapsed ? 'auto' : 20,
-              textAlign: 'center',
-            }}>
-              {item.icon}
-            </span>
-            {!isCollapsed && (
+        {NAV_ITEMS.map((item) => {
+          const isActive = isItemActive(item);
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: isCollapsed ? 0 : 12,
+                padding: isCollapsed ? '12px 0' : '11px 14px',
+                marginBottom: 4,
+                borderRadius: 8,
+                textDecoration: 'none',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                background: isActive ? 'var(--accent-dim)' : 'transparent',
+                color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                fontWeight: isActive ? 600 : 500,
+                transition: 'all 0.15s ease',
+              }}
+            >
               <span style={{
-                fontSize: 13,
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
+                fontSize: isCollapsed ? 18 : 16,
+                width: isCollapsed ? 'auto' : 20,
+                textAlign: 'center',
               }}>
-                {item.label}
+                {item.icon}
               </span>
-            )}
-          </NavLink>
-        ))}
+              {!isCollapsed && (
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {item.label}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Bottom: User info + logout */}
