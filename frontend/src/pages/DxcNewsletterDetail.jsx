@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getDxcNewsletterById, getDxcNewsletters, generateDxcJournalCard } from "../services/api";
 import { ArrowLeft, Calendar, Tag, FileText, ChevronLeft, ChevronRight, X, Lightbulb, BookOpen } from "lucide-react";
 
@@ -290,6 +290,7 @@ function ImageLightbox({ imageUrl, title, onClose, onPrev, onNext, hasPrev, hasN
 export default function DxcNewsletterDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -301,6 +302,9 @@ export default function DxcNewsletterDetail() {
   const [journalCardLoading, setJournalCardLoading] = useState(true);
   const [showArticleModal, setShowArticleModal] = useState(false);
 
+  // Check if article data was passed via navigation state (for curated highlights)
+  const stateArticle = location.state?.article;
+
   useEffect(() => {
     const fn = () => {
       const w = window.innerWidth;
@@ -311,16 +315,35 @@ export default function DxcNewsletterDetail() {
     return () => window.removeEventListener("resize", fn);
   }, []);
 
-  // Fetch article
+  // Fetch article from API or use state data
   useEffect(() => {
     if (!id) return;
+
+    // If article data was passed via state (curated highlights), use it directly
+    if (stateArticle) {
+      setArticle({
+        id: id,
+        title: stateArticle.title || stateArticle.caption || "Featured Article",
+        content: stateArticle.content || stateArticle.sub || "",
+        category: stateArticle.category || "Newsletter Content",
+        month: stateArticle.month || stateArticle.published_at?.substring(0, 7)?.replace("-", " ") || "",
+        image_url: stateArticle.img || stateArticle.image_url,
+        source: stateArticle.source || "ONETEAM Newsletter",
+        page_number: stateArticle.page_number,
+      });
+      setLoading(false);
+      setJournalCardLoading(false); // No journal card for curated highlights
+      return;
+    }
+
+    // Otherwise, fetch from API using the UUID
     setLoading(true);
     setError(null);
     getDxcNewsletterById(id)
       .then(data => setArticle(data))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, stateArticle]);
 
   // Fetch adjacent articles for navigation
   const fetchAdjacentArticles = useCallback(async () => {
@@ -348,9 +371,13 @@ export default function DxcNewsletterDetail() {
     fetchAdjacentArticles();
   }, [fetchAdjacentArticles]);
 
-  // Fetch AI-generated journal card
+  // Fetch AI-generated journal card (skip for curated highlights)
   useEffect(() => {
-    if (!article?.id) return;
+    // Skip journal card generation for curated highlights (non-UUID IDs)
+    if (!article?.id || stateArticle) {
+      setJournalCardLoading(false);
+      return;
+    }
     setJournalCardLoading(true);
     setJournalCard(null);
     generateDxcJournalCard(article.id)
@@ -361,7 +388,7 @@ export default function DxcNewsletterDetail() {
       })
       .catch(() => setJournalCard(null))
       .finally(() => setJournalCardLoading(false));
-  }, [article?.id]);
+  }, [article?.id, stateArticle]);
 
   // Close article modal on Escape
   useEffect(() => {

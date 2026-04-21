@@ -32,12 +32,42 @@ const IMG = {
 };
 
 const HIGHLIGHTS = [
-  { id: "gitex-africa-2025",       img: IMG.hero,     caption: "GITEX Africa 2025",       sub: "Marrakech — 3e participation",      title: "GITEX Africa 2025 — DXC.CDG à Marrakech",            source: "ONETEAM Newsletter", published_at: "2025-04-01" },
-  { id: "brandon-hall-awards",     img: IMG.brandon,  caption: "Brandon Hall Awards",      sub: "4 trophées d'excellence RH",        title: "Brandon Hall Awards — 4 trophées d'excellence RH",   source: "ONETEAM Newsletter", published_at: "2025-09-01" },
-  { id: "label-rse-cgem",         img: IMG.cgem,     caption: "Label RSE CGEM",           sub: "Engagement RSE validé",             title: "Label RSE CGEM — Engagement RSE validé",              source: "ONETEAM Newsletter", published_at: "2025-11-01" },
-  { id: "journee-femmes",         img: IMG.iwd,      caption: "Journée Femmes",           sub: "International Women's Day",         title: "Journée Internationale des Femmes — DXC.CDG",         source: "ONETEAM Newsletter", published_at: "2025-03-08" },
-  { id: "marathon-casablanca",    img: IMG.marathon, caption: "Marathon de Casablanca",   sub: "Esprit d'équipe & sport",           title: "Marathon de Casablanca — Esprit d'équipe & sport",    source: "ONETEAM Newsletter", published_at: "2025-10-01" },
-  { id: "gen-ai-summit-2024",     img: IMG.gen_ai,   caption: "Gen AI Summit 2024",       sub: "Innovation & Transformation",       title: "Gen AI Summit 2024 — Insights IA & Transformation",   source: "ONETEAM Newsletter", published_at: "2024-11-01" },
+  {
+    id: "gitex-africa-2025", img: IMG.hero, caption: "GITEX Africa 2025", sub: "Marrakech — 3e participation",
+    title: "GITEX Africa 2025 — DXC.CDG à Marrakech", source: "ONETEAM Newsletter", published_at: "2025-04-01",
+    category: "Events & Upcoming", month: "April 2025",
+    content: "DXC Technology Morocco a participé pour la 3e année consécutive au GITEX Africa 2025 à Marrakech. Cet événement majeur de la tech africaine a réuni plus de 1500 exposants et 45 000 visiteurs. Notre équipe a présenté les dernières innovations en matière de transformation digitale, cloud computing et intelligence artificielle. Une opportunité exceptionnelle de renforcer notre présence sur le continent africain et de nouer de nouveaux partenariats stratégiques."
+  },
+  {
+    id: "brandon-hall-awards", img: IMG.brandon, caption: "Brandon Hall Awards", sub: "4 trophées d'excellence RH",
+    title: "Brandon Hall Awards — 4 trophées d'excellence RH", source: "ONETEAM Newsletter", published_at: "2025-09-01",
+    category: "Awards & Recognition", month: "September 2025",
+    content: "DXC Technology Morocco a remporté 4 trophées prestigieux aux Brandon Hall Group Excellence Awards 2025 : 3 Gold et 1 Silver. Ces distinctions récompensent l'excellence de nos programmes RH en matière de développement des talents, formation managériale et engagement collaborateur. Une reconnaissance internationale qui témoigne de notre engagement envers nos 1 465 collaborateurs."
+  },
+  {
+    id: "label-rse-cgem", img: IMG.cgem, caption: "Label RSE CGEM", sub: "Engagement RSE validé",
+    title: "Label RSE CGEM — Engagement RSE validé", source: "ONETEAM Newsletter", published_at: "2025-11-01",
+    category: "CSR & Community", month: "November 2025",
+    content: "DXC Technology Morocco a obtenu le prestigieux Label RSE de la CGEM (Confédération Générale des Entreprises du Maroc). Cette certification reconnaît notre engagement en matière de responsabilité sociale et environnementale. Elle valide nos actions concrètes : politique environnementale, bien-être au travail, éthique des affaires et contribution au développement local."
+  },
+  {
+    id: "journee-femmes", img: IMG.iwd, caption: "Journée Femmes", sub: "International Women's Day",
+    title: "Journée Internationale des Femmes — DXC.CDG", source: "ONETEAM Newsletter", published_at: "2025-03-08",
+    category: "DEI & Inclusion", month: "March 2025",
+    content: "À l'occasion de la Journée Internationale des Femmes, DXC Technology Morocco a organisé une série d'événements célébrant la diversité et l'inclusion. Tables rondes, témoignages inspirants et ateliers ont mis en lumière le leadership féminin au sein de notre organisation. Notre SVP Lamiaa a partagé son parcours et sa vision pour un environnement de travail plus inclusif."
+  },
+  {
+    id: "marathon-casablanca", img: IMG.marathon, caption: "Marathon de Casablanca", sub: "Esprit d'équipe & sport",
+    title: "Marathon de Casablanca — Esprit d'équipe & sport", source: "ONETEAM Newsletter", published_at: "2025-10-01",
+    category: "Wellbeing & Health", month: "October 2025",
+    content: "L'équipe DXC.CDG a brillé au Marathon de Casablanca 2025 ! Plus de 50 collaborateurs ont participé à cet événement sportif majeur, renforçant les liens d'équipe et promouvant le bien-être au travail. Une belle démonstration de l'esprit ONETEAM qui anime notre organisation au quotidien."
+  },
+  {
+    id: "gen-ai-summit-2024", img: IMG.gen_ai, caption: "Gen AI Summit 2024", sub: "Innovation & Transformation",
+    title: "Gen AI Summit 2024 — Insights IA & Transformation", source: "ONETEAM Newsletter", published_at: "2024-11-01",
+    category: "Innovation & Tech", month: "November 2024",
+    content: "DXC Technology Morocco a participé au Gen AI Summit 2024, l'événement de référence sur l'intelligence artificielle générative au Maroc. Nos experts ont présenté les cas d'usage concrets de l'IA dans la transformation digitale des entreprises. Sessions interactives, démonstrations live et networking ont permis de partager notre expertise avec plus de 500 participants."
+  },
 ];
 
 const PILLARS = [
