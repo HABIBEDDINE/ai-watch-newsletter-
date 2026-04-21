@@ -8,6 +8,9 @@ import {
 } from "../services/api";
 import DashboardLayout from "../components/layout/DashboardLayout";
 
+const _API = process.env.REACT_APP_API_BASE_URL || '';
+
+
 const SECTOR_COLORS = {
   AI:            { bg: "var(--topic-ai-bg)",            color: "var(--topic-ai)" },
   Fintech:       { bg: "var(--topic-fintech-bg)",       color: "var(--topic-fintech)" },
@@ -567,7 +570,7 @@ export default function NewsletterPage() {
     if (recipients.length === 0) { showToast("error", "Add at least one recipient."); return; }
     setSending(true);
     try {
-      const res = await fetch("/api/newsletter/send", {
+      const res = await fetch(_API + "/api/newsletter/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+const _API = process.env.REACT_APP_API_BASE_URL || '';
+
+
 const C = {
   navy:"#1A1A2E", purple:"#1A4A9E", purpleDeep:"#102d6a",
   white:"#ffffff", gray100:"#f4f4f4", gray400:"#999", gray900:"#111",
@@ -22,7 +25,7 @@ export default function VerifyEmailPage() {
       setMessage("No verification token found in the URL.");
       return;
     }
-    fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`)
+    fetch(`${_API}/api/auth/verify-email?token=${encodeURIComponent(token)}`)
       .then(async r => {
         const data = await r.json();
         if (r.ok) {

@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import './HomePage.css';
 
+const _API = process.env.REACT_APP_API_BASE_URL || '';
+
+
 // ── Topic → thumbnail bg colour (using CSS variables for theme support) ──────
 const TOPIC_COLORS = {
   'ai & llms': 'var(--bg-surface)',
@@ -123,7 +126,7 @@ function SignInModal({ context, isOpen, onClose, onSuccess }) {
     setError('');
     setBusy(true);
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(_API + '/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -151,7 +154,7 @@ function SignInModal({ context, isOpen, onClose, onSuccess }) {
   };
 
   const handleGoogleOAuth = () => {
-    window.location.href = '/api/auth/google';
+    window.location.href = _API + '/api/auth/google';
   };
 
   const handleForgotPassword = () => {
@@ -343,7 +346,7 @@ export default function HomePage() {
       if (topic && topic !== 'All' && CHIP_TO_TOPIC[topic]) {
         params.set('topic', CHIP_TO_TOPIC[topic]);
       }
-      const res = await fetch(`/api/articles?${params.toString()}`, { signal: AbortSignal.timeout(8000) });
+      const res = await fetch(`${_API}/api/articles?${params.toString()}`, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       return Array.isArray(data) ? data : (data.articles || data.items || []);
@@ -380,7 +383,7 @@ export default function HomePage() {
 
       // Stats
       try {
-        const statsRes = await fetch('/api/articles?limit=1', { signal: AbortSignal.timeout(5000) });
+        const statsRes = await fetch(_API + '/api/articles?limit=1', { signal: AbortSignal.timeout(5000) });
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           const total = statsData.total || statsData.count;
@@ -397,7 +400,7 @@ export default function HomePage() {
 
       // Try to get source/sector count
       try {
-        const sectorsRes = await fetch('/api/sectors/top', { signal: AbortSignal.timeout(5000) });
+        const sectorsRes = await fetch(_API + '/api/sectors/top', { signal: AbortSignal.timeout(5000) });
         if (sectorsRes.ok) {
           const sectorsData = await sectorsRes.json();
           const count = Array.isArray(sectorsData) ? sectorsData.length : (sectorsData.count || sectorsData.total);
@@ -409,7 +412,7 @@ export default function HomePage() {
 
       // Newsletter status
       try {
-        const nlRes = await fetch('/api/newsletter/status', { signal: AbortSignal.timeout(5000) });
+        const nlRes = await fetch(_API + '/api/newsletter/status', { signal: AbortSignal.timeout(5000) });
         if (nlRes.ok) {
           const nlData = await nlRes.json();
           if (nlData.last_sent && !cancelled) {

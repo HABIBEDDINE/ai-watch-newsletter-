@@ -2,6 +2,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 
+const _API = process.env.REACT_APP_API_BASE_URL || '';
+
+
 const ROLES = [
   { id: "cto", label: "CTO / Technical Lead", icon: "⚙️", desc: "Tech strategy, architecture & innovation" },
   { id: "innovation_manager", label: "Innovation Manager", icon: "💡", desc: "Use case discovery & emerging tech scouting" },
@@ -94,7 +97,7 @@ export default function ProfilePage() {
   // Load profile from API
   useEffect(() => {
     if (!user) return;
-    fetch("/api/users/me", {
+    fetch(_API + "/api/users/me", {
       headers: { Authorization: `Bearer ${localStorage.getItem("aiwatch_at")}` },
     })
       .then(r => r.ok ? r.json() : null)
@@ -123,7 +126,7 @@ export default function ProfilePage() {
     if (!form.full_name.trim()) { showToast("error", "Full name is required."); return; }
     setSaving(true);
     try {
-      const res = await fetch("/api/users/me", {
+      const res = await fetch(_API + "/api/users/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -150,7 +153,7 @@ export default function ProfilePage() {
     if (!user?.email) return;
     setResend(true);
     try {
-      const res = await fetch("/api/auth/resend-verification", {
+      const res = await fetch(_API + "/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email }),
