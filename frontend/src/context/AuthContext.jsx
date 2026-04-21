@@ -4,8 +4,8 @@ import { setApiToken, clearApiToken } from '../services/api';
 
 export const AuthContext = createContext(null);
 
-// Empty — requests go to the same origin and are proxied to the backend.
-const API = '';
+// In production, use the Render backend URL from env var.
+const API = process.env.REACT_APP_API_BASE_URL || '';
 
 const LS_KEY = 'aiwatch_at'; // localStorage key for access token
 
