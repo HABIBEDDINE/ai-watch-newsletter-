@@ -97,13 +97,13 @@ const PILLARS = [
   {
     id: "people", label: "Collaborateurs", icon: Users,
     color: "var(--purple)", colorHex: "#7C3AED",
-    quote: "1 465 talents qui font de DXC.CDG une organisation d'exception.",
-    bigStat: "92%", bigStatSub: "VOW Score — record absolu",
+    quote: "1 493 talents qui font de DXC.CDG une organisation d'exception.",
+    bigStat: "91%", bigStatSub: "VOW Score",
     kpis: [
-      { label: "Collaborateurs", value: "1 465",      icon: Users },
-      { label: "Brandon Hall",   value: "4 trophées", icon: Award },
-      { label: "Gold Awards",    value: "3 Gold",     icon: Star },
-      { label: "VOW Score",      value: "92%",        icon: CheckCircle },
+      { icon: Users,       value: "1 493", title: "Total HC", subtitle: "vs 1 294 en FY25 (+200)" },
+      { icon: CheckCircle, value: "586",   title: "Staffing" },
+      { icon: Globe,       value: "335",   title: "Recrutements externes" },
+      { icon: TrendingUp,  value: "251",   title: "Recrutements internes", subtitle: "43% de mobilités internes" },
     ],
     blocks: [
       { title: "Reconnaissance RH",      img: IMG.brandon,
@@ -126,12 +126,14 @@ const PILLARS = [
       { label: "Chess Club",     value: "12e mondial", icon: Award },
     ],
     blocks: [
-      { title: "Certifications", img: IMG.cgem,
-        items: ["ISO 9001 renouvelé — zéro non-conformité", "Label RSE CGEM obtenu", "Engagement qualité confirmé"] },
-      { title: "Communauté",     img: IMG.cares,
-        items: ["Don de sang : 21 litres collectés", "Forum Ben M'sik — impact local", "130 vies potentiellement sauvées"] },
-      { title: "Sport & Clubs",  img: IMG.marathon,
-        items: ["Chess Club — 12e rang mondial", "Gaming Club — Champion E-League", "Marathon de Casablanca"] },
+      { title: "DEI",
+        items: ["34% de représentation féminine", "36% sur les recrutements vs 33% en FY25"] },
+      { title: "Partenariats personnel",
+        items: ["Développement de partenariats pour le personnel : ADM, Umnia Bank, FitPass"] },
+      { title: "Santé masculine",
+        items: ["2ème édition du Movember"] },
+      { title: "Digital Explorers",
+        items: ["2e cohorte diplômée, déployée dans 7 villes"] },
     ],
   },
 ];
@@ -139,8 +141,8 @@ const PILLARS = [
 // Hero stat card config
 const HERO_STATS = [
   { val: "12%",      lbl: "Croissance annuelle", color: "#15803D", Icon: TrendingUp },
-  { val: "91",       lbl: "VOW",                 color: "#7C3AED", Icon: Award },
-  { val: "1 465",    lbl: "Collaborateurs",      color: "#059669", Icon: Users },
+  { val: "91%",      lbl: "VOW",                 color: "#7C3AED", Icon: Award },
+  { val: "1 493",    lbl: "Collaborateurs",      color: "#059669", Icon: Users },
   { val: "4",        lbl: "Brandon Hall",        color: "#D97706", Icon: Trophy },
 ];
 
@@ -289,7 +291,7 @@ export default function NewsletterDashboardC() {
                 {[
                   { icon: Calendar, text: "12 éditions", color: "#2563eb", bg: "rgba(59, 130, 246, 0.1)" },
                   { icon: FileText, text: "174 articles", color: "#9333ea", bg: "rgba(168, 85, 247, 0.1)" },
-                  { icon: Users, text: "1 465 talents", color: "#059669", bg: "rgba(16, 185, 129, 0.1)" },
+                  { icon: Users, text: "1 493 talents", color: "#059669", bg: "rgba(16, 185, 129, 0.1)" },
                 ].map((chip, i) => (
                   <div key={i} style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
@@ -408,7 +410,7 @@ export default function NewsletterDashboardC() {
               {[
                 { icon: Calendar, text: "12 éditions", color: "#2563eb", bg: "rgba(59, 130, 246, 0.1)" },
                 { icon: FileText, text: "174 articles", color: "#9333ea", bg: "rgba(168, 85, 247, 0.1)" },
-                { icon: Users, text: "1 465 talents", color: "#059669", bg: "rgba(16, 185, 129, 0.1)" },
+                { icon: Users, text: "1 493 talents", color: "#059669", bg: "rgba(16, 185, 129, 0.1)" },
               ].map((chip, i) => (
                 <div key={i} style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
@@ -606,36 +608,62 @@ export default function NewsletterDashboardC() {
               })}
             </div>
 
-            {/* Detail blocks - stack on mobile, 120px image */}
-            <div style={{ display: "grid", gridTemplateColumns: gridBlock, gap: isMobile ? 12 : 16 }}>
-              {section.blocks.map(block => (
-                <div key={block.title} className="c-card" style={{
-                  background: "var(--bg-card)", border: "1px solid var(--border)",
-                  borderRadius: 12, overflow: "hidden",
-                }}>
-                  <div style={{ height: isMobile ? 120 : 140, overflow: "hidden", background: "var(--bg-surface)", position: "relative" }}>
-                    <img src={block.img} alt={block.title} className="img-cover"
-                      onError={e => { e.target.style.display="none"; e.target.parentElement.style.background="linear-gradient(135deg,var(--bg-surface),var(--bg-card))"; }}
-                    />
-                    <div className="img-overlay" />
-                  </div>
-                  <div style={{ padding: isMobile ? "12px 14px" : "16px 20px 20px" }}>
-                    <div style={{
-                      fontSize: isMobile ? 9 : 10, fontWeight: 700, color: section.color,
-                      textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8,
-                    }}>
-                      {block.title}
-                    </div>
-                    {block.items.map((item, i) => (
-                      <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
-                        <ChevronRight size={isMobile ? 10 : 12} color={section.colorHex} style={{ flexShrink: 0, marginTop: 2 }} />
-                        <span style={{ fontSize: isMobile ? 11 : 13, color: "var(--text-primary)", lineHeight: 1.5 }}>{item}</span>
+            {/* Detail blocks — ESG: image-less 2×2 theme cards · others: image card */}
+            {section.id === "esg" ? (
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: isMobile ? 12 : 16 }}>
+                {section.blocks.map(block => (
+                  <div key={block.title} className="c-card" style={{
+                    background: "var(--bg-card)", border: "1px solid var(--border)",
+                    borderRadius: 12, overflow: "hidden",
+                  }}>
+                    <div style={{ padding: isMobile ? "14px 16px" : "20px 22px" }}>
+                      <div style={{
+                        fontSize: isMobile ? 11 : 12, fontWeight: 700, color: section.color,
+                        textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10,
+                      }}>
+                        {block.title}
                       </div>
-                    ))}
+                      {block.items.map((item, i) => (
+                        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+                          <ChevronRight size={isMobile ? 10 : 12} color={section.colorHex} style={{ flexShrink: 0, marginTop: 2 }} />
+                          <span style={{ fontSize: isMobile ? 12 : 13, color: "var(--text-primary)", lineHeight: 1.5 }}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: gridBlock, gap: isMobile ? 12 : 16 }}>
+                {section.blocks.map(block => (
+                  <div key={block.title} className="c-card" style={{
+                    background: "var(--bg-card)", border: "1px solid var(--border)",
+                    borderRadius: 12, overflow: "hidden",
+                  }}>
+                    <div style={{ height: isMobile ? 120 : 140, overflow: "hidden", background: "var(--bg-surface)", position: "relative" }}>
+                      <img src={block.img} alt={block.title} className="img-cover"
+                        onError={e => { e.target.style.display="none"; e.target.parentElement.style.background="linear-gradient(135deg,var(--bg-surface),var(--bg-card))"; }}
+                      />
+                      <div className="img-overlay" />
+                    </div>
+                    <div style={{ padding: isMobile ? "12px 14px" : "16px 20px 20px" }}>
+                      <div style={{
+                        fontSize: isMobile ? 9 : 10, fontWeight: 700, color: section.color,
+                        textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8,
+                      }}>
+                        {block.title}
+                      </div>
+                      {block.items.map((item, i) => (
+                        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+                          <ChevronRight size={isMobile ? 10 : 12} color={section.colorHex} style={{ flexShrink: 0, marginTop: 2 }} />
+                          <span style={{ fontSize: isMobile ? 11 : 13, color: "var(--text-primary)", lineHeight: 1.5 }}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -658,7 +686,7 @@ export default function NewsletterDashboardC() {
             ONETEAM Newsletter FY26
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            174 articles · 12 éditions · 1 465 collaborateurs
+            174 articles · 12 éditions · 1 493 collaborateurs
           </div>
         </div>
         <button className="c-cta" onClick={() => navigate("/dxc-newsletter")} style={{
