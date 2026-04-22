@@ -135,10 +135,10 @@ const PILLARS = [
 
 // Hero stat card config
 const HERO_STATS = [
-  { val: "+37M MAD", lbl: "Croissance",     color: "#15803D", Icon: TrendingUp },
-  { val: "92%",      lbl: "VOW Score",      color: "#7C3AED", Icon: Award },
-  { val: "1 465",    lbl: "Collaborateurs", color: "#059669", Icon: Users },
-  { val: "4",        lbl: "Brandon Hall",   color: "#D97706", Icon: Trophy },
+  { val: "12%",      lbl: "Croissance annuelle", color: "#15803D", Icon: TrendingUp },
+  { val: "91",       lbl: "VOW",                 color: "#7C3AED", Icon: Award },
+  { val: "1 465",    lbl: "Collaborateurs",      color: "#059669", Icon: Users },
+  { val: "4",        lbl: "Brandon Hall",        color: "#D97706", Icon: Trophy },
 ];
 
 export default function NewsletterDashboardC() {
