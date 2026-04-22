@@ -75,12 +75,15 @@ const PILLARS = [
     id: "business", label: "Business", icon: TrendingUp,
     color: "var(--accent-orange)", colorHex: "#E84E0F",
     quote: "La confiance des clients est notre actif le plus précieux.",
-    bigStat: "+37M MAD", bigStatSub: "vs objectif FY26",
+    bigStat: "12%", bigStatSub: "Croissance annuelle",
     kpis: [
-      { label: "Contrats offshore",  value: "12+",         icon: Globe },
-      { label: "Visites clients Q1", value: "5",           icon: Star },
-      { label: "GITEX Africa",       value: "3e édition",  icon: Award },
-      { label: "Partners Forum",     value: "80+ leaders", icon: CheckCircle },
+      { icon: Globe,       value: "+25%", title: "TCV Growth" },
+      { icon: Star,        value: "+200", title: "Bid Opportunities processed",
+        subtitle: "+400 Man.days on deals for international Market" },
+      { icon: Award,       value: "+130", title: "Decision Makers Engaged",
+        subtitle: "In +15 Strategic Events incl. and 60 Client Visits 5 Exec Intimacy Journeys" },
+      { icon: CheckCircle, value: "+100", title: "Digital Activations",
+        subtitle: "Campaings, visibility & market engagement" },
     ],
     blocks: [
       { title: "Expansion Offshore",        img: IMG.contracts,
@@ -576,14 +579,28 @@ export default function NewsletterDashboardC() {
             <div style={{ display: "grid", gridTemplateColumns: gridKPI, gap: isMobile ? 8 : 14, marginBottom: isMobile ? 16 : 24 }}>
               {section.kpis.map(k => {
                 const KIcon = k.icon;
+                const threeTier = !!k.title;
                 return (
-                  <div key={k.label} className="c-card" style={{
+                  <div key={k.title || k.label} className="c-card" style={{
                     background: "var(--bg-card)", border: "1px solid var(--border)",
                     borderRadius: 8, padding: isMobile ? "10px" : "16px",
+                    display: "flex", flexDirection: "column",
                   }}>
                     <KIcon size={isMobile ? 12 : 15} color={section.colorHex} style={{ marginBottom: 6 }} />
-                    <div style={{ fontSize: kpiVal, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{k.value}</div>
-                    <div style={{ fontSize: isMobile ? 10 : 11, color: "var(--text-secondary)", marginTop: 3, lineHeight: 1.3 }}>{k.label}</div>
+                    {threeTier ? (
+                      <>
+                        <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 900, color: section.color, lineHeight: 1 }}>{k.value}</div>
+                        <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: "var(--text-primary)", marginTop: 6, lineHeight: 1.25 }}>{k.title}</div>
+                        {k.subtitle && (
+                          <div style={{ fontSize: isMobile ? 10 : 11, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.35 }}>{k.subtitle}</div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: kpiVal, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{k.value}</div>
+                        <div style={{ fontSize: isMobile ? 10 : 11, color: "var(--text-secondary)", marginTop: 3, lineHeight: 1.3 }}>{k.label}</div>
+                      </>
+                    )}
                   </div>
                 );
               })}
