@@ -3,6 +3,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
+// In prod (Vercel), REACT_APP_API_BASE_URL points at the Render backend.
+// In dev it's empty → relative /api/* path → caught by setupProxy.js → :8000.
+const _API = process.env.REACT_APP_API_BASE_URL || "";
+
 // DXC Brand Colors
 const COLORS = {
   dark: {
@@ -156,7 +160,7 @@ export default function LoginPage() {
     return e;
   };
 
-  const handleGoogleLogin = () => { window.location.href = "/api/auth/google"; };
+  const handleGoogleLogin = () => { window.location.href = `${_API}/api/auth/google`; };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

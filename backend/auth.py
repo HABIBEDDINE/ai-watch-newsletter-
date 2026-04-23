@@ -75,10 +75,11 @@ def _validate_pw(pw: str):
     if len(pw) < 8 or not any(c.isupper() for c in pw) or not any(c.isdigit() for c in pw):
         raise HTTPException(422, "Password must be ≥8 chars, include 1 uppercase letter and 1 number")
 
+# cross-site cookie (Vercel frontend ↔ Render backend); browsers require SameSite=None + Secure=True
 def _set_refresh_cookie(response, token: str):
     response.set_cookie(
         "refresh_token", token,
-        httponly=True, samesite="lax", secure=False,
+        httponly=True, samesite="none", secure=True,
         max_age=REFRESH_TTL, path="/",
     )
 

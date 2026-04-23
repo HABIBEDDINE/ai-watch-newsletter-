@@ -4,6 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { apiRegister } from '../../services/api';
 
+// In prod (Vercel), REACT_APP_API_BASE_URL points at the Render backend.
+// In dev it's empty → relative /api/* path → caught by setupProxy.js → :8000.
+const _API = process.env.REACT_APP_API_BASE_URL || '';
+
 const ROLES = [
   { id: 'cto', label: 'CTO' },
   { id: 'innovation_manager', label: 'Innovation Manager' },
@@ -131,7 +135,7 @@ export default function SignInModal({
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = '/api/auth/google';
+    window.location.href = `${_API}/api/auth/google`;
   };
 
   // Title based on context and mode
