@@ -135,6 +135,14 @@ const PILLARS = [
       { title: "Digital Explorers",
         items: ["2e cohorte diplômée, déployée dans 7 villes"] },
     ],
+    imageBlocks: [
+      { title: "Certifications", img: IMG.cgem,
+        items: ["ISO 9001 renouvelé — zéro non-conformité", "Label RSE CGEM obtenu", "Engagement qualité confirmé"] },
+      { title: "Communauté",     img: IMG.cares,
+        items: ["Don de sang : 21 litres collectés", "Forum Ben M'sik — impact local", "130 vies potentiellement sauvées"] },
+      { title: "Sport & Clubs",  img: IMG.marathon,
+        items: ["Chess Club — 12e rang mondial", "Gaming Club — Champion E-League", "Marathon de Casablanca"] },
+    ],
   },
 ];
 
@@ -608,31 +616,64 @@ export default function NewsletterDashboardC() {
               })}
             </div>
 
-            {/* Detail blocks — ESG: image-less 2×2 theme cards · others: image card */}
+            {/* Detail blocks — ESG: image-less 2×2 theme cards + 1×3 image cards below · others: image card */}
             {section.id === "esg" ? (
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: isMobile ? 12 : 16 }}>
-                {section.blocks.map(block => (
-                  <div key={block.title} className="c-card" style={{
-                    background: "var(--bg-card)", border: "1px solid var(--border)",
-                    borderRadius: 12, overflow: "hidden",
-                  }}>
-                    <div style={{ padding: isMobile ? "14px 16px" : "20px 22px" }}>
-                      <div style={{
-                        fontSize: isMobile ? 11 : 12, fontWeight: 700, color: section.color,
-                        textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10,
-                      }}>
-                        {block.title}
-                      </div>
-                      {block.items.map((item, i) => (
-                        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
-                          <ChevronRight size={isMobile ? 10 : 12} color={section.colorHex} style={{ flexShrink: 0, marginTop: 2 }} />
-                          <span style={{ fontSize: isMobile ? 12 : 13, color: "var(--text-primary)", lineHeight: 1.5 }}>{item}</span>
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: isMobile ? 12 : 16 }}>
+                  {section.blocks.map(block => (
+                    <div key={block.title} className="c-card" style={{
+                      background: "var(--bg-card)", border: "1px solid var(--border)",
+                      borderRadius: 12, overflow: "hidden",
+                    }}>
+                      <div style={{ padding: isMobile ? "14px 16px" : "20px 22px" }}>
+                        <div style={{
+                          fontSize: isMobile ? 11 : 12, fontWeight: 700, color: section.color,
+                          textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10,
+                        }}>
+                          {block.title}
                         </div>
-                      ))}
+                        {block.items.map((item, i) => (
+                          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+                            <ChevronRight size={isMobile ? 10 : 12} color={section.colorHex} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <span style={{ fontSize: isMobile ? 12 : 13, color: "var(--text-primary)", lineHeight: 1.5 }}>{item}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  ))}
+                </div>
+                {section.imageBlocks && (
+                  <div style={{ display: "grid", gridTemplateColumns: gridBlock, gap: isMobile ? 12 : 16, marginTop: isMobile ? 12 : 16 }}>
+                    {section.imageBlocks.map(block => (
+                      <div key={block.title} className="c-card" style={{
+                        background: "var(--bg-card)", border: "1px solid var(--border)",
+                        borderRadius: 12, overflow: "hidden",
+                      }}>
+                        <div style={{ height: isMobile ? 120 : 140, overflow: "hidden", background: "var(--bg-surface)", position: "relative" }}>
+                          <img src={block.img} alt={block.title} className="img-cover"
+                            onError={e => { e.target.style.display="none"; e.target.parentElement.style.background="linear-gradient(135deg,var(--bg-surface),var(--bg-card))"; }}
+                          />
+                          <div className="img-overlay" />
+                        </div>
+                        <div style={{ padding: isMobile ? "12px 14px" : "16px 20px 20px" }}>
+                          <div style={{
+                            fontSize: isMobile ? 9 : 10, fontWeight: 700, color: section.color,
+                            textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8,
+                          }}>
+                            {block.title}
+                          </div>
+                          {block.items.map((item, i) => (
+                            <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+                              <ChevronRight size={isMobile ? 10 : 12} color={section.colorHex} style={{ flexShrink: 0, marginTop: 2 }} />
+                              <span style={{ fontSize: isMobile ? 11 : 13, color: "var(--text-primary)", lineHeight: 1.5 }}>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: gridBlock, gap: isMobile ? 12 : 16 }}>
                 {section.blocks.map(block => (
