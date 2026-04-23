@@ -62,11 +62,8 @@ export function AuthProvider({ children }) {
       const data = await res.json();
       applyToken(data.access_token);
     } catch {
-      // Cookie-based refresh failed — clear stored state
-      clearApiToken();
-      localStorage.removeItem(LS_KEY);
-      setToken(null);
-      setUser(null);
+      // Refresh failed — keep the existing localStorage token so the user
+      // is not force-logged-out. They only log out via the explicit button.
     }
   }, [applyToken]);
 

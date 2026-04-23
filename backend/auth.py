@@ -23,7 +23,7 @@ from db import supabase
 # ── config ────────────────────────────────────────────────────────────────────
 JWT_SECRET       = os.getenv("JWT_SECRET", "change-me-in-production-please")
 JWT_ALGORITHM    = "HS256"
-ACCESS_TTL       = 15 * 60        # 15 min
+ACCESS_TTL       = 7 * 24 * 3600  # 7 days — matches refresh token; no more mid-session auto-logout
 REFRESH_TTL      = 7 * 24 * 3600  # 7 days
 RESET_TTL        = 15 * 60        # 15 min
 VERIFY_TTL       = 24 * 3600      # 24 h
