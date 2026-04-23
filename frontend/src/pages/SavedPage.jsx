@@ -6,24 +6,7 @@ import {
   ArrowUpRight, ArrowDownRight, Minus, Search,
   ChevronDown, ChevronUp, Globe
 } from 'lucide-react';
-
-/* ─── API helper ─────────────────────────────────────── */
-async function apiFetch(path, opts = {}) {
-  const token = localStorage.getItem('aiwatch_at');
-  const res = await fetch(path, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...opts.headers,
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || 'Request failed');
-  }
-  return res.json();
-}
+import { getSaved, unsaveItem, sendSingleItem } from '../services/api';
 
 /* ─── Helpers ────────────────────────────────────────── */
 const fmt = (d) => {
@@ -545,14 +528,11 @@ function SendEmailModal({ item, onClose }) {
     setSending(true);
     setError('');
     try {
-      await apiFetch('/api/newsletter/send-single', {
-        method: 'POST',
-        body: JSON.stringify({
-          recipient_email: email.trim(),
-          item_id: item.item_id,
-          item_type: item.item_type,
-          item_data: item.item_data,
-        }),
+      await sendSingleItem({
+        recipient_email: email.trim(),
+        item_id: item.item_id,
+        item_type: item.item_type,
+        item_data: item.item_data,
       });
       setSent(true);
     } catch (e) {
@@ -712,8 +692,8 @@ export default function SavedPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = filter !== 'all' ? `?type=${filter === 'articles' ? 'article' : 'trend'}` : '';
-      const data = await apiFetch(`/api/saved${params}`);
+      const type = filter !== 'all' ? (filter === 'articles' ? 'article' : 'trend') : undefined;
+      const data = await getSaved(type);
       setItems(Array.isArray(data) ? data : data.items || []);
     } catch (e) {
       setError(e.message);
@@ -730,7 +710,7 @@ export default function SavedPage() {
     // Optimistic removal
     setItems(prev => prev.filter(it => it.id !== savedId));
     try {
-      await apiFetch(`/api/saved/${savedId}`, { method: 'DELETE' });
+      await unsaveItem(savedId);
     } catch (e) {
       // Rollback on failure
       fetchSaved();

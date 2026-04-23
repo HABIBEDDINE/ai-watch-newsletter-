@@ -5,6 +5,7 @@ import {
   Eye, Plus, X, RefreshCw, Calendar,
   BarChart2, Settings, ExternalLink
 } from 'lucide-react';
+import { sendNewsletterCompose } from '../services/api';
 
 /* ─── Config key (shared with Profile page) ──────────── */
 const CONFIG_KEY = 'aiwatch_newsletter_config';
@@ -29,9 +30,15 @@ function loadConfig() {
 }
 
 /* ─── API helper ─────────────────────────────────────── */
+// Retained locally because it supports AbortSignal for unmount-cancellation,
+// which the centralized services/api.js#request does not. Base URL is
+// prefixed the same way as services/api.js (REACT_APP_API_BASE_URL).
+// In dev the env var is empty → relative /api/* → caught by setupProxy.js.
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+
 async function apiFetch(path, opts = {}) {
   const token = localStorage.getItem('aiwatch_at');
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...opts,
     headers: {
       'Content-Type': 'application/json',
@@ -413,14 +420,11 @@ function StepSend({ selected, config, onPrev }) {
     if (recipients.length === 0) { setError('Add at least one recipient.'); return; }
     setSending(true); setError('');
     try {
-      await apiFetch('/api/newsletter/send', {
-        method: 'POST',
-        body: JSON.stringify({
-          recipients,
-          subject: config.subject || 'DXC AI Watch — Daily Brief',
-          html_content: html,
-          article_ids: selected.map(a => a.id),
-        }),
+      await sendNewsletterCompose({
+        recipients,
+        subject: config.subject || 'DXC AI Watch — Daily Brief',
+        html_content: html,
+        article_ids: selected.map(a => a.id),
       });
       setSent(true);
     } catch (e) { setError(e.message); }
